@@ -1,0 +1,30 @@
+[
+	{
+		"relation": "FROM",
+		"args": {
+			"table": "LINEITEM"
+		},
+		"next_operation": {
+			"relation": "WHERE",
+			"args": {
+				"left": "QUANTITY",
+				"op": ">",
+				"right": "30"
+			},
+			"next_operation": {
+				"relation": "AGG",
+				"args": {
+					"op": "COUNT",
+					"column": "ORDERKEY",
+					"alias": "COUNT(ORDERKEY)"
+				},
+				"next_operation": {
+					"relation": "SELECT",
+					"args": {
+						"column": ["COUNT(ORDERKEY)"]
+					}
+				}
+			}
+		}
+	}
+]

@@ -2,8 +2,8 @@ from operations.base import BaseOperation
 import pandas as pd
 
 class WHERE(BaseOperation):
-	"""docstring for WHERE"""
 	def __init__(self, args):
+		## Define validator for the args input.
 		self.left = args['left']
 		self.right = args['right']
 		self.op = args['op']
@@ -25,5 +25,4 @@ class WHERE(BaseOperation):
 		else:
 			result1 = df1
 			result2 = df2
-
 		return pd.concat([result1,result2])

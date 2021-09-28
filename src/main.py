@@ -1,9 +1,3 @@
-## Have a dataframe.
-## Read it chunk by chunk.
-
-## Evaluate answer after every chunk
-## Use the partial answers to get the combined answer.
-
 import pandas as pd
 import time
 from query.query import Query, QueryOLA
@@ -17,7 +11,6 @@ def test():
 	df2 = pd.read_csv('../data/lineitem.tbl.2',sep='|', names = lineitem_names)
 
 	## Example Query: SELECT COUNT(ORDERKEY) FROM LINEITEM WHERE QUANTITY > 30
-
 	where_condition = WHERE({'left': 'QUANTITY','op': '>', 'right': 30})
 	agg_condition = AGG({'key':None, 'op': 'count', 'column': 'ORDERKEY'})
 	operations = [where_condition, agg_condition]
