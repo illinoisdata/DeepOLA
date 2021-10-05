@@ -1,7 +1,24 @@
 import pandas as pd
 import time
 from query.query import Query, QueryOLA
-from operations import WHERE, AGG
+from operations import *
+import utils
+import json
+import ipdb
+from sqlite3 import connect
+
+def test_query(file_path):
+	### Get tables to be loaded.
+	operations = utils.load_query_json(file_path)
+	query = QueryOLA(operations)
+
+	tables = ['customer','orders','lineitem']
+	input_tables = {}
+	for table in tables:
+		input_tables[table] = utils.load_table(table,1)
+	result = query.evaluate(input_tables)
+	print(result)
+	### Online evaluate. Multiple tables?
 
 def test():
 	lineitem_names = ['ORDERKEY','PARTKEY','SUPPKEY','LINENUMBER','QUANTITY','EXTENDEDPRICE',
@@ -22,7 +39,7 @@ def test():
 	result = query1.evaluate(merged_df)
 	end_time = time.time()
 	print("Time taken: %.6f"%(end_time - start_time))
-	print(result)
+	print("Result: ",result)
 
 	### Online Aggregation by merging results from the individual data frames.
 	query2 = QueryOLA(operations)
@@ -31,7 +48,24 @@ def test():
 	result = query2.online_evaluate(res1, df2)
 	end_time = time.time()
 	print("Time taken: %.6f"%(end_time - start_time))
+	print("Result: ",result)
+
+def test_pandas_sql_query(query):
+	conn = connect(':memory:')
+	customer = utils.load_table('customer',1)
+	customer.to_sql('customer',conn)
+
+	lineitem = utils.load_table('lineitem',1)
+	lineitem.to_sql('lineitem',conn)
+
+	orders = utils.load_table('orders',1)
+	orders.to_sql('orders',conn)
+
+	result = pd.read_sql(query, conn)
 	print(result)
+	return result
 
 if __name__ == "__main__":
-	test()
+	test_query('../queries/tpch-1.json')
+	# sql_query = open('../queries/tpch-1.sql','r').read()
+	# test_pandas_sql_query(sql_query)

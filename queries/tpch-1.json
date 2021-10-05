@@ -1,0 +1,80 @@
+{
+	"relation": "FROM",
+	"args": {
+		"tables": ["customer","orders","lineitem"]
+	},
+	"next_operation": {
+		"relation": "JOIN",
+		"args": {
+			"left": "customer",
+			"right": "orders",
+			"left_on": ["c_custkey"],
+			"right_on": ["o_custkey"],
+			"type": "inner",
+			"table_alias": "joined_customer_orders"
+		},
+		"next_operation": {
+			"relation": "JOIN",
+			"args": {
+				"left": "joined_customer_orders",
+				"right": "lineitem",
+				"left_on": ["o_orderkey"],
+				"right_on": ["l_orderkey"],
+				"type": "inner",
+				"table_alias": "joined_customer_orders_lineitem"
+			},
+			"next_operation": {
+				"relation": "WHERE",
+				"args": {
+					"left": "c_mktsegment",
+					"op": "=",
+					"right": "HOUSEHOLD"
+				},
+				"next_operation": {
+					"relation": "WHERE",
+					"args": {
+						"left": "o_orderdate",
+						"op": "<",
+						"right": "1996-01-01"
+					},
+					"next_operation": {
+						"relation": "WHERE",
+						"args": {
+							"left": "l_shipdate",
+							"op": ">",
+							"right": "1992-01-01"
+						},
+						"next_operation": {
+							"relation": "GROUPBY",
+							"args": {
+								"columns": ["l_orderkey","o_orderdate","o_shippriority"]
+							},
+							"next_operation": {
+								"relation": "AGG",
+								"args": {
+									"op": "sum",
+									"column": "l_extendedprice",
+									"key": ["l_orderkey","o_orderdate","o_shippriority"],
+									"alias": "revenue"
+								},
+								"next_operation": {
+									"relation": "SELECT",
+									"args": {
+										"columns": ["l_orderkey","revenue","o_orderdate","o_shippriority"]
+									},
+									"next_operation": {
+										"relation": "ORDERBY",
+										"args": {
+											"columns": ["revenue", "o_orderdate"],
+											"order": ["desc","asc"]
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

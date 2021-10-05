@@ -9,34 +9,26 @@ class AGG(BaseOperation):
 		column: The column on which the aggregate function is to be evaluated on.
 		function: The aggregate function.
 		"""
-		self.key = args['key']
 		self.column = args['column']
 		self.op = args['op']
+		self.alias = args['alias']
+		self.key = args['key']
 
 	def evaluate(self, df):
 		## If it is * => Take the primary key of the relation.
-		if self.op == 'count':
-			return df[self.column].count()
-		elif self.op == 'avg':
-			return df[self.column].mean()
-		elif self.op == 'sum':
-			return df[self.column].sum()
-		else:
+		if self.op not in ['sum','avg','count']:
 			raise NotImplementedError
+		result = df.agg({self.column: self.op})
+		result[self.alias] = result[self.column]
+		return result
 
-	def merge(self, df1, df2, evaluate = True):
-		if evaluate:
-			result1 = self.evaluate(df1)
-			result2 = self.evaluate(df2)
-		else:
-			result1 = df1
-			result2 = df2
+	def merge(self, old_result, current_result):
 		if self.op == 'count' or self.op == 'sum':
-			if(type(df1) == pd.DataFrame and type(df2) == pd.DataFrame):
-				joined_result = pd.merge(df1, df2, how = 'inner', on = self.key, suffixes = ['_l','_r'])
-				joined_result[self.column] = joined_result[self.column + '_l'] + joined_result[self.column + '_r']
+			if(type(old_result) == pd.DataFrame and type(current_result) == pd.DataFrame):
+				joined_result = pd.merge(old_result, current_result, how = 'inner', on = self.key, suffixes = ['_l','_r'])
+				joined_result[self.alias] = joined_result[self.column + '_l'] + joined_result[self.column + '_r']
 				return joined_result[ list(self.key) + list(self.column)]
 			else:
-				return (df1 + df2)
+				return (old_result + current_result)
 		elif self.op == 'avg':
 			raise NotImplementedError

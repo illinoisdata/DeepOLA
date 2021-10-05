@@ -18,11 +18,5 @@ class WHERE(BaseOperation):
 		else:
 			raise NotImplementedError
 
-	def merge(self, df1, df2, evaluate = True):
-		if evaluate:
-			result1 = self.evaluate(df1)
-			result2 = self.evaluate(df2)
-		else:
-			result1 = df1
-			result2 = df2
-		return pd.concat([result1,result2])
+	def merge(self, old_result, current_result):
+		return pd.concat([old_result,current_result])

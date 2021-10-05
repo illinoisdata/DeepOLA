@@ -8,11 +8,11 @@ class Query:
 			current_input = operation.evaluate(current_input)
 		return current_input
 
-class QueryOLA:
+class QueryOLA(Query):
 	def __init__(self, operations):
 		self.operations = operations
 
-	def evaluate(self, df, cache = True):
+	def evaluate(self, relations, cache = True):
 		"""
 		Returns the result of query on the input data frame.
 		Note: When evaluating the result, keep track of the operation where
@@ -25,9 +25,12 @@ class QueryOLA:
 		@return result: The result of evaluating query on df.
 		@return cache: The intermediate result of evaluating query on df.
 		"""
-		current_input = df
+		current_input = relations
+		import ipdb
 		for operation in self.operations:
 			current_input = operation.evaluate(current_input)
+			if(type(current_input) == dict and len(current_input.keys()) == 1):
+				current_input = current_input[list(current_input.keys())[0]]
 		return current_input
 
 	def online_evaluate(self, old_result, df_update):
@@ -45,4 +48,4 @@ class QueryOLA:
 		current_result = df_update
 		for operation in self.operations:
 			current_result = operation.evaluate(current_result)
-		return self.operations[-1].merge(old_result, current_result, evaluate = False)
+		return self.operations[-1].merge(old_result, current_result)

@@ -16,12 +16,12 @@
 				"args": {
 					"op": "COUNT",
 					"column": "ORDERKEY",
-					"alias": "COUNT(ORDERKEY)"
+					"alias": "CT"
 				},
 				"next_operation": {
 					"relation": "SELECT",
 					"args": {
-						"column": ["COUNT(ORDERKEY)"]
+						"column": ["CT"]
 					}
 				}
 			}
