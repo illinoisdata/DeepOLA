@@ -9,7 +9,7 @@ class BaseOperation:
 
 	@property
 	def is_mergeable(self):
-		raise NotImplementedError
+		return True
 
 	def merge(self, df1, df2):
 		raise NotImplementedError

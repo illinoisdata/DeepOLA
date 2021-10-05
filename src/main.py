@@ -6,6 +6,7 @@ import utils
 import json
 import ipdb
 from sqlite3 import connect
+import copy
 
 def test_query(file_path):
 	### Get tables to be loaded.
@@ -15,10 +16,21 @@ def test_query(file_path):
 	tables = ['customer','orders','lineitem']
 	input_tables = {}
 	for table in tables:
-		input_tables[table] = utils.load_table(table,1)
+		if table == 'orders':
+			input_tables[table] = utils.load_table(table,1,2)
+		else:
+			input_tables[table] = utils.load_table(table,1)
+	input_tables_cache = copy.deepcopy(input_tables)
+	for table in input_tables:
+		print(table, input_tables[table].size)
 	result = query.evaluate(input_tables)
 	print(result)
-	### Online evaluate. Multiple tables?
+
+	### Part 2 Orders.
+	new_input_tables = input_tables_cache
+	new_input_tables['lineitem'] = utils.load_table('lineitem',2)
+	result_updated = query.online_evaluate(result, new_input_tables)
+	print(result_updated)
 
 def test():
 	lineitem_names = ['ORDERKEY','PARTKEY','SUPPKEY','LINENUMBER','QUANTITY','EXTENDEDPRICE',
@@ -55,10 +67,10 @@ def test_pandas_sql_query(query):
 	customer = utils.load_table('customer',1)
 	customer.to_sql('customer',conn)
 
-	lineitem = utils.load_table('lineitem',1)
+	lineitem = utils.load_table('lineitem',1,2)
 	lineitem.to_sql('lineitem',conn)
 
-	orders = utils.load_table('orders',1)
+	orders = utils.load_table('orders',1,2)
 	orders.to_sql('orders',conn)
 
 	result = pd.read_sql(query, conn)
@@ -66,6 +78,6 @@ def test_pandas_sql_query(query):
 	return result
 
 if __name__ == "__main__":
-	test_query('../queries/tpch-1.json')
-	# sql_query = open('../queries/tpch-1.sql','r').read()
-	# test_pandas_sql_query(sql_query)
+	# test_query('../queries/tpch-1.json')
+	sql_query = open('../queries/tpch-1.sql','r').read()
+	test_pandas_sql_query(sql_query)

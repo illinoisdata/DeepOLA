@@ -1,3 +1,5 @@
+import copy
+
 class Query:
 	def __init__(self, operations):
 		self.operations = operations
@@ -11,6 +13,7 @@ class Query:
 class QueryOLA(Query):
 	def __init__(self, operations):
 		self.operations = operations
+		self.cache = {}
 
 	def evaluate(self, relations, cache = True):
 		"""
@@ -26,14 +29,16 @@ class QueryOLA(Query):
 		@return cache: The intermediate result of evaluating query on df.
 		"""
 		current_input = relations
-		import ipdb
+		self.cache = {}
 		for operation in self.operations:
 			current_input = operation.evaluate(current_input)
 			if(type(current_input) == dict and len(current_input.keys()) == 1):
 				current_input = current_input[list(current_input.keys())[0]]
+			if not operation.is_mergeable and cache:
+				self.cache[operation] = copy.deepcopy(current_input)
 		return current_input
 
-	def online_evaluate(self, old_result, df_update):
+	def online_evaluate(self, old_result, df_updates):
 		"""
 		Returns the result of query after combining the old result and evaluation output on the current dataframe.
 
@@ -45,7 +50,27 @@ class QueryOLA(Query):
 
 		# This will change to iterate till mergeable True.
 		# After that operation, we would evaluate the remaining operations on the merged data.
-		current_result = df_update
-		for operation in self.operations:
-			current_result = operation.evaluate(current_result)
-		return self.operations[-1].merge(old_result, current_result)
+		operated_till = -1
+		current_input = df_updates
+		for index,operation in enumerate(self.operations):
+			operated_till += 1
+			current_input = operation.evaluate(current_input)
+			# ipdb.set_trace()
+			if(type(current_input) == dict and len(current_input.keys()) == 1):
+				current_input = current_input[list(current_input.keys())[0]]
+			if not operation.is_mergeable:
+				prev_result = self.cache[operation]
+				current_input = operation.merge(prev_result, current_input) ## Update cache.
+				self.cache[operation] = copy.deepcopy(current_input)
+				print("Merged at Operation",operation)
+				break
+
+		merge_evaluated = False
+		for index in range(operated_till+1, len(self.operations)):
+			merge_evaluated = True
+			operation = self.operations[index]
+			current_input = operation.evaluate(current_input)
+
+		if not merge_evaluated:
+			current_input = self.operations[-1].merge(old_result, current_result)
+		return current_input

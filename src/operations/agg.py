@@ -22,12 +22,17 @@ class AGG(BaseOperation):
 		result[self.alias] = result[self.column]
 		return result
 
+	@property
+	def is_mergeable(self):
+		return False
+
 	def merge(self, old_result, current_result):
 		if self.op == 'count' or self.op == 'sum':
 			if(type(old_result) == pd.DataFrame and type(current_result) == pd.DataFrame):
-				joined_result = pd.merge(old_result, current_result, how = 'inner', on = self.key, suffixes = ['_l','_r'])
+				joined_result = pd.merge(old_result, current_result, how = 'outer', on = self.key, suffixes = ['_l','_r'])
+				joined_result.fillna(0,inplace=True)
 				joined_result[self.alias] = joined_result[self.column + '_l'] + joined_result[self.column + '_r']
-				return joined_result[ list(self.key) + list(self.column)]
+				return joined_result
 			else:
 				return (old_result + current_result)
 		elif self.op == 'avg':
