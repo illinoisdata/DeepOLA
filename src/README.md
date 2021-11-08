@@ -114,9 +114,9 @@ class QuerySession(Object):
         """
         self.query = query
         self.task_queue = []
-        self.node_states = {}
+        self.current_state = {}
         for node in self.query.nodes:
-            self.node_states[node] = {} ## Maintain the state of the input nodes.
+            self.current_state[node] = {} ## Maintain the state of the input nodes.
 
     def run(self,  eval_node, input_nodes):
         """
