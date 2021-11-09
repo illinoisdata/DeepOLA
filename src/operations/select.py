@@ -1,5 +1,5 @@
 from .base import BaseOperation
-import pandas as pd
+import polars as pl
 
 class SELECT(BaseOperation):
     def __init__(self, args):
@@ -14,8 +14,8 @@ class SELECT(BaseOperation):
 
     def merge(self, current_state, delta, return_delta = False):
         output = self.evaluate(delta)
-        if current_state is not None:
-            current_state['result'] = pd.concat([current_state['result'],output])
+        if current_state['result'] is not None:
+            current_state['result'] = pl.concat([current_state['result'],output])
         else:
             current_state['result'] = output
         if return_delta:

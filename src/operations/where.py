@@ -1,4 +1,6 @@
 from .base import BaseOperation
+import polars as pl
+
 class WHERE(BaseOperation):
     def __init__(self, args):
         super().__init__(args)
@@ -11,4 +13,12 @@ class WHERE(BaseOperation):
         return input[key]
 
     def merge(self, current_state, delta, return_delta = False):
-        return delta
+        output = self.evaluate(delta)
+        if current_state['result'] is not None:
+            current_state['result'] = pl.concat([current_state['result'],output])
+        else:
+            current_state['result'] = output
+        if return_delta:
+            return current_state, output
+        else:
+            return current_state, current_state['result']

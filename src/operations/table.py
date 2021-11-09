@@ -1,5 +1,5 @@
 from .base import BaseOperation
-import pandas as pd
+import polars as pl
 
 class TABLE(BaseOperation):
     def __init__(self, args):
@@ -14,8 +14,8 @@ class TABLE(BaseOperation):
 
     def merge(self, current_state, delta, return_delta = False):
         output_df = self.evaluate(delta)
-        if current_state is not None:
-            current_state['result'] = pd.concat([current_state['result'],output_df])
+        if current_state['result'] is not None:
+            current_state['result'] = pl.concat([current_state['result'],output_df])
         else:
             current_state['result'] = output_df
 
