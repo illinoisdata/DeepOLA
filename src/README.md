@@ -8,9 +8,10 @@ There are primarily three classes:
 
 #### Query
 ```python
-class Query(Object):
+class Query:
     def __init__(self):
-        self.nodes = []
+        self.nodes = {} ## Operations
+        self.node_type = {} ## Type of the query nodes (DM/DA/DC)
         self.parent_nodes = {} ## Given a node, the parent nodes.
         self.dependencies = {} ## Given a node, the child nodes.
 
@@ -52,13 +53,15 @@ class Query(Object):
         """
         Generates a graph plot for the input query.
         """
-    
+        pass
+
     def save(self, outfile):
         """
         @param outfile: The output file name.
         Saves the query object as a JSON to the output file name.
         To jsonify the query, it needs to jsonify each operation.
         """
+        pass
     
     def load(self, infile):
         """
@@ -66,11 +69,12 @@ class Query(Object):
         Loads the query object as a JSON from the input file name.
         Creates operation object for each of the query operation.
         """
+        pass
 ```
 
 #### Operation
 ```python
-class BaseOperation(Object):
+class BaseOperation:
     def __init__(self, args):
         self.args = args
         self.validate()
@@ -102,12 +106,12 @@ class BaseOperation(Object):
         @param delta
         This function merges the current_state with the result on input delta to give the result at this node with the merged data.
         """
-        
+        raise NotImplementedError
 ```
 
 #### QuerySession
 ```python
-class QuerySession(Object):
+class QuerySession:
     def __init__(self, query):
         """
         @param query: The query we want to evaluate in the current session.
@@ -124,6 +128,7 @@ class QuerySession(Object):
         @param input_nodes: A dict containing the input nodes and the corresponding data.
         This function doesn't need to store the state of the operations. It directly evaluates all the operations on the current input data assuming this is only the input data that you want to evaluate your query on.
         """
+        raise NotImplementedError
 
     def run_incremental(self, eval_node, input_nodes):
         """
@@ -136,28 +141,31 @@ class QuerySession(Object):
 
         ## Create initial tasks
         for node in input_nodes:
-            self.task_queue.append({'node': node, 'input_delta':input_nodes[node]})
+            if self.query.node_type.get(node) == "DM" or node == eval_node:
+                self.task_queue.append({'node': node, 'input':input_nodes[node], 'type':'evaluate'})
+            else:
+                self.task_queue.append({'node': node, 'input':input_nodes[node], 'type':'incremental_evaluate'})
 
         ## Process the queue of tasks
-        while !self.task_queue.empty():
+        while len(self.task_queue) > 0:
             task = self.task_queue.pop(0) ## Pop the front of the queue.
 
             node = task['node']
             task_type = task['type']
             input_data = task['input']
 
-            current_state = self.current_state[node]
-            parent_nodes = self.query.parent_nodes[node]
-            if type == "evaluate" or self.query.node_type[node] == "DM" or node == eval_node:
+            current_state = self.current_state.get(node,None)
+            parent_nodes = self.query.parent_nodes.get(node,[])
+            if type == "evaluate" or self.query.node_type.get(node) == "DM" or node == eval_node:
               output,new_state = self.query.nodes[node].merge(current_state, input_data)
               self.current_state[node] = new_state
               for node in parent_nodes:
-                  self.task_queue.append({'node':node, 'input': output, 'type': 'evaluate'})
+                  self.task_queue.append({'node':node, 'input': [output], 'type': 'evaluate'})
             else:
               output,new_state = self.query.nodes[node].incremental_evaluate(current_state, input_data)
               self.current_state[node] = new_state
               for node in parent_nodes:
-                  self.task_queue.append({'node':node, 'input': output, 'type': 'incremental_evaluate'})
+                  self.task_queue.append({'node':node, 'input': [output], 'type': 'incremental_evaluate'})
         return output
 ```
 
