@@ -1,7 +1,7 @@
 from .base import BaseOperation
 import pandas as pd
 
-class SELECT(BaseOperation):
+class TABLE(BaseOperation):
     def __init__(self, args):
         super().__init__(args)
 
@@ -13,12 +13,13 @@ class SELECT(BaseOperation):
         return input[key]
 
     def merge(self, current_state, delta, return_delta = False):
-        output = self.evaluate(delta)
+        output_df = self.evaluate(delta)
         if current_state is not None:
-            current_state['result'] = pd.concat([current_state['result'],output])
+            current_state['result'] = pd.concat([current_state['result'],output_df])
         else:
-            current_state['result'] = output
+            current_state['result'] = output_df
+
         if return_delta:
-            return current_state, output
+            return current_state, output_df
         else:
             return current_state, current_state['result']

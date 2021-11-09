@@ -1,22 +1,14 @@
-from operations.base import BaseOperation
-import pandas as pd
-
+from .base import BaseOperation
 class WHERE(BaseOperation):
-	def __init__(self, args):
-		## Define validator for the args input.
-		self.left = args['left']
-		self.right = args['right']
-		self.op = args['op']
+    def __init__(self, args):
+        super().__init__(args)
 
-	def evaluate(self, df):
-		if self.op == '<':
-			return df[df[self.left] < self.right]
-		elif self.op == '>':
-			return df[df[self.left] > self.right]
-		elif self.op == '=':
-			return df[df[self.left] == self.right]
-		else:
-			raise NotImplementedError
+    def validate(self):
+        return True
 
-	def merge(self, old_result, current_result):
-		return pd.concat([old_result,current_result])
+    def evaluate(self, input):
+        key = list(input.keys())[0]
+        return input[key]
+
+    def merge(self, current_state, delta, return_delta = False):
+        return delta

@@ -1,19 +1,29 @@
-import pandas as pd
-
 class BaseOperation:
-	def __init__(self):
-		pass
+    def __init__(self, args):
+        self.args = args
+        self.validate()
 
-	def evaluate(self, df):
-		raise NotImplementedError
+    @property
+    def stateful_inputs(self):
+        return False
 
-	@property
-	def is_mergeable(self):
-		return True
+    def validate(self):
+        """
+        Define validation functions on the operation arguments.
+        """
+        raise NotImplementedError
 
-	def merge(self, df1, df2):
-		raise NotImplementedError
+    def evaluate(self, inputs):
+        """
+        @param inputs: A dict of dataframes.
+        Evaluates the operation on the given list of input dataframes. Returns an output dataframe.
+        """
+        raise NotImplementedError
 
-	@property
-	def is_dynamic(self):
-		raise NotImplementedError
+    def merge(self, current_state, delta, return_delta = True):
+        """
+        @param current_state
+        @param delta
+        This function merges the current_state with the result on input delta to give the result at this node with the merged data.
+        """
+        raise NotImplementedError

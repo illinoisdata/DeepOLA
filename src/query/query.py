@@ -1,76 +1,77 @@
-import copy
-
 class Query:
-	def __init__(self, operations):
-		self.operations = operations
+    def __init__(self):
+        self.nodes = {} ## Node name mapped to a dict of node type and operation
+        self.output_nodes = [] ## List of nodes which can be an output node and hence need to store the current_state.
 
-	def evaluate(self, df):
-		current_input = df
-		for operation in self.operations:
-			current_input = operation.evaluate(current_input)
-		return current_input
+    def add_operation(self, name, operation, node_type = "DA", output = False):
+        """
+        @param name: The name of the input operation
+        @param operation: The Operation class object.
+        Adds the input operation as a node to the Query graph.
+        """
+        if name in self.nodes:
+            raise Exception("Duplicate Operation")
+        self.nodes[name] = {
+            'type': node_type,
+            'operation': operation,
+            'parent': [],
+            'child': []
+        }
+        if output:
+            self.output_nodes.append(name)
 
-class QueryOLA(Query):
-	def __init__(self, operations):
-		self.operations = operations
-		self.cache = {}
+    def add_edge(self, source, destination):
+        """
+        @param source: An operation name
+        @param destination: An operation name
+        Adds an edge from the source operation to the destination operation.
+        """
+        if source not in self.nodes or destination not in self.nodes:
+            raise Exception("Undefined Operation")
+        self.nodes[source]['parent'].append(destination)
+        self.nodes[destination]['child'].append(source)
+    
+    def need_state(self,node_name):
+        if node_name not in self.nodes:
+            raise Exception("Undefined Operation")
+        if node_name in self.output_nodes: ## If its an output node.
+            return True
+        node = self.nodes[node_name]
+        if node['type'] == "DM": ## If its a DM type of node
+            return True
+        else:
+            for operation in node['parent']: ## If any of its parent require stateful inputs.
+                if self.nodes[operation]['operation'].stateful_inputs:
+                    return True
+            return False
 
-	def evaluate(self, relations, cache = True):
-		"""
-		Returns the result of query on the input data frame.
-		Note: When evaluating the result, keep track of the operation where
-		mergeable is not true. We need to save the result at that point
-		and merge at that layer.
+    def compile(self):
+        """
+        Compiles the query and makes sure the edges do not have any cyclic dependencies.
+        It also processes the DAG to identify the nodes beyond which we need to merge the query result.
+        This also compresses multiple operation together into a Chained Operation to reduce separate operation computations.
+        The edges cannot be added once the query is compiled.
+        """
+        pass
+        
+    def display(self):
+        """
+        Generates a graph plot for the input query.
+        """
+        pass
 
-		@param df: The dataframe to evaluate the query on.
-		@param cache: To cache the intermediate results at operations where the result is not mergeable.
-
-		@return result: The result of evaluating query on df.
-		@return cache: The intermediate result of evaluating query on df.
-		"""
-		current_input = relations
-		self.cache = {}
-		for operation in self.operations:
-			current_input = operation.evaluate(current_input)
-			if(type(current_input) == dict and len(current_input.keys()) == 1):
-				current_input = current_input[list(current_input.keys())[0]]
-			if not operation.is_mergeable and cache:
-				self.cache[operation] = copy.deepcopy(current_input)
-		return current_input
-
-	def online_evaluate(self, old_result, df_updates):
-		"""
-		Returns the result of query after combining the old result and evaluation output on the current dataframe.
-
-		@param old_result: The query output on current dataframe.
-		@param df_update: The insert update to the dataframe after which we want to calculate the result.
-
-		@return result: The combined result of the query on (original_data + df_update).
-		"""
-
-		# This will change to iterate till mergeable True.
-		# After that operation, we would evaluate the remaining operations on the merged data.
-		operated_till = -1
-		current_input = df_updates
-		for index,operation in enumerate(self.operations):
-			operated_till += 1
-			current_input = operation.evaluate(current_input)
-			# ipdb.set_trace()
-			if(type(current_input) == dict and len(current_input.keys()) == 1):
-				current_input = current_input[list(current_input.keys())[0]]
-			if not operation.is_mergeable:
-				prev_result = self.cache[operation]
-				current_input = operation.merge(prev_result, current_input) ## Update cache.
-				self.cache[operation] = copy.deepcopy(current_input)
-				print("Merged at Operation",operation)
-				break
-
-		merge_evaluated = False
-		for index in range(operated_till+1, len(self.operations)):
-			merge_evaluated = True
-			operation = self.operations[index]
-			current_input = operation.evaluate(current_input)
-
-		if not merge_evaluated:
-			current_input = self.operations[-1].merge(old_result, current_result)
-		return current_input
+    def save(self, outfile):
+        """
+        @param outfile: The output file name.
+        Saves the query object as a JSON to the output file name.
+        To jsonify the query, it needs to jsonify each operation.
+        """
+        pass
+    
+    def load(self, infile):
+        """
+        @param infile: The input file name. 
+        Loads the query object as a JSON from the input file name.
+        Creates operation object for each of the query operation.
+        """
+        pass
