@@ -140,7 +140,7 @@ class QuerySession(Object):
 
         ## Process the queue of tasks
         while !self.task_queue.empty():
-            task = self.task_queue.pop()
+            task = self.task_queue.pop(0) ## Pop the front of the queue.
 
             node = task['node']
             task_type = task['type']
