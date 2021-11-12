@@ -6,11 +6,29 @@ class WHERE(BaseOperation):
         super().__init__(args)
 
     def validate(self):
+        """
+        What should WHERE args look like?
+        """
+        assert('predicates' in self.args)
         return True
 
     def evaluate(self, input):
         key = list(input.keys())[0]
-        return input[key]
+        df = input[key]
+        for predicate in self.args['predicates']:
+            num_expressions = len(predicate)
+            ### OR across all these predicates.
+            combined_expressions = []
+            for i in range(num_expressions):
+                expression = predicate[i]
+                left = expression['left']
+                op = expression['op']
+                right = expression['right']
+                combined_expressions.append(f'df["{left}"] {op} {right}') 
+            combined_expression = '|'.join(combined_expressions)
+            filter = eval(combined_expression)
+            df = df[filter]
+        return df
 
     def merge(self, current_state, delta, return_delta = False):
         output = self.evaluate(delta)
