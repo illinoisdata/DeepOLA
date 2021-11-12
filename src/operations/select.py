@@ -1,3 +1,4 @@
+from polars.lazy.functions import col
 from .base import BaseOperation
 import polars as pl
 
@@ -6,11 +7,17 @@ class SELECT(BaseOperation):
         super().__init__(args)
 
     def validate(self):
+        assert('columns' in self.args)
         return True
 
     def evaluate(self, input):
         key = list(input.keys())[0]
-        return input[key]
+        df = input[key]
+        columns = self.args['columns']
+        if len(columns) == 1 and columns[0] == '*':
+            return df
+        else:
+            return df[columns]
 
     def merge(self, current_state, delta, return_delta = False):
         output = self.evaluate(delta)
