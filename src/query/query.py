@@ -1,7 +1,10 @@
+import graphviz
+
 class Query:
     def __init__(self):
         self.nodes = {} ## Node name mapped to a dict of node type and operation
         self.output_nodes = [] ## List of nodes which can be an output node and hence need to store the current_state.
+        self.edges = []
 
     def add_operation(self, name, operation, node_type = "DA", output = False):
         """
@@ -30,6 +33,7 @@ class Query:
             raise Exception("Undefined Operation")
         self.nodes[source]['parent'].append(destination)
         self.nodes[destination]['child'].append(source)
+        self.edges.append((source,destination))
     
     def need_state(self,node_name):
         if node_name not in self.nodes:
@@ -58,7 +62,11 @@ class Query:
         """
         Generates a graph plot for the input query.
         """
-        pass
+        dot = graphviz.Digraph()
+        for node in self.nodes:
+            dot.node(node)
+        dot.edges(self.edges)
+        dot.render(view=True)
 
     def save(self, outfile):
         """
