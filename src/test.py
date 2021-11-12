@@ -18,4 +18,4 @@ num_partitions = 5
 for partition in range(1,num_partitions+1):
     df = load_table('lineitem',partition)
     result = session.run_incremental(eval_node='select_operation',input_nodes={'table_lineitem':{'input0':df}})
-    print(len(result))
+    print(result.shape[0])
