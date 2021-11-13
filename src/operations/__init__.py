@@ -5,3 +5,4 @@ from .groupbyagg import GROUPBYAGG
 from .orderby import ORDERBY
 from .limit import LIMIT
 from .innerjoin import INNERJOIN
+from .join import JOIN

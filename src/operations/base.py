@@ -22,8 +22,9 @@ class BaseOperation:
 
     def merge(self, current_state, delta, return_delta = True):
         """
-        @param current_state
+        @param current_state -> includes result and input (dict)
         @param delta
         This function merges the current_state with the result on input delta to give the result at this node with the merged data.
         """
         raise NotImplementedError
+        
