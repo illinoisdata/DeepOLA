@@ -43,10 +43,9 @@ class Query:
         node = self.nodes[node_name]
         if node['type'] == "DM": ## If its a DM type of node
             return True
+        elif self.nodes[node_name]['operation'].stateful_inputs:
+            return True
         else:
-            for operation in node['parent']: ## If any of its parent require stateful inputs.
-                if self.nodes[operation]['operation'].stateful_inputs:
-                    return True
             return False
 
     def compile(self):

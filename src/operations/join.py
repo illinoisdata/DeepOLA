@@ -36,7 +36,6 @@ class JOIN(BaseOperation):
             current_state (dict): {'result': df, 'metadata': {inputs}}
             delta (dict): {input0: df}
         """
-
         delta_key = list(delta.keys())[0]
         poss_keys = [key for key in current_state['metadata'].keys()
                      if key != delta_key]

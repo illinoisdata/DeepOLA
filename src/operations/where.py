@@ -3,6 +3,20 @@ import polars as pl
 
 class WHERE(BaseOperation):
     def __init__(self, args):
+        """
+        args = {
+            'predicates': [
+                [
+                    {
+                        'left': the left side operator,
+                        'op': the operation,
+                        'right': the right side operator
+                    },
+                ]
+            ],
+            'form': 'DNF'/'CNF'
+        }
+        """
         super().__init__(args)
 
     def validate(self):
@@ -24,8 +38,12 @@ class WHERE(BaseOperation):
                 left = expression['left']
                 op = expression['op']
                 right = expression['right']
-                combined_expressions.append(f'df["{left}"] {op} {right}') 
+                if type(right) == str:
+                    combined_expressions.append(f'df["{left}"] {op} "{right}"') 
+                else:
+                    combined_expressions.append(f'df["{left}"] {op} {right}')
             combined_expression = '|'.join(combined_expressions)
+            print(combined_expression)
             filter = eval(combined_expression)
             df = df[filter]
         return df

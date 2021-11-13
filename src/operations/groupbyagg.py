@@ -1,8 +1,21 @@
 from .base import BaseOperation
 import polars as pl
+from polars import col
 
 class GROUPBYAGG(BaseOperation):
     def __init__(self, args):
+        """
+        args : {
+            'groupby_key': [list of columns],
+            'aggregates': [
+                {
+                    'op': 'sum/count',
+                    'col': 'col/expression',
+                    'alias': 
+                }
+            ]
+        }
+        """
         super().__init__(args)
 
     def validate(self):
@@ -22,12 +35,15 @@ class GROUPBYAGG(BaseOperation):
         pl_aggregates = []
         for aggregate in aggregates:
             op = aggregate['op']
-            col = aggregate['col']
+            column = aggregate['col']
             alias = aggregate['alias']
+            for column_name in df.columns:
+                if column_name in column:
+                    column = column.replace(column_name, f'col("{column_name}")')
             if op == 'sum':
-                pl_aggregates.append(pl.sum(col).alias(alias))
+                pl_aggregates.append((eval(column)).sum().alias(alias))
             elif op == 'count':
-                pl_aggregates.append(pl.count(col).alias(alias))
+                pl_aggregates.append((eval(column)).count().alias(alias))
             else:
                 raise NotImplementedError
         return groupby_df.agg(pl_aggregates)
