@@ -28,14 +28,14 @@ header_parsed = {}
 for table_name in header.keys():
 	header_parsed[table_name] = [table_prefix[table_name]+'_'+x.lower() for x in header[table_name]]
 
-def load_table(table_name, start_part = 1, end_part = None):
+def load_table(table_name, start_part = 1, end_part = None, directory='../data'):
 	if end_part is None:
-		file_path = '../data/{0}.tbl.{1}'.format(table_name,start_part)
+		file_path = f'{directory}/{table_name}.tbl.{start_part}'
 		return pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name])
 	else:
 		all_dfs = []
 		for part in range(start_part, end_part+1):
-			file_path = '../data/{0}.tbl.{1}'.format(table_name,part)
+			file_path = f'{directory}/{table_name}.tbl.{part}'
 			df = pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name])
 			all_dfs.append(df)
 		return pl.concat(all_dfs)

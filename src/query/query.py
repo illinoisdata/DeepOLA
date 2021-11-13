@@ -58,7 +58,7 @@ class Query:
         """
         pass
         
-    def display(self):
+    def display(self, outfile = None):
         """
         Generates a graph plot for the input query.
         """
@@ -66,7 +66,7 @@ class Query:
         for node in self.nodes:
             dot.node(node)
         dot.edges(self.edges)
-        dot.render(view=True)
+        dot.render(outfile, view=True)
 
     def save(self, outfile):
         """

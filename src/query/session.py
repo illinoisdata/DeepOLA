@@ -1,3 +1,5 @@
+import logging
+
 class QuerySession:
     def __init__(self, query):
         """
@@ -8,7 +10,7 @@ class QuerySession:
         self.current_state = {}
         for node in self.query.nodes:
             if self.query.need_state(node):
-                self.current_state[node] = {'result': None, 'metadata': {}}
+                self.current_state[node] = {'result': None}
 
     def run(self,  eval_node, input_nodes):
         """
@@ -36,34 +38,58 @@ class QuerySession:
         ## Process the queue of tasks
         while len(self.task_queue) > 0:
             task = self.task_queue.pop(0) ## Pop the front of the queue.
-
-            node = task['node']
+            current_node = task['node']
             task_type = task['type']
             input_data = task['input']
+            logging.debug(f"Evaluating task {task_type} on {current_node}")
 
-            parent_nodes = self.query.nodes[node]['parent']
+            ## Checking if missing data.
+            current_state = self.current_state.get(current_node,None)
+            parent_nodes = self.query.nodes[current_node]['parent']
+            child_nodes = self.query.nodes[current_node]['child']
+            missing_data = False
+            if len(child_nodes) > 1:
+                keys = set()
+                for key in current_state:
+                    if key.startswith('input'):
+                        keys.insert(key)
+                for key in input_data:
+                    keys.insert(key)
+                if(keys.size() != len(child_nodes)):
+                    missing_data = True
+            else:
+                missing_data = False
             if task_type == "merge":
-                current_state = self.current_state.get(node,None)
-                if self.query.nodes[node]['type'] == "DM" or node == eval_node:
-                    new_state,output = self.query.nodes[node]['operation'].merge(current_state, input_data)
-                    self.current_state[node] = new_state
-                    for node in parent_nodes:
-                        self.task_queue.append({'node':node, 'input': {'input0':output}, 'type': 'evaluate'})
+                if self.query.nodes[current_node]['type'] == "DM" or current_node == eval_node:
+                    ## Update the current state.
+                    new_state,output = self.query.nodes[current_node]['operation'].merge(current_state, input_data)
+                    self.current_state[current_node] = new_state
+                    if not missing_data:
+                        for node in parent_nodes:
+                            node_index = self.query.nodes[node]['child'].index(current_node)
+                            self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'evaluate'})
                 else:
-                    ## If Parent has stateful_inputs True
-                    new_state,output = self.query.nodes[node]['operation'].merge(current_state, input_data, return_delta = True)
-                    self.current_state[node] = new_state
-                    for node in parent_nodes:
-                        self.task_queue.append({'node':node, 'input': {'input0':output}, 'type': 'incremental_evaluate'})
+                    ## Merged because stateful_inputs True
+                    new_state,output = self.query.nodes[current_node]['operation'].merge(current_state, input_data, return_delta = True)
+                    if not missing_data:
+                        for node in parent_nodes:
+                            node_index = self.query.nodes[node]['child'].index(current_node)
+                            self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'incremental_evaluate'})
             elif task_type == "evaluate":
-                output = self.query.nodes[node]['operation'].evaluate(input_data)
-                for node in parent_nodes:
-                    self.task_queue.append({'node':node, 'input': {'input0':output}, 'type': 'evaluate'})
+                ## Since already merged, need to just evaluate the remaining operations
+                output = self.query.nodes[current_node]['operation'].evaluate(input_data)
+                if not missing_data:
+                    for node in parent_nodes:
+                        node_index = self.query.nodes[node]['child'].index(current_node)
+                        self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'evaluate'})
             elif task_type == "incremental_evaluate":
-                output = self.query.nodes[node]['operation'].evaluate(input_data)
-                for node in parent_nodes:
-                    if self.query.nodes[node]['type'] == "DM" or node == eval_node:
-                        self.task_queue.append({'node':node, 'input': {'input0':output}, 'type': 'merge'})
-                    else:
-                        self.task_queue.append({'node':node, 'input': {'input0':output}, 'type': 'incremental_evaluate'})
+                ## Incrementally evaluate the operation
+                output = self.query.nodes[current_node]['operation'].evaluate(input_data)
+                if not missing_data:
+                    for node in parent_nodes:
+                        node_index = self.query.nodes[node]['child'].index(current_node)
+                        if self.query.nodes[node]['type'] == "DM" or node == eval_node:
+                            self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'merge'})
+                        else:
+                            self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'incremental_evaluate'})
         return output

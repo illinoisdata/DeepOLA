@@ -4,6 +4,9 @@ from query.session import QuerySession
 from utils import load_table
 import time
 
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+
 start_time = time.time()
 
 ## Ideally we want to be able to load the query from JSON
