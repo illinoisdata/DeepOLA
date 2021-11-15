@@ -1,4 +1,6 @@
 import graphviz
+import json
+from operations import *
 
 class Query:
     def __init__(self):
@@ -12,13 +14,16 @@ class Query:
         @param operation: The Operation class object.
         Adds the input operation as a node to the Query graph.
         """
+        # print(type(operation))
         if name in self.nodes:
             raise Exception("Duplicate Operation")
         self.nodes[name] = {
             'type': node_type,
             'operation': operation,
             'parent': [],
-            'child': []
+            'child': [],
+            'relation': type(operation).__name__,
+            'output': output
         }
         if output:
             self.output_nodes.append(name)
@@ -67,18 +72,36 @@ class Query:
         dot.edges(self.edges)
         dot.render(outfile, view=True)
 
-    def save(self, outfile):
+    def save(self, path):
         """
-        @param outfile: The output file name.
+        @param path: The output file name.
         Saves the query object as a JSON to the output file name.
         To jsonify the query, it needs to jsonify each operation.
         """
-        pass
+        with open(path, 'w') as outfile:
+            json.dump(self, outfile, default=lambda o: o.__dict__,
+                       sort_keys=True, indent=4)
     
-    def load(self, infile):
+    def load(self, path):
         """
-        @param infile: The input file name. 
+        @param path: The input file name. 
         Loads the query object as a JSON from the input file name.
         Creates operation object for each of the query operation.
         """
-        pass
+        with open(path, 'r') as infile:
+            data = json.load(infile)
+            for name, node_data in data['nodes'].items():
+                node_type = node_data['type']
+                relation = node_data['relation']
+                output = node_data['output']
+                operation = globals()[relation](node_data['operation']['args'])
+
+                self.add_operation(
+                    name=name,
+                    operation=operation,
+                    node_type=node_type,
+                    output=output
+                )
+            
+            for edge1, edge2 in data['edges']:
+                self.add_edge(edge1, edge2)

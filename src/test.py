@@ -55,7 +55,7 @@ session = QuerySession(q)
 variation = 'run_incremental'
 variation = 'run_total'
 tables = ['customer','orders','lineitem']
-data_dir = '../data-scale1'
+data_dir = '../data'
 if variation == 'run_incremental':
     partitioned_dfs = []
     num_partitions = 5

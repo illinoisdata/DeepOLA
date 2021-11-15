@@ -117,3 +117,4 @@ class QuerySession:
         if output is None:
             return pl.DataFrame()
         return output
+        
