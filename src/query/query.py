@@ -14,7 +14,6 @@ class Query:
         @param operation: The Operation class object.
         Adds the input operation as a node to the Query graph.
         """
-        # print(type(operation))
         if name in self.nodes:
             raise Exception("Duplicate Operation")
         self.nodes[name] = {
