@@ -1,5 +1,6 @@
 import logging
 import polars as pl
+import time
 
 class QuerySession:
     def __init__(self, query):
@@ -70,6 +71,7 @@ class QuerySession:
             input_data = task['input']
             logging.debug(f"Evaluating task {task_type} on {current_node}")
 
+            start_time = time.time()
             current_state = self.current_state[current_node]
             parent_nodes = self.query.nodes[current_node]['parent']
             missing_data = self._missing_data(current_state, input_data) ## Either current_state is None; else current_state should have inputs available
@@ -114,6 +116,10 @@ class QuerySession:
                         node_index = self.query.nodes[node]['child'].index(current_node)
                         node_input = self._build_input_data(node_input, node_index, output)
                         self.task_queue.append({'node':node, 'input': node_input, 'type': 'evaluate'})
+
+            end_time = time.time()
+            logging.debug(f"Time taken: {end_time - start_time}")
+
         if output is None:
             return pl.DataFrame()
         return output

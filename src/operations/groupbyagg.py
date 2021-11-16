@@ -37,9 +37,12 @@ class GROUPBYAGG(BaseOperation):
             op = aggregate['op']
             column = aggregate['col']
             alias = aggregate['alias']
-            for column_name in df.columns:
-                if column_name in column:
-                    column = column.replace(column_name, f'col("{column_name}")')
+            if column == '*':
+                column = f'pl.lit("*")'
+            else:
+                for column_name in df.columns:
+                    if column_name in column:
+                        column = column.replace(column_name, f'col("{column_name}")')
             if op == 'sum':
                 pl_aggregates.append((eval(column)).sum().alias(alias))
             elif op == 'count':

@@ -2,74 +2,81 @@ from numpy import VisibleDeprecationWarning
 from operations import *
 from query.query import Query
 from query.session import QuerySession
+import tpch_queries
+from tpch_queries import q1
 from utils import load_table
 import time
-
 import logging
+import json
+import os
+import importlib
+
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(message)s')
 
-start_time = time.time()
+import argparse
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('--variation', type=str, required=False, default = 'run_incremental', help='Whether run incremental evaluation or not')
+parser.add_argument('--data_dir', type=str, required=False, default = 'data', help='Data Directory')
+parser.add_argument('--num_partitions', type=int, required=False, default = 1, help='Number of partitions to evaluate on')
+parser.add_argument('--query', type=str, required=False, default = 'q1', help='Query to evaluate on')
+args = parser.parse_args()
 
-## Ideally we want to be able to load the query from JSON
-# q = Query()
-# q.add_operation(name='table_lineitem',operation=operations.TABLE(args={'table': 'lineitem'}))
-# q.add_operation(name='where_operation',operation=operations.WHERE(args={'predicates': [ [{'left':'l_discount','op':'>=','right': '0.10'}] ]}))
-# q.add_operation(node_type="DM",name='groupbyagg_operation',operation=operations.GROUPBYAGG(args={'groupby_key':['l_shipmode'],'aggregates':[{'op':'count','col':'l_quantity','alias':'ct_qty'},{'op':'sum','col':'l_quantity','alias':'sum_qty'}]}))
-# q.add_operation(node_type="DM",name='orderby_operation',operation=operations.ORDERBY(args=[{'column':'ct_qty'}]))
-# q.add_operation(node_type="DM",name='limit_operation',operation=operations.LIMIT(args={'k':3}))
-# q.add_operation(name='select_operation',operation=operations.SELECT(args={'columns': '*'}),output=True)
-# q.add_edge('table_lineitem','where_operation')
-# q.add_edge('where_operation','groupbyagg_operation')
-# q.add_edge('groupbyagg_operation','orderby_operation')
-# q.add_edge('orderby_operation','limit_operation')
-# q.add_edge('limit_operation','select_operation')
-# q.compile()
+import tpch_queries
 
-q = Query()
-q.add_operation(name='table_lineitem',operation=TABLE(args={'table': 'lineitem'}))
-q.add_operation(name='table_customer',operation=TABLE(args={'table': 'customer'}))
-q.add_operation(name='table_orders',operation=TABLE(args={'table': 'orders'}))
-q.add_operation(name='where_c_mktsegment',operation=WHERE(args={'form':'DNF','predicates': [[{'left':'c_mktsegment','op':'==','right':'BUILDING'}]]}))
-# q.add_operation(name='where_o_orderdate',operation=WHERE(args={'form':'DNF','predicates': [[{'left':'o_orderdate','op':'<','right':'1995-03-15'}]]}))
-# q.add_operation(name='where_l_shipdate',operation=WHERE(args={'form':'DNF','predicates': [[{'left':'l_shipdate','op':'>','right':'1995-03-15'}]]}))
-q.add_operation(name='join_customer_order',operation=INNERJOIN(args={'left_on':['c_custkey'],'right_on':['o_custkey']}))
-q.add_operation(name='join_lineitem_order',operation=INNERJOIN(args={'left_on':['l_orderkey'],'right_on':['o_orderkey']}))
-q.add_operation(node_type="DM",name='groupby_operation',operation=GROUPBYAGG(args={'groupby_key':['l_orderkey','o_orderdate','o_shippriority'],'aggregates':[{'op':'sum','col':'l_extendedprice*(1-l_discount)','alias':'revenue'}]}))
-q.add_operation(node_type="DM",name='orderby_operation',operation=ORDERBY(args=[{'column':'revenue','order':'desc'},{'column':'o_orderdate'}]))
-q.add_operation(node_type="DM",name='limit_operation',operation=LIMIT(args={'k':20}))
-q.add_operation(output=True,name='select_operation',operation=SELECT(args={'columns':'*'}))
+num_partitions = args.num_partitions
+query_num = args.query
+data_dir = args.data_dir
+os.makedirs(f"outputs/{query_num}/{data_dir}/",exist_ok=True)
 
-q.add_edge('table_customer','where_c_mktsegment')
-q.add_edge('where_c_mktsegment','join_customer_order')
-q.add_edge('table_orders','join_customer_order')
-q.add_edge('table_lineitem','join_lineitem_order')
-q.add_edge('join_customer_order','join_lineitem_order')
-q.add_edge('join_lineitem_order','groupby_operation')
-q.add_edge('groupby_operation','orderby_operation')
-q.add_edge('orderby_operation','limit_operation')
-q.add_edge('limit_operation','select_operation')
-q.compile()
-# q.display()
+query_module = importlib.import_module(f"tpch_queries.{query_num}")
+query = query_module.q
+session = QuerySession(query)
 
-session = QuerySession(q)
-variation = 'run_incremental'
-variation = 'run_total'
-tables = ['customer','orders','lineitem']
-data_dir = '../data-scale1'
-if variation == 'run_incremental':
+tables = []
+for node in query.nodes:
+    cls = type(query.nodes[node]['operation']).__name__
+    if cls == "TABLE":
+        tables.append(query.nodes[node]['operation'].args['table'])
+time_taken = 0
+logs = []
+if args.variation == 'run_incremental':
     partitioned_dfs = []
-    num_partitions = 5
     for partition in range(1,num_partitions+1):
+        start_time = time.time()
         input_nodes = {}
         for table in tables:
-            df = load_table(table,partition,directory=data_dir)
+            df = load_table(table,partition,directory=f'../{data_dir}')
             input_nodes[f'table_{table}'] = {'input0':df}
         result = session.run_incremental(eval_node='select_operation',input_nodes=input_nodes)
-        print(result)
+        end_time = time.time()
+        time_taken += (end_time - start_time)
+        print("Time taken: ",time_taken)
+        logs.append({
+            'log_time': time.time(),
+            'variation': 'incremental',
+            'query': query_num,
+            'partition': partition,
+            'time_taken': time_taken,
+            'file_path': f'outputs/{query_num}/{data_dir}/partial-{partition}.csv'
+        })
+        result.to_csv(f'outputs/{query_num}/{data_dir}/partial-{partition}.csv')
 else:
+    start_time = time.time()
+    input_nodes = {}
     for table in tables:
-        df = load_table(table,1,5,directory=data_dir)
-        result = session.run_incremental(eval_node='select_operation',input_nodes={f'table_{table}':{'input0':df}})
-        print(result)
-end_time = time.time()
-print(f"Time taken for evaluation: {end_time-start_time} seconds")
+        df = load_table(table,1,num_partitions,directory=f'../{data_dir}')
+        input_nodes[f'table_{table}'] = {'input0':df}
+    result = session.run_incremental(eval_node='select_operation',input_nodes=input_nodes)
+    time_taken = time.time() - start_time
+    print("Time taken: ",time_taken)
+    result.to_csv(f'outputs/{query_num}/{data_dir}/complete-{num_partitions}.csv')
+    logs.append({
+            'log_time': time.time(),
+            'variation': 'complete',
+            'query': query_num,
+            'partition': num_partitions,
+            'time_taken': time_taken,
+            'file_path': f'outputs/{query_num}/{data_dir}/complete-{num_partitions}.csv'
+    })
+with open(f'outputs/{query_num}/{data_dir}/run-logs.json.{time.time()}','w') as f:
+    f.write(json.dumps(logs,indent=2))

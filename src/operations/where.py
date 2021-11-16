@@ -1,5 +1,7 @@
 from .base import BaseOperation
 import polars as pl
+from polars import col
+from datetime import datetime
 
 class WHERE(BaseOperation):
     def __init__(self, args):
@@ -38,14 +40,14 @@ class WHERE(BaseOperation):
                 left = expression['left']
                 op = expression['op']
                 right = expression['right']
-                if type(right) == str:
-                    combined_expressions.append(f'df["{left}"] {op} "{right}"') 
-                else:
-                    combined_expressions.append(f'df["{left}"] {op} {right}')
+                if df[left].dtype.__name__ == "Date":
+                    right = f'pl.lit(datetime.strptime("{right}","%Y-%m-%d"))'
+                elif type(right) == str:
+                    right = f'"{right}"'
+                combined_expressions.append(f'col("{left}") {op} {right}')
             combined_expression = '|'.join(combined_expressions)
-            print(combined_expression)
-            filter = eval(combined_expression)
-            df = df[filter]
+            combined_expression = f"df.filter({combined_expression})"
+            df = eval(combined_expression)
         return df
 
     def merge(self, current_state, delta, return_delta = False):

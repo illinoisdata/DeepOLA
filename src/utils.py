@@ -31,11 +31,11 @@ for table_name in header.keys():
 def load_table(table_name, start_part = 1, end_part = None, directory='../data'):
 	if end_part is None:
 		file_path = f'{directory}/{table_name}.tbl.{start_part}'
-		return pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name])
+		return pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name],use_pyarrow=True)
 	else:
 		all_dfs = []
 		for part in range(start_part, end_part+1):
 			file_path = f'{directory}/{table_name}.tbl.{part}'
-			df = pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name])
+			df = pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name],use_pyarrow=True)
 			all_dfs.append(df)
 		return pl.concat(all_dfs)
