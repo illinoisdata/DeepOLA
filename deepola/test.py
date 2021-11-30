@@ -1,9 +1,7 @@
 from numpy import VisibleDeprecationWarning
-from operations import *
-from query.query import Query
-from query.session import QuerySession
-import tpch_queries
-from tpch_queries import q1
+from deepola.operations import *
+from deepola.query.query import Query
+from deepola.query.session import QuerySession
 from utils import load_table
 import time
 import logging
@@ -21,15 +19,13 @@ parser.add_argument('--num_partitions', type=int, required=False, default = 1, h
 parser.add_argument('--query', type=str, required=False, default = 'q1', help='Query to evaluate on')
 args = parser.parse_args()
 
-import tpch_queries
-
 num_partitions = args.num_partitions
 query_num = args.query
 data_dir = args.data_dir
 output_dir = f"outputs/{data_dir}/{query_num}/"
 os.makedirs(output_dir,exist_ok=True)
 
-query_module = importlib.import_module(f"tpch_queries.{query_num}")
+query_module = importlib.import_module(f"deepola.tpch_queries.{query_num}")
 query = query_module.q
 session = QuerySession(query)
 

@@ -1,5 +1,5 @@
-from operations import *
-from query.query import Query
+from deepola.operations import *
+from deepola.query.query import Query
 
 # SELECT
 #     l_returnflag,
@@ -15,7 +15,7 @@ from query.query import Query
 # FROM
 #     lineitem
 # WHERE
-#     l_shipdate <= date '1998-12-01' - interval '90' day
+#     l_shipdate <= date '1998-12-01'
 # GROUP BY
 #     l_returnflag,
 #     l_linestatus
@@ -54,3 +54,6 @@ q.add_edge('where_l_shipdate','groupby_operation')
 q.add_edge('groupby_operation','orderby_operation')
 q.add_edge('orderby_operation','select_operation')
 q.compile()
+
+if __name__ == "__main__":
+    q.save('q1.json')

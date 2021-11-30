@@ -1,6 +1,6 @@
 import graphviz
 import json
-from operations import *
+from deepola.operations import *
 
 class Query:
     def __init__(self):

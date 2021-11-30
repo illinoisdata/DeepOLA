@@ -16,6 +16,13 @@ WHERE(left, op, right) => op in ['<','=','>']; left should be a column and right
 AGG(key, op, column) => op in ['COUNT', 'SUM'];
 ```
 
+### Setup
+- Create and virtualenv using `virtualenv -p python3 venv`.
+- Install the requirements.txt using `pip install -r requirements.txt`.
+- Install the `deepola` package using `python3 setup.py develop`
+- For data-generation, go to `tpch-dbgen` and run the `make` command.
+- Once `dbgen` is build in `tpch-dbgen`, run `./data-gen.sh` from the root directory. You can configure the scale parameter in the script. 
+
 ### TPC-H Dataset
-- Refer to the Github Repo: [https://github.com/gregrahn/tpch-kit/](https://github.com/gregrahn/tpch-kit/)
+- Refer to the Github Repo: [https://github.com/dragansah/tpch-dbgen](https://github.com/dragansah/tpch-dbgen)
 - We generate data with multiple chunks (using -C \<num of chunks\>)
