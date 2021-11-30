@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(mes
 import argparse
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('--variation', type=str, required=False, default = 'run_incremental', help='Whether run incremental evaluation or not')
-parser.add_argument('--data_dir', type=str, required=False, default = 'data', help='Data Directory')
+parser.add_argument('--data_dir', type=str, required=False, default = 'data/scale=1', help='Data Directory')
 parser.add_argument('--num_partitions', type=int, required=False, default = 1, help='Number of partitions to evaluate on')
 parser.add_argument('--query', type=str, required=False, default = 'q1', help='Query to evaluate on')
 args = parser.parse_args()
@@ -26,7 +26,8 @@ import tpch_queries
 num_partitions = args.num_partitions
 query_num = args.query
 data_dir = args.data_dir
-os.makedirs(f"outputs/{query_num}/{data_dir}/",exist_ok=True)
+output_dir = f"outputs/{data_dir}/{query_num}/"
+os.makedirs(output_dir,exist_ok=True)
 
 query_module = importlib.import_module(f"tpch_queries.{query_num}")
 query = query_module.q
@@ -57,9 +58,9 @@ if args.variation == 'run_incremental':
             'query': query_num,
             'partition': partition,
             'time_taken': time_taken,
-            'file_path': f'outputs/{query_num}/{data_dir}/partial-{partition}.csv'
+            'file_path': f'{output_dir}partial-{partition}.csv'
         })
-        result.to_csv(f'outputs/{query_num}/{data_dir}/partial-{partition}.csv')
+        result.to_csv(f'{output_dir}partial-{partition}.csv')
 else:
     start_time = time.time()
     input_nodes = {}
@@ -69,14 +70,14 @@ else:
     result = session.run_incremental(eval_node='select_operation',input_nodes=input_nodes)
     time_taken = time.time() - start_time
     print("Time taken: ",time_taken)
-    result.to_csv(f'outputs/{query_num}/{data_dir}/complete-{num_partitions}.csv')
+    result.to_csv(f'{output_dir}complete-{num_partitions}.csv')
     logs.append({
             'log_time': time.time(),
             'variation': 'complete',
             'query': query_num,
             'partition': num_partitions,
             'time_taken': time_taken,
-            'file_path': f'outputs/{query_num}/{data_dir}/complete-{num_partitions}.csv'
+            'file_path': f'{output_dir}complete-{num_partitions}.csv'
     })
-with open(f'outputs/{query_num}/{data_dir}/run-logs.json.{time.time()}','w') as f:
+with open(f'{output_dir}run-logs.json.{time.time()}','w') as f:
     f.write(json.dumps(logs,indent=2))
