@@ -1,6 +1,8 @@
 import polars as pl
 from operations import *
 import json
+import logging
+logger = logging.getLogger()
 
 def load_query_json(file_path):
 	current_relation = json.loads(open(file_path,'r').read())
@@ -29,8 +31,10 @@ for table_name in header.keys():
 	header_parsed[table_name] = [table_prefix[table_name]+'_'+x.lower() for x in header[table_name]]
 
 def load_table(table_name, start_part = 1, end_part = None, directory='../data'):
+	logger.debug(f"func:start:load_table {table_name} {start_part} {end_part} {directory}")
 	if end_part is None:
 		file_path = f'{directory}/{table_name}.tbl.{start_part}'
+		logger.debug(f"func:end:load_table {table_name} {start_part} {end_part} {directory}")
 		return pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name],use_pyarrow=True)
 	else:
 		all_dfs = []
@@ -38,4 +42,5 @@ def load_table(table_name, start_part = 1, end_part = None, directory='../data')
 			file_path = f'{directory}/{table_name}.tbl.{part}'
 			df = pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name],use_pyarrow=True)
 			all_dfs.append(df)
+		logger.debug(f"func:end:load_table {table_name} {start_part} {end_part} {directory}")
 		return pl.concat(all_dfs)

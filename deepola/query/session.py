@@ -1,12 +1,16 @@
 import logging
 import polars as pl
 import time
+import logging
+import sys
+logger = logging.getLogger()
 
 class QuerySession:
     def __init__(self, query):
         """
         @param query: The query we want to evaluate in the current session.
         """
+        logger.debug(f"func:start:QuerySession__init__")
         self.query = query
         self.task_queue = []
         self.current_state = {}
@@ -18,6 +22,7 @@ class QuerySession:
                     self.current_state[node]['inputs'][f'input{i}'] = None
             else:
                 self.current_state[node] = None
+        logger.debug(f"func:end:QuerySession__init__")
 
     def run(self,  eval_node, input_nodes):
         """
@@ -42,12 +47,14 @@ class QuerySession:
                 return False
 
     def _build_input_data(self, state, node_index, delta):
+        logger.debug(f"func:start:build_input_data")
         new_input = {}
         if state is not None:
             if 'inputs' in state and len(state['inputs']) > 1:
                 for key in state['inputs']:
                     new_input[key] = state['inputs'][key]
         new_input[f'input{node_index}'] = delta
+        logger.debug(f"func:end:build_input_data")
         return new_input
 
     def run_incremental(self, eval_node, input_nodes):
@@ -55,6 +62,8 @@ class QuerySession:
         @param eval_node: A node that we want to evaluate.
         @param input_nodes: A dict containing the input nodes and the corresponding delta dict. The delta dict contains the input index and change to that input.
         """
+        logger.debug(f"func:start:run_incremental")
+        logger.debug(f"args:{eval_node}")
         if eval_node not in self.query.output_nodes:
             raise Exception("Invalid eval_node")
 
@@ -71,13 +80,16 @@ class QuerySession:
             input_data = task['input']
             logging.debug(f"Evaluating task {task_type} on {current_node}")
 
-            start_time = time.time()
+            # start_time = time.time()
             current_state = self.current_state[current_node]
             parent_nodes = self.query.nodes[current_node]['parent']
             missing_data = self._missing_data(current_state, input_data) ## Either current_state is None; else current_state should have inputs available
 
             if task_type == "incremental_evaluate":
+                logger.debug(f"func:start:evaluate")
+                logger.debug(f"args:{task_type},{current_node},{self.query.nodes[current_node]['operation']}")
                 output = self.query.nodes[current_node]['operation'].evaluate(input_data)
+                logger.debug(f"func:end:evaluate")
                 if not missing_data:
                     for node in parent_nodes:
                         node_index = self.query.nodes[node]['child'].index(current_node)
@@ -117,9 +129,9 @@ class QuerySession:
                         node_input = self._build_input_data(node_input, node_index, output)
                         self.task_queue.append({'node':node, 'input': node_input, 'type': 'evaluate'})
 
-            end_time = time.time()
-            logging.debug(f"Time taken: {end_time - start_time}")
-
+            # end_time = time.time()
+            # logging.debug(f"Time taken: {end_time - start_time}")
+        logger.debug(f"func:end:run_incremental")
         if output is None:
             return pl.DataFrame()
         return output
