@@ -1,9 +1,12 @@
 scale=10
-mkdir -p data
-mkdir -p data/scale=$scale
-export DSS_PATH=../../data/scale=$scale
-for chunk in {1..10}
+partition=10
+mkdir -p data/scale=$scale/partition=$partition
+export DSS_PATH=$PWD/data/scale=$scale/partition=$partition
+echo $DSS_PATH
+cd tpch-kit/dbgen/
+for chunk in $(seq 1 $partition)
 	do
-		./dbgen -f -C 10 -s $scale -S $chunk
+		echo $chunk
+		./dbgen -f -s $scale -S $chunk -C $partition -v
 	done
 

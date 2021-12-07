@@ -1,5 +1,5 @@
-from operations import *
-from query.query import Query
+from deepola.operations import *
+from deepola.query.query import Query
 
 q = Query()
 q.add_operation(name='table_lineitem',operation=TABLE(args={'table': 'lineitem'}))

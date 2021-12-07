@@ -15,13 +15,15 @@ from utils import load_table
 ### Argument Parser
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('--variation', type=str, required=False, default = 'run_incremental', help='Whether run incremental evaluation or not')
-parser.add_argument('--data_dir', type=str, required=False, default = 'data/scale=1', help='Data Directory')
-parser.add_argument('--num_partitions', type=int, required=False, default = 1, help='Number of partitions to evaluate on')
+parser.add_argument('--data_dir', type=str, required=False, default = '../data/', help='Data Directory')
+parser.add_argument('--scale', type=str, required=False, default = 1, help='Scale')
+parser.add_argument('--partitions', type=int, required=False, default = 1, help='Number of partitions to evaluate on')
 parser.add_argument('--query', type=str, required=False, default = 'q1', help='Query to evaluate on')
 args = parser.parse_args()
 
 ### Configure Logging
-log_dir = f"logs/{args.variation}/{args.data_dir}/partition={args.num_partitions}/query={args.query}/"
+log_dir = f"logs/{args.variation}/scale={args.scale}/partition={args.partitions}/query={args.query}/"
+data_variation=f"scale={args.scale}/partition={args.partitions}/"
 os.makedirs(log_dir, exist_ok=True)
 # current_timestamp = int(datetime.now().replace(microsecond=0).timestamp())
 current_timestamp = 'latest'
@@ -29,10 +31,10 @@ log_file = f"{log_dir}/{current_timestamp}.log"
 logging.basicConfig(filename=log_file, filemode='w', level=logging.DEBUG, format='%(asctime)s.%(msecs)d %(levelname)s:%(message)s',datefmt = '%s')
 logger = logging.getLogger()
 
-num_partitions = args.num_partitions
+num_partitions = args.partitions
 query_num = args.query
 data_dir = args.data_dir
-output_dir = f"outputs/{data_dir}/{query_num}/"
+output_dir = f"outputs/{data_variation}/query={query_num}/"
 os.makedirs(output_dir,exist_ok=True)
 
 time_taken = 0
@@ -56,7 +58,7 @@ if args.variation == 'run_incremental':
         start_time = time.time()
         input_nodes = {}
         for table in tables:
-            df = load_table(table,partition,directory=f'../{data_dir}')
+            df = load_table(table,partition,directory=f'{data_dir}/{data_variation}')
             input_nodes[f'table_{table}'] = {'input0':df}
         logger.debug(f"func:start:EvaluatingResults partition:{partition}")
         result = session.run_incremental(eval_node='select_operation',input_nodes=input_nodes)

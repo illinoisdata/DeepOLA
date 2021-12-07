@@ -1,4 +1,4 @@
-from polars.lazy.functions import col
+from polars import col
 from .base import BaseOperation
 import polars as pl
 
