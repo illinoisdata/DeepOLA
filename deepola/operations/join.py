@@ -1,9 +1,9 @@
 from .base import BaseOperation
 import polars as pl
-
+import logging
+logger = logging.getLogger()
 
 class JOIN(BaseOperation):
-
     def __init__(self, args):
         # https://pola-rs.github.io/polars/py-polars/html/reference/api/polars.DataFrame.join.html#polars.DataFrame.join
         """
@@ -19,16 +19,17 @@ class JOIN(BaseOperation):
         return True
 
     def evaluate(self, inputs):
-        print(inputs.keys())
+        logger.debug('func:start:JoinEvaluate')
         # if there is only 1 input, return an empty dataframe
         if len(inputs) < 2:
-            return pl.DataFrame()
-
-        how = self.args['how'] if 'how' in self.args else 'inner'
-
-        # joining first two inputs for now
-        key_1, key_2 = list(inputs.keys())[:2]
-        return inputs[key_1].join(inputs[key_2], on=self.args['on'], how=how)
+            df = pl.DataFrame()
+        else:
+            how = self.args['how'] if 'how' in self.args else 'inner'
+            # joining first two inputs for now
+            key_1, key_2 = list(inputs.keys())[:2]
+            df = inputs[key_1].join(inputs[key_2], on=self.args['on'], how=how)
+        logger.debug('func:end:JoinEvaluate')
+        return df
 
     def merge(self, current_state, delta, return_delta=False):
         """
@@ -36,6 +37,7 @@ class JOIN(BaseOperation):
             current_state (dict): {'result': df, 'metadata': {inputs}}
             delta (dict): {input0: df}
         """
+        logger.debug('func:start:JoinMerge')
         delta_key = list(delta.keys())[0]
         poss_keys = [key for key in current_state['metadata'].keys()
                      if key != delta_key]
@@ -63,4 +65,5 @@ class JOIN(BaseOperation):
         else:
             current_state['metadata'] = delta
 
+        logger.debug('func:end:JoinMerge')
         return current_state, current_state['result']

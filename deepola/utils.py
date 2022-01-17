@@ -1,5 +1,5 @@
 import polars as pl
-from operations import *
+from deepola.operations import *
 import json
 import logging
 logger = logging.getLogger()
@@ -34,13 +34,15 @@ def load_table(table_name, start_part = 1, end_part = None, directory='../data')
 	logger.debug(f"func:start:load_table {table_name} {start_part} {end_part} {directory}")
 	if end_part is None:
 		file_path = f'{directory}/{table_name}.tbl.{start_part}'
+		df = pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name],use_pyarrow=True)
 		logger.debug(f"func:end:load_table {table_name} {start_part} {end_part} {directory}")
-		return pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name],use_pyarrow=True)
+		return df
 	else:
 		all_dfs = []
 		for part in range(start_part, end_part+1):
 			file_path = f'{directory}/{table_name}.tbl.{part}'
 			df = pl.read_csv(file_path,sep='|', has_headers = False, new_columns = header_parsed[table_name],use_pyarrow=True)
 			all_dfs.append(df)
+		concatenated_df = pl.concat(all_dfs)
 		logger.debug(f"func:end:load_table {table_name} {start_part} {end_part} {directory}")
-		return pl.concat(all_dfs)
+		return concatenated_df
