@@ -23,7 +23,7 @@ class GROUPBYAGG(BaseOperation):
         assert('aggregates' in self.args)
         return True
 
-    def evaluate(self, input):
+    def evaluate(self, state, input):
         """
         Right now, we do not support complex expressions. Need to check how we can support those.
         """
@@ -52,8 +52,8 @@ class GROUPBYAGG(BaseOperation):
         return groupby_df.agg(pl_aggregates)
 
     def merge(self, current_state, delta, return_delta = False):
-        output = self.evaluate(delta)
-        if current_state['result'] is not None:
+        output = self.evaluate(current_state, delta)
+        if 'result' in current_state and current_state['result'] is not None:
             groupby_cols = self.args['groupby_key']
             agg_cols_alias = [x['alias'] for x in self.args['aggregates']]
             ## Rename columns to remove multiple _sum being added.
@@ -62,6 +62,6 @@ class GROUPBYAGG(BaseOperation):
         else:
             current_state['result'] = output
         if return_delta:
-            return current_state, output
+            return output
         else:
-            return current_state, current_state['result']
+            return current_state['result']

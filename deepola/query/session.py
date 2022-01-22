@@ -14,13 +14,7 @@ class QuerySession:
         self.task_queue = []
         self.current_state = {}
         for node in self.query.nodes:
-            if self.query.need_state(node):
-                num_inputs = len(self.query.nodes[node]['child'])
-                self.current_state[node] = {'result': None, 'inputs':{} }
-                for i in range(num_inputs):
-                    self.current_state[node]['inputs'][f'input{i}'] = None
-            else:
-                self.current_state[node] = None
+            self.current_state[node] = {} ## State is a node-level session-level key-value store
         logger.debug(f"func:end:QuerySession__init__")
 
     def run(self,  eval_node, input_nodes):
@@ -30,31 +24,6 @@ class QuerySession:
         This function doesn't need to store the state of the operations. It directly evaluates all the operations on the current input data assuming this is only the input data that you want to evaluate your query on.
         """
         raise NotImplementedError
-
-    def _missing_data(self, state, delta):
-        if state is None:
-            if len(delta) > 0:
-                return False
-            return True
-        else:
-            if len(state['inputs']) > 1:
-                for key in state['inputs']:
-                    if state['inputs'][key] is None and (key not in delta or delta[key] is None):
-                        return True
-                return False
-            else:
-                return False
-
-    def _build_input_data(self, state, node_index, delta):
-        logger.debug(f"func:start:build_input_data")
-        new_input = {}
-        if state is not None:
-            if 'inputs' in state and len(state['inputs']) > 1:
-                for key in state['inputs']:
-                    new_input[key] = state['inputs'][key] ## References copied?
-        new_input[f'input{node_index}'] = delta
-        logger.debug(f"func:end:build_input_data")
-        return new_input
 
     def run_incremental(self, eval_node, input_nodes):
         """
@@ -68,7 +37,7 @@ class QuerySession:
         ## Create initial tasks - IE for each table.
         for node in input_nodes:
             assert(len(self.query.nodes[node]['child']) == 0) ## No child nodes for the input nodes.
-            self.task_queue.append({'node': node, 'input':input_nodes[node], 'type':'incremental_evaluate'})
+            self.task_queue.append({'node': node, 'input': input_nodes[node], 'type':'incremental_evaluate'})
 
         ## Process the queue of tasks
         while len(self.task_queue) > 0:
@@ -79,50 +48,31 @@ class QuerySession:
 
             start_time = time.time()
             logger.debug(f"func:start:TaskEvaluate args:{task_type},{current_node},{self.query.nodes[current_node]['operation']}")
-            current_state = self.current_state[current_node]
+            # current_state = self.current_state[current_node]
             parent_nodes = self.query.nodes[current_node]['parent']
-            missing_data = self._missing_data(current_state, input_data) ## Either current_state is None; else current_state should have inputs available
+            # missing_data = self._missing_data(current_state, input_data) ## Either current_state is None; else current_state should have inputs available
 
             if task_type == "incremental_evaluate":
-                output = self.query.nodes[current_node]['operation'].evaluate(input_data)
-                if not missing_data:
+                output = self.query.nodes[current_node]['operation'].evaluate(self.current_state[current_node],input_data)
+                if output is not None:
                     for node in parent_nodes:
                         node_index = self.query.nodes[node]['child'].index(current_node)
-                        node_input = self._build_input_data(self.current_state[node], node_index, output)
                         if self.query.nodes[node]['type'] == "DM" or node == eval_node:
-                            self.task_queue.append({'node':node, 'input': node_input, 'type': 'merge_result'})
-                        elif self.query.nodes[node]['operation'].stateful_inputs:
-                            self.task_queue.append({'node':node, 'input': node_input, 'type': 'merge_stateful'})
+                            self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'merge_result'})
                         else:
-                            self.task_queue.append({'node':node, 'input': node_input, 'type': 'incremental_evaluate'})
-            elif task_type == "merge_stateful":
-                ## Merge called because stateful inputs.
-                self.current_state[current_node],output = self.query.nodes[current_node]['operation'].merge(current_state, input_data, return_delta = True)
-                if not missing_data:
-                    for node in parent_nodes:
-                        node_index = self.query.nodes[node]['child'].index(current_node)
-                        node_input = self._build_input_data(self.current_state[node], node_index, output)
-                        if self.query.nodes[node]['type'] == "DM" or node == eval_node:
-                            self.task_queue.append({'node':node, 'input': node_input, 'type': 'merge_result'})
-                        elif self.query.nodes[node]['operation'].stateful_inputs:
-                            self.task_queue.append({'node':node, 'input': node_input, 'type': 'merge_stateful'})
-                        else:
-                            self.task_queue.append({'node':node, 'input': node_input, 'type': 'incremental_evaluate'})
+                            self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'incremental_evaluate'})
             elif task_type == "merge_result":
-                ## Merge can be called because you found a DM or eval_node.
-                self.current_state[current_node],output = self.query.nodes[current_node]['operation'].merge(current_state, input_data)
-                if not missing_data:
+                output = self.query.nodes[current_node]['operation'].merge(self.current_state[current_node],input_data)
+                if output is not None:
                     for node in parent_nodes:
                         node_index = self.query.nodes[node]['child'].index(current_node)
-                        node_input = self._build_input_data(self.current_state[node], node_index, output)
-                        self.task_queue.append({'node':node, 'input': node_input, 'type': 'evaluate'})
+                        self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'evaluate'})
             elif task_type == "evaluate":
-                output = self.query.nodes[current_node]['operation'].evaluate(input_data)
-                if not missing_data:
+                output = self.query.nodes[current_node]['operation'].evaluate(self.current_state[current_node],input_data)
+                if output is not None:
                     for node in parent_nodes:
                         node_index = self.query.nodes[node]['child'].index(current_node)
-                        node_input = self._build_input_data(node_input, node_index, output)
-                        self.task_queue.append({'node':node, 'input': node_input, 'type': 'evaluate'})
+                        self.task_queue.append({'node':node, 'input': {f'input{node_index}':output}, 'type': 'evaluate'})
             else:
                 raise NotImplementedError
             end_time = time.time()

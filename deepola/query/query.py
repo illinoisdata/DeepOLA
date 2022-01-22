@@ -39,19 +39,6 @@ class Query:
         self.nodes[destination]['child'].append(source)
         self.edges.append((source,destination))
     
-    def need_state(self,node_name):
-        if node_name not in self.nodes:
-            raise Exception("Undefined Operation")
-        if node_name in self.output_nodes: ## If its an output node.
-            return True
-        node = self.nodes[node_name]
-        if node['type'] == "DM": ## If its a DM type of node
-            return True
-        elif self.nodes[node_name]['operation'].stateful_inputs:
-            return True
-        else:
-            return False
-
     def compile(self):
         """
         Compiles the query and makes sure the edges do not have any cyclic dependencies.

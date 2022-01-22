@@ -28,7 +28,7 @@ class WHERE(BaseOperation):
         assert('predicates' in self.args)
         return True
 
-    def evaluate(self, input):
+    def evaluate(self, state, input):
         key = list(input.keys())[0]
         df = input[key]
         for predicate in self.args['predicates']:
@@ -51,12 +51,12 @@ class WHERE(BaseOperation):
         return df
 
     def merge(self, current_state, delta, return_delta = False):
-        output = self.evaluate(delta)
+        output = self.evaluate(current_state,delta)
         if current_state['result'] is not None:
             current_state['result'] = pl.concat([current_state['result'],output])
         else:
             current_state['result'] = output
         if return_delta:
-            return current_state, output
+            return output
         else:
-            return current_state, current_state['result']
+            return current_state['result']

@@ -10,7 +10,7 @@ class SELECT(BaseOperation):
         assert('columns' in self.args)
         return True
 
-    def evaluate(self, input):
+    def evaluate(self, state, input):
         key = list(input.keys())[0]
         df = input[key]
         columns = self.args['columns']

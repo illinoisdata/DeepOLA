@@ -8,7 +8,7 @@ class TABLE(BaseOperation):
     def validate(self):
         return True
 
-    def evaluate(self, input):
+    def evaluate(self, state, input):
         key = list(input.keys())[0]
         return input[key]
 

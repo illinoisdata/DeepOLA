@@ -12,7 +12,7 @@ class ORDERBY(BaseOperation):
                 assert(arg['order'].lower() in ['asc','desc'])
         return True
 
-    def evaluate(self, input):
+    def evaluate(self, state, input):
         key = list(input.keys())[0]
         df = input[key]
         reverse = []

@@ -9,7 +9,7 @@ class LIMIT(BaseOperation):
         assert('k' in self.args)
         return True
 
-    def evaluate(self, input):
+    def evaluate(self, state, input):
         key = list(input.keys())[0]
         df = input[key]
         k = self.args['k']
