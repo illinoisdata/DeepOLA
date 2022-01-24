@@ -57,6 +57,9 @@ for node in query.nodes:
 
 ### Creating QuerySession
 session = QuerySession(query)
+reading_time = 0
+total_time = 0
+print("Variation | Partition | Reading Time | Evaluation Time | Total Time")
 logs = []
 logger.debug(f"func:start:QueryProcessing")
 if args.variation == 'run_incremental':
@@ -65,14 +68,17 @@ if args.variation == 'run_incremental':
         start_time = time.time()
         input_nodes = {}
         for table in tables:
+            reading_start_time = time.time()
             df = load_table(table,partition,directory=f'{data_dir}/{data_variation}')
+            reading_end_time = time.time()
+            reading_time += (reading_end_time - reading_start_time)
             input_nodes[f'table_{table}'] = {'input0':df}
         logger.debug(f"func:start:EvaluatingResults partition:{partition}")
         result = session.run_incremental(eval_node='select_operation',input_nodes=input_nodes)
         logger.debug(f"func:end:EvaluatingResults partition:{partition}")
         end_time = time.time()
-        time_taken += (end_time - start_time)
-        print("Time taken: ",time_taken)
+        total_time += (end_time - start_time)
+        print("%s | %d | %.6f | %.6f | %.6f" % (eval_variation, partition, reading_time, total_time-reading_time, total_time))
 
         logger.debug(f"func:start:SavingResults partition:{partition}")
         result.to_csv(f'{output_dir}partial-{partition}.csv')
@@ -91,14 +97,17 @@ else:
     input_nodes = {}
     for table in tables:
         logger.debug(f"func:start:LoadingData Table:{table} Partitions:{num_eval_partitions}")
+        reading_start_time = time.time()
         df = load_table(table,1,num_eval_partitions,directory=f'{data_dir}/{data_variation}')
+        reading_end_time = time.time()
+        reading_time += (reading_end_time - reading_start_time)
         input_nodes[f'table_{table}'] = {'input0':df}
         logger.debug(f"func:end:LoadingData Table:{table} Partitions:{num_eval_partitions}")
     logger.debug(f"func:start:EvaluatingResults")
     result = session.run_incremental(eval_node='select_operation',input_nodes=input_nodes)
     logger.debug(f"func:end:EvaluatingResults")
-    time_taken = time.time() - start_time
-    print("Time taken: ",time_taken)
+    total_time += (time.time() - start_time)
+    print("%s | %d | %.6f | %.6f | %.6f" % (eval_variation, num_eval_partitions, reading_time, total_time - reading_time, total_time))
     logger.debug(f"func:start:SavingResults partition:{num_eval_partitions}")
     result.to_csv(f'{output_dir}complete-{num_eval_partitions}.csv')
     logger.debug(f"func:end:SavingResults partition:{num_eval_partitions}")

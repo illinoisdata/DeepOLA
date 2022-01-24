@@ -31,7 +31,7 @@ class WHERE(BaseOperation):
     def evaluate(self, state, input):
         key = list(input.keys())[0]
         df = input[key]
-        if self.args['form'] == 'DNF':
+        if 'form' not in self.args or self.args['form'] == 'DNF':
             for predicate in self.args['predicates']:
                 num_expressions = len(predicate)
                 ### OR across all these predicates.
