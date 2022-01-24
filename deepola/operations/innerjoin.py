@@ -54,25 +54,7 @@ class INNERJOIN(BaseOperation):
         logger.debug('func:start:INNERJOIN_merge')
         output = self.evaluate(current_state,delta)
         logger.debug('func:start:INNERJOIN_input_merge')
-        if delta['input0'] is not None:
-            if current_state['inputs']['input0'] is None:
-                current_state['inputs']['input0'] = delta['input0']
-            else:
-                current_state['inputs']['input0'] = pl.concat([current_state['inputs']['input0'], delta['input0']])
-        if delta['input1'] is not None:
-            if current_state['inputs']['input1'] is None:
-                current_state['inputs']['input1'] = delta['input1']
-            else:
-                current_state['inputs']['input1'] = pl.concat([current_state['inputs']['input1'], delta['input1']])
-        logger.debug('func:end:INNERJOIN_input_merge')
-        logger.debug('func:start:INNERJOIN_result_merge')
-        if current_state['result'] is not None:
-            current_state['result'] = pl.concat([current_state['result'],output])
-        else:
-            current_state['result'] = output
-        logger.debug('func:end:INNERJOIN_result_merge')
-        logger.debug('func:end:INNERJOIN_merge')
         if return_delta:
-            return current_state, output
+            return output
         else:
-            return current_state, current_state['result']
+            return pl.concat(current_state['result'])

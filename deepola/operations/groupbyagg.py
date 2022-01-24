@@ -30,7 +30,11 @@ class GROUPBYAGG(BaseOperation):
         key = list(input.keys())[0]
         df = input[key]
         groupby_key = self.args['groupby_key']
-        groupby_df = df.groupby(groupby_key)
+        if len(groupby_key) == 0:
+            df = df.with_column(pl.lit(1))
+            groupby_df = df.groupby(["literal"])
+        else:
+            groupby_df = df.groupby(groupby_key)
         aggregates = self.args['aggregates']
         pl_aggregates = []
         for aggregate in aggregates:
@@ -54,11 +58,13 @@ class GROUPBYAGG(BaseOperation):
     def merge(self, current_state, delta, return_delta = False):
         output = self.evaluate(current_state, delta)
         if 'result' in current_state and current_state['result'] is not None:
-            groupby_cols = self.args['groupby_key']
+            groupby_key = self.args['groupby_key']
+            if len(groupby_key) == 0:
+                groupby_key = ["literal"]
             agg_cols_alias = [x['alias'] for x in self.args['aggregates']]
             ## Rename columns to remove multiple _sum being added.
             agg_col_map = {f'{x}_sum': f'{x}' for x in agg_cols_alias}
-            current_state['result'] = pl.concat([current_state['result'], output]).groupby(groupby_cols).sum().rename(agg_col_map)
+            current_state['result'] = pl.concat([current_state['result'], output]).groupby(groupby_key).sum().rename(agg_col_map)
         else:
             current_state['result'] = output
         if return_delta:
