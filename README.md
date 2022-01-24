@@ -26,3 +26,8 @@ AGG(key, op, column) => op in ['COUNT', 'SUM'];
 ### TPC-H Dataset
 - Refer to the Github Repo: [https://github.com/dragansah/tpch-dbgen](https://github.com/dragansah/tpch-dbgen)
 - We generate data with multiple chunks (using -C \<num of chunks\>)
+
+### Running PSQL in Docker Container
+- Install docker and run a postgres container. Command:  `docker run --name deepola_psql -e POSTGRES_PASSWORD=<password> -p 5432:5432 -v ~/DeepOLA:/deepola -d postgres`
+- Go to the docker container and create a database. `docker exec -it <container-id> bash`; `psql -U postgres`; `create database deepola`
+- From the `tpch-dbgen` folder, specify the correct directory for data (wrt container and absolute path) and run `import_postgres.sh` file.
