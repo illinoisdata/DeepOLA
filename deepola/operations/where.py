@@ -31,24 +31,47 @@ class WHERE(BaseOperation):
     def evaluate(self, state, input):
         key = list(input.keys())[0]
         df = input[key]
-        for predicate in self.args['predicates']:
-            num_expressions = len(predicate)
-            ### OR across all these predicates.
-            combined_expressions = []
-            for i in range(num_expressions):
-                expression = predicate[i]
-                left = expression['left']
-                op = expression['op']
-                right = expression['right']
-                if df[left].dtype.__name__ == "Date":
-                    right = f'pl.lit(datetime.strptime("{right}","%Y-%m-%d"))'
-                elif type(right) == str:
-                    right = f'"{right}"'
-                combined_expressions.append(f'col("{left}") {op} {right}')
-            combined_expression = '|'.join(combined_expressions)
-            combined_expression = f"df.filter({combined_expression})"
-            df = eval(combined_expression)
-        return df
+        if self.args['form'] == 'DNF':
+            for predicate in self.args['predicates']:
+                num_expressions = len(predicate)
+                ### OR across all these predicates.
+                combined_expressions = []
+                for i in range(num_expressions):
+                    expression = predicate[i]
+                    left = expression['left']
+                    op = expression['op']
+                    right = expression['right']
+                    if df[left].dtype.__name__ == "Date":
+                        right = f'pl.lit(datetime.strptime("{right}","%Y-%m-%d"))'
+                    elif type(right) == str:
+                        right = f'"{right}"'
+                    combined_expressions.append(f'(col("{left}") {op} {right})')
+                combined_expression = '|'.join(combined_expressions)
+                combined_expression = f"df.filter({combined_expression})"
+                df = eval(combined_expression)
+            return df
+        else:
+            expressions = []
+            for predicate in self.args['predicates']:
+                num_expressions = len(predicate)
+                ### OR across all these predicates.
+                combined_expressions = []
+                for i in range(num_expressions):
+                    expression = predicate[i]
+                    left = expression['left']
+                    op = expression['op']
+                    right = expression['right']
+                    if df[left].dtype.__name__ == "Date":
+                        right = f'pl.lit(datetime.strptime("{right}","%Y-%m-%d"))'
+                    elif type(right) == str:
+                        right = f'"{right}"'
+                    combined_expressions.append(f'(col("{left}") {op} {right})')
+                combined_expression = ' & '.join(combined_expressions)
+                combined_expression = f"({combined_expression})"
+                expressions.append(combined_expression)
+            final_expression = ' | '.join(expressions)
+            df = eval(f"df.filter({final_expression})")
+            return df
 
     def merge(self, current_state, delta, return_delta = False):
         output = self.evaluate(current_state,delta)

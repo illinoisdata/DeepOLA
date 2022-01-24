@@ -27,9 +27,10 @@ header = {
 	'customer': ['CUSTKEY','NAME','ADDRESS','NATIONKEY','PHONE','ACCTBAL','MKTSEGMENT','COMMENT'],
 	'supplier': ["suppkey","name","address","nationkey","phone","acctbal","comment"],
 	'nation': ["nationkey","name","regionkey","comment"],
-	'region': ["regionkey","name","comment"]
+	'region': ["regionkey","name","comment"],
+	'part': ["partkey","name","mfgr","brand","type","size","container","retailprice","comment"]
 }
-table_prefix = {'lineitem': 'l','orders': 'o','customer': 'c', 'supplier': 's', 'nation':'n', 'region':'r'}
+table_prefix = {'lineitem': 'l','orders': 'o','customer': 'c', 'supplier': 's', 'nation': 'n', 'region': 'r', 'part': 'p'}
 header_parsed = {}
 for table_name in header.keys():
 	header_parsed[table_name] = [table_prefix[table_name]+'_'+x.lower() for x in header[table_name]]
