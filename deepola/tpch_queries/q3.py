@@ -1,28 +1,30 @@
 from deepola.operations import *
 from deepola.query.query import Query
 
-# select
-# 	l_orderkey,
-# 	sum(l_extendedprice * (1 - l_discount)) as revenue,
-# 	o_orderdate,
-# 	o_shippriority
-# from
-# 	customer,
-# 	orders,
-# 	lineitem
-# where
-# 	c_mktsegment = ':1'
-# 	and c_custkey = o_custkey
-# 	and l_orderkey = o_orderkey
-# 	and o_orderdate < date ':2'
-# 	and l_shipdate > date ':2'
-# group by
-# 	l_orderkey,
-# 	o_orderdate,
-# 	o_shippriority
-# order by
-# 	revenue desc,
-# 	o_orderdate;
+sql_query = """
+select
+	lineitem.l_orderkey,
+	sum(lineitem.l_extendedprice * (1 - lineitem.l_discount)) as revenue,
+	o_orderdate,
+	o_shippriority
+from
+	customer,
+	orders,
+	lineitem
+where
+	customer.c_mktsegment = 'BUILDING'
+	and customer.c_custkey = orders.o_custkey
+	and lineitem.l_orderkey = orders.o_orderkey
+	and orders.o_orderdate < date '1995-03-15'
+	and lineitem.l_shipdate > date '1995-03-15'
+group by
+	lineitem.l_orderkey,
+	orders.o_orderdate,
+	orders.o_shippriority
+order by
+	revenue desc,
+	orders.o_orderdate;
+"""
 
 q = Query()
 q.add_operation(name='table_lineitem',operation=TABLE(args={'table': 'lineitem'}))

@@ -1,30 +1,32 @@
 from deepola.operations import *
 from deepola.query.query import Query
 
-# select
-# 	nation.n_name,
-# 	sum(lineitem.l_extendedprice * (1 - lineitem.l_discount)) as revenue
-# from
-# 	customer,
-# 	orders,
-# 	lineitem,
-# 	supplier,
-# 	nation,
-# 	region
-# where
-# 	customer.c_custkey = orders.o_custkey
-# 	and lineitem.l_orderkey = orders.o_orderkey
-# 	and lineitem.l_suppkey = supplier.s_suppkey
-# 	and customer.c_nationkey = supplier.s_nationkey
-# 	and supplier.s_nationkey = nation.n_nationkey
-# 	and nation.n_regionkey = r_regionkey
-# 	and region.r_name = 'ASIA'
-# 	and orders.o_orderdate > date '1994-03-15'
-# 	and orders.o_orderdate < date '1995-03-15'
-# group by
-# 	nation.n_name
-# order by
-# 	revenue desc;
+sql_query = """
+select
+	nation.n_name,
+	sum(lineitem.l_extendedprice * (1 - lineitem.l_discount)) as revenue
+from
+	customer,
+	orders,
+	lineitem,
+	supplier,
+	nation,
+	region
+where
+	customer.c_custkey = orders.o_custkey
+	and lineitem.l_orderkey = orders.o_orderkey
+	and lineitem.l_suppkey = supplier.s_suppkey
+	and customer.c_nationkey = supplier.s_nationkey
+	and supplier.s_nationkey = nation.n_nationkey
+	and nation.n_regionkey = r_regionkey
+	and region.r_name = 'ASIA'
+	and orders.o_orderdate > date '1994-03-15'
+	and orders.o_orderdate < date '1995-03-15'
+group by
+	nation.n_name
+order by
+	revenue desc;
+"""
 
 q = Query()
 q.add_operation(name='table_customer',operation=TABLE(args={'table': 'customer'}))

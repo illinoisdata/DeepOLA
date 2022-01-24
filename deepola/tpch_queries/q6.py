@@ -1,15 +1,17 @@
 from deepola.operations import *
 from deepola.query.query import Query
 
-# select
-# 	sum(l_extendedprice * l_discount) as revenue
-# from
-# 	lineitem
-# where
-# 	l_shipdate >= date ':1'
-# 	and l_shipdate < date ':1' + interval '1' year
-# 	and l_discount between :2 - 0.01 and :2 + 0.01
-# 	and l_quantity < :3;
+sql_query = """
+select
+	sum(l_extendedprice * l_discount) as revenue
+from
+	lineitem
+where
+	l_shipdate >= date '1994-03-15'
+	and l_shipdate < date '1995-03-15'
+	and l_discount between 0.04 and 0.06
+	and l_quantity < 20;
+"""
 
 q = Query()
 q.add_operation(name='table_lineitem',operation=TABLE(args={'table': 'lineitem'}))

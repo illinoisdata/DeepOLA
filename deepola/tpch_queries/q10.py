@@ -1,37 +1,39 @@
 from deepola.operations import *
 from deepola.query.query import Query
 
-# select
-# 	customer.c_custkey,
-# 	customer.c_name,
-# 	sum(lineitem.l_extendedprice * (1 - lineitem.l_discount)) as revenue,
-# 	customer.c_acctbal,
-# 	nation.n_name,
-# 	customer.c_address,
-# 	customer.c_phone,
-# 	customer.c_comment
-# from
-# 	customer,
-# 	orders,
-# 	lineitem,
-# 	nation
-# where
-# 	customer.c_custkey = orders.o_custkey
-# 	and lineitem.l_orderkey = orders.o_orderkey
-# 	and orders.o_orderdate > date '1994-03-15'
-# 	and orders.o_orderdate < date '1994-06-15'
-# 	and lineitem.l_returnflag = 'R'
-# 	and customer.c_nationkey = nation.n_nationkey
-# group by
-# 	customer.c_custkey,
-# 	customer.c_name,
-# 	customer.c_acctbal,
-# 	customer.c_phone,
-# 	nation.n_name,
-# 	customer.c_address,
-# 	customer.c_comment
-# order by
-# 	revenue desc;
+sql_query = """
+select
+	customer.c_custkey,
+	customer.c_name,
+	sum(lineitem.l_extendedprice * (1 - lineitem.l_discount)) as revenue,
+	customer.c_acctbal,
+	nation.n_name,
+	customer.c_address,
+	customer.c_phone,
+	customer.c_comment
+from
+	customer,
+	orders,
+	lineitem,
+	nation
+where
+	customer.c_custkey = orders.o_custkey
+	and lineitem.l_orderkey = orders.o_orderkey
+	and orders.o_orderdate > date '1994-03-15'
+	and orders.o_orderdate < date '1994-06-15'
+	and lineitem.l_returnflag = 'R'
+	and customer.c_nationkey = nation.n_nationkey
+group by
+	customer.c_custkey,
+	customer.c_name,
+	customer.c_acctbal,
+	customer.c_phone,
+	nation.n_name,
+	customer.c_address,
+	customer.c_comment
+order by
+	revenue desc;
+"""
 
 q = Query()
 q.add_operation(name='table_customer',operation=TABLE(args={'table': 'customer'}))
