@@ -1,0 +1,22 @@
+name: Rust CI
+
+on:
+  push:
+    paths:
+      - 'rust/*'
+      - '.github/workflows/*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+      working-directory: rust/runtime/
+    - name: Run tests
+      run: cargo test --verbose
+      working-directory: rust/runtime/
