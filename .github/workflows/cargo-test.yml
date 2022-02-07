@@ -1,4 +1,4 @@
-me: Rust CI
+name: Rust CI
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: cd rust/
+    - working-directory: rust/
     - name: Build
       run: cargo build --verbose
     - name: Run tests
