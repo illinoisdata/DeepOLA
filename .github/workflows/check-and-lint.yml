@@ -1,4 +1,4 @@
-name: Clippy check
+name: Clippy Check
 
 on:
   push:
@@ -11,9 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - working-directory: rust/
       - run: rustup component add clippy
+        working-directory: rust/
       - uses: actions-rs/clippy-check@v1
+        working-directory: rust/
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
