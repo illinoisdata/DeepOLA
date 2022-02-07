@@ -12,9 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - run: rustup component add clippy
-        working-directory: rust/
       - uses: actions-rs/clippy-check@v1
-        working-directory: rust/
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --all-features --manifest-path rust/runtime/Cargo.toml
