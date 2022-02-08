@@ -3,8 +3,8 @@ name: Rust CI
 on:
   push:
     paths:
-      - 'rust/*'
-      - '.github/workflows/*'
+      - 'rust/**'
+      - '.github/workflows/**'
 
 env:
   CARGO_TERM_COLOR: always

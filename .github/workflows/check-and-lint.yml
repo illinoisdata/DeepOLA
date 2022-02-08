@@ -3,8 +3,8 @@ name: Clippy Check
 on:
   push:
     paths:
-      - 'rust/*'
-      - '.github/workflows/*'
+      - 'rust/**'
+      - '.github/workflows/**'
 
 jobs:
   clippy_check:
