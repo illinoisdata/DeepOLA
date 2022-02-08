@@ -54,6 +54,13 @@ pub enum NodeState {
 }
 
 impl<T: Send + 'static> ExecutionNode<T> {
+
+    /// Obtains a clone of self_writer. A caller of this method can then write messages to
+    /// this node using the obtained writer. This is useful for testing. Why not simply use
+    /// another method `write_to_self()`? Obtaining a cloned writer is useful when we need to
+    /// **move** this node into a thread. Naturally, moving a node makes its writer not directly
+    /// accessible; thus, obtaining a clone of this writer can be useful. We have a test case
+    /// using this method.
     pub fn self_writer(&self) -> ChannelWriter<T> {
         self.self_writer.clone()
     }
@@ -183,10 +190,16 @@ impl<T: Send + 'static> ExecutionNode<T> {
         Self::create_with_record_mapper(SimpleMapper::from_lambda(|_| None))
     }
 
+    /// Convenience method for creating Self from a record mapper. One way is to pass
+    /// `SimpleMapper::from_lambda( any closure function )`.
     pub fn create_with_record_mapper(mapper: SimpleMapper<T>) -> Self {
         Self::create_with_set_processor(Box::new(mapper))
     }
 
+    /// A general factory constructor.
+    /// 
+    /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs 
+    /// a possibly empty set of T (which is again `Vec<T>`).
     pub fn create_with_set_processor(data_processor: Box<dyn SetProcessor<T>>) -> Self {
         let (write_channel, read_channel) = Channel::create::<T>();
         Self {
@@ -328,6 +341,7 @@ mod tests {
     use crate::processor::SimpleMapper;
     use std::time;
 
+    /// ctor runs this `init()` function for each test case.
     #[ctor::ctor]
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -353,6 +367,7 @@ mod tests {
         });
     }
 
+    /// The self_writer can be used even after **moving** a node into a thread.
     #[test]
     fn can_keep_self_writer() {
         let node = ExecutionNode::<String>::create();
@@ -384,6 +399,8 @@ mod tests {
         node.process_payload();
     }
 
+    /// The source node's output channel and the target node's input channel have the 
+    /// same channel_id (because they are connected via the channel).
     #[test]
     fn channel_ids_match() {
         let node1 = ExecutionNode::<KeyValue>::create();
@@ -398,6 +415,8 @@ mod tests {
         )
     }
 
+    /// We create ten linearly connected nodes. Each node adds "X" at the end of the passed
+    /// value. Finally, we see ten "X"es added to the value.
     #[test]
     fn can_send_over_multi_hops() {
         let mut node_list: Vec<ExecutionNode<KeyValue>> = vec![];
@@ -449,7 +468,7 @@ mod tests {
         exec_service.add(node);
         exec_service.run();
 
-        // without this line, this test case doesn't stop.
+        // without this line, this test case doesn't stop, looping infinitely.
         self_writer.write(DataMessage::eof());
 
         exec_service.join();
