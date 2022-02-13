@@ -13,6 +13,12 @@ pub enum Payload<T> {
     Signal(Signal),
 }
 
+impl<T> Payload<T> {
+    pub fn new(dblock: DataBlock<T>) -> Self {
+        Payload::Some(Arc::new(dblock))
+    }
+}
+
 impl<T> Clone for Payload<T> {
     fn clone(&self) -> Self {
         match self {
@@ -60,4 +66,42 @@ impl<T> DataBlock<T> {
     pub fn new(data: Vec<T>, metadata: HashMap<String, String>) -> Self {
         DataBlock {data, metadata}
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap};
+
+    use super::{DataBlock, Payload};
+
+    /// Simple test of a factory method.
+    #[test]
+    fn datablock_new() {
+        let data: Vec<i64> = vec![19241];
+        let metadata: HashMap<String, String> = HashMap::from([("key".into(), "value".into())]);
+        let dblock = DataBlock::new(data.clone(), metadata.clone());
+        assert_eq!(dblock.data, data);
+        assert_eq!(dblock.metadata, metadata);
+    }
+
+    /// Even if a payload is cloned, their underlying data objects are the same.
+    #[test]
+    fn clone_doenst_copy_data() {
+        let data: Vec<i64> = vec![19241];
+        let metadata: HashMap<String, String> = HashMap::from([("key".into(), "value".into())]);
+        let dblock = DataBlock::new(data.clone(), metadata.clone());
+        let payload = Payload::new(dblock);
+        let payload_clone = payload.clone();
+
+        if let Payload::Some(dblock_arc) = payload {
+            if let Payload::Some(dblock_arc2) = payload_clone {
+                let data1 = dblock_arc.as_ref();
+                let data2 = dblock_arc2.as_ref();
+                assert!(std::ptr::eq(data1, data2));
+                return;
+            }
+        }
+        panic!("{}", "not expected to reach here");
+    }
+
 }
