@@ -1,15 +1,12 @@
-use crate::data::message::*;
-use crate::data::payload::{Payload, Signal};
-use crate::processor::{SetProcessor, SimpleMapper};
+use crate::data::*;
+use crate::processor::*;
 
-use core::time;
-use std::thread;
+use std::rc::Rc;
 use getset::{Getters, Setters};
 use nanoid::nanoid;
-use std::cell::{Ref, RefCell};
-use std::collections::VecDeque;
+use std::cell::{RefCell};
 
-use super::channel::*;
+use crate::channel::*;
 use super::node_base::*;
 
 /// (input channel) -> [This Node] -> (output channels)
@@ -21,21 +18,17 @@ use super::node_base::*;
 #[derive(Getters, Setters)]
 pub struct ExecutionNode<T: Send> {
     #[getset(get)]
-    data_processor: Box<dyn SetProcessor<T>>,
+    stream_processor: Box<dyn StreamProcessor<T>>,
 
-    #[getset(get = "pub")]
-    channel_reader: ChannelReader<T>,
+    input_reader: RefCell<MultiChannelReader<T>>,
 
-    self_writer: ChannelWriter<T>,
+    self_writers: Vec<ChannelWriter<T>>,
 
     /// Once we process records, we send them via these writers.
     ///
     /// `RefCell` makes it possible to treat `ExecutionNode` as immutable when we add
     /// additional output channels.
-    output_channels: RefCell<Vec<ChannelWriter<T>>>,
-
-    #[getset(get = "pub")]
-    node_state: RefCell<NodeState>,
+    output_writer: RefCell<MultiChannelBroadcaster<T>>,
 
     #[getset(get = "pub")]
     node_id: String,
@@ -45,169 +38,102 @@ unsafe impl<T: Send> Send for ExecutionNode<T> {}
 
 impl<T: Send> Subscribable<T> for ExecutionNode<T> {
     fn add(&self, channel_writer: ChannelWriter<T>) {
-        self.output_channels
-            .borrow_mut()
-            .push(channel_writer);
+        self.output_writer.borrow_mut().push(channel_writer);
     }
 }
 
 impl<T: Send + 'static> ExecutionNode<T> {
-
     /// Obtains a clone of self_writer. A caller of this method can then write messages to
     /// this node using the obtained writer. This is useful for testing. Why not simply use
     /// another method `write_to_self()`? Obtaining a cloned writer is useful when we need to
     /// **move** this node into a thread. Naturally, moving a node makes its writer not directly
     /// accessible; thus, obtaining a clone of this writer can be useful. We have a test case
     /// using this method.
-    pub fn self_writer(&self) -> ChannelWriter<T> {
-        self.self_writer.clone()
+    pub fn self_writers(&self) -> Vec<ChannelWriter<T>> {
+        self.self_writers.clone()
     }
 
-    pub fn set_processor(&mut self, processor: Box<dyn SetProcessor<T>>) {
-        self.data_processor = processor;
+    pub fn self_writer(&self, seq_no: usize) -> ChannelWriter<T> {
+        (&self.self_writers[seq_no]).clone()
+    }
+
+    pub fn set_data_processor(&mut self, processor: Box<dyn SetProcessorV1<T>>) {
+        let stream_processor = SimpleStreamProcessor::<T>::from(processor);
+        self.stream_processor = Box::new(stream_processor);
     }
 
     pub fn set_simple_map(&mut self, map: SimpleMapper<T>) {
-        self.set_processor(Box::new(map));
+        self.set_data_processor(Box::new(map));
     }
 
     /// This is a convenience method mostly for testing. That is, we directly write a record
     /// into the input channel of this node. In most cases, the records are sent from the
     /// node that this node is subscribed to.
-    pub fn write_to_self(&self, record: DataMessage<T>) {
-        let writer = self.self_writer();
-        writer.write(record);
+    pub fn write_to_self(&self, channel_no: usize, message: DataMessage<T>) {
+        (&self.self_writers[channel_no]).write(message)
     }
 
-    pub fn subscribe_to_node(&self, source_node: &dyn Subscribable<T>) {
-        source_node.add(self.self_writer.clone());
+    pub fn subscribe_to_node(&self, source_node: &dyn Subscribable<T>, for_channel: usize) {
+        let writer = &self.self_writers[for_channel];
+        source_node.add(writer.clone());
     }
 
-    /// This is an internal function used to process a single data item. In practice, this
-    /// function must be executed inside an infinite loop until there is no more data items.
-    /// This function returns immediately if there are no items to process.
-    pub fn process_payload(&self) -> ExecStatus {
-        let message_optional = self.channel_reader.read();
-        match message_optional {
-            None => ExecStatus::EmptyChannel, // No message is read; thus, nothing processed.
-            Some(message) => match message.payload() {
-                Payload::EOF => {
-                    self.write_to_all_writers(&DataMessage::eof());
-                    log::info!("EOF: (Channel: {}) -> [Node: {}] -> (Channel: {})",
-                        self.channel_reader().channel_id(),
-                        self.node_id(),
-                        self.output_channel_ids(),
-                    );
-                    ExecStatus::EOF
-                }
-                Payload::Some(dblock) => {
-                    let output_blocks = self.data_processor().process(&dblock);
-                    let mut total_output_len = 0;
-                    for output_block in output_blocks {
-                        let output = DataMessage::from_data_block(output_block);
-                        self.write_to_all_writers(&output);
-                        log::info!(
-                            "Processed: (Channel: {}; {} records) -> [Node: {}] -> (Channel: {}; {} records)",
-                            self.channel_reader().channel_id(),
-                            message.len(),
-                            self.node_id(),
-                            self.output_channel_ids(),
-                            output.len(),
-                        );
-                        total_output_len += output.len();
-                    }
-                    ExecStatus::Ok(total_output_len)
-                }
-                Payload::Signal(s) => {
-                    log::info!("{:?}: (Channel: {})", s, self.channel_reader().channel_id());
-                    self.process_signal(s);
-                    ExecStatus::Ok(0)
-                }
-            },
-        }
-    }
-
-    fn output_channels(&self) -> Ref<'_, Vec<ChannelWriter<T>>> {
-        self.output_channels.borrow()
-    }
-
-    fn output_channel_ids(&self) -> String {
-        let output_channels = self.output_channels();
-        if output_channels.len() == 0 {
-            return "empty".to_string();
-        }
-        let mut composed: String = output_channels[0].channel_id().clone();
-        for i in 1..output_channels.len() {
-            composed += ", ";
-            composed += &output_channels[i].channel_id().clone();
-        }
-        return composed;
-    }
-
-    pub fn process_signal(&self, s: Signal) {
-        match s {
-            Signal::STOP => self.set_state(NodeState::STOPPING),
-        }
-    }
-
-    fn set_state(&self, state: NodeState) {
-        self.node_state.replace(state);
-    }
-
-    /// Repetitively executes [`process_payload()`].
-    ///
-    /// This method is designed to be called in a thread.
+    /// Processes the data from input stream until we see EOF from all input channels.
     pub fn run(&self) {
-        self.set_state(NodeState::RUNNING);
-        loop {
-            if self.node_state().borrow().eq(&NodeState::STOPPING) {
-                break;
-            }
-            let status = self.process_payload();
-            match status {
-                ExecStatus::EOF => break,
-                ExecStatus::EmptyChannel => (),
-                ExecStatus::Ok(_) => (),
-                ExecStatus::Err(msg) => panic!("{}", msg),
-            }
-            self.sleep_micro_secs(NODE_SLEEP_MICRO_SECONDS);
-        }
-        self.set_state(NodeState::STOPPED);
+        let input_reader = self.input_reader.borrow();
+        let output_writer = self.output_writer.borrow();
+        self.stream_processor().process(input_reader.clone(), output_writer.clone())
     }
 
-    fn sleep_micro_secs(&self, micro_secs: u64) {
-        let sleep_micros = time::Duration::from_micros(micro_secs);
-        thread::sleep(sleep_micros);
+    pub fn input_reader(&self) -> MultiChannelReader<T> {
+        self.input_reader.borrow().clone()
     }
 
-    fn write_to_all_writers(&self, message: &DataMessage<T>) {
-        for writer in self.output_channels.borrow().iter() {
-            writer.write(message.clone());
-        }
+    pub fn output_writer(&self) -> MultiChannelBroadcaster<T> {
+        self.output_writer.borrow().clone()
     }
 
     pub fn create() -> Self {
-        Self::create_with_record_mapper(SimpleMapper::from_lambda(|_| None))
+        Self::create_with_record_mapper(SimpleMapper::<T>::from(|_: &T| None))
     }
 
     /// Convenience method for creating Self from a record mapper. One way is to pass
     /// `SimpleMapper::from_lambda( any closure function )`.
     pub fn create_with_record_mapper(mapper: SimpleMapper<T>) -> Self {
-        Self::create_with_set_processor(Box::new(mapper))
+        Self::from_set_processor(Box::new(mapper))
     }
 
     /// A general factory constructor.
     ///
     /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs
     /// a possibly empty set of T (which is again `Vec<T>`).
-    pub fn create_with_set_processor(data_processor: Box<dyn SetProcessor<T>>) -> Self {
-        let (write_channel, read_channel) = Channel::create::<T>();
+    pub fn from_set_processor(data_processor: Box<dyn SetProcessorV1<T>>) -> Self {
+        let stream_processor = SimpleStreamProcessor::<T>::from(data_processor);
+        Self::new(Box::new(stream_processor), 1)
+    }
+
+    pub fn new_single_input(stream_processor: Box<dyn StreamProcessor<T>>) -> Self {
+        Self::new(stream_processor, 1)
+    }
+
+    pub fn new_double_inputs(stream_processor: Box<dyn StreamProcessor<T>>) -> Self {
+        Self::new(stream_processor, 2)
+    }
+
+    pub fn new(stream_processor: Box<dyn StreamProcessor<T>>, num_input: usize) -> Self {
+        let mut input_channels = MultiChannelReader::<T>::new();
+        let mut self_writers = vec![];
+        for _ in 0..num_input {
+            let (write_channel, read_channel) = Channel::create::<T>();
+            input_channels.push(Rc::new(read_channel));
+            self_writers.push(write_channel);
+        }
+        
         Self {
-            data_processor,
-            channel_reader: read_channel,
-            self_writer: write_channel,
-            output_channels: RefCell::new(vec![]),
-            node_state: RefCell::new(NodeState::STOPPED),
+            stream_processor,
+            input_reader: RefCell::new(input_channels),
+            self_writers,
+            output_writer: RefCell::new(MultiChannelBroadcaster::<T>::new()),
             node_id: nanoid!(NODE_ID_LEN, &NODE_ID_ALPHABET),
         }
     }
@@ -215,69 +141,30 @@ impl<T: Send + 'static> ExecutionNode<T> {
 
 pub struct NodeReader<T: Send> {
     /// We use the channel of this node to listens to the node we want to read from.
+    /// We just need to a single input channel.
     internal_node: ExecutionNode<T>,
 }
 
 impl<T: Send + 'static> NodeReader<T> {
-    pub fn read(&self) -> Option<DataMessage<T>> {
-        self.internal_node.channel_reader.read()
+    pub fn read(&self) -> DataMessage<T> {
+        self.internal_node.input_reader().read(0)
     }
 
-    pub fn create(listens_to: &ExecutionNode<T>) -> Self {
+    pub fn new(listens_to: &ExecutionNode<T>) -> Self {
         let node = ExecutionNode::create();
-        node.subscribe_to_node(listens_to);
+        node.subscribe_to_node(listens_to, 0);
         Self {
             internal_node: node,
         }
     }
 }
 
-pub struct InOutTracker<T: Send + Sync> {
-    last_consumed: RefCell<VecDeque<DataMessage<T>>>,
-    last_produced: RefCell<VecDeque<DataMessage<T>>>,
-    capacity_limit: usize,
-}
-
-impl<T: Send + Sync> InOutTracker<T> {
-    pub fn add_to_consumed(&self, record: DataMessage<T>) {
-        let mut queue = self.last_consumed.borrow_mut();
-        queue.push_back(record);
-        queue.truncate(self.capacity_limit);
-    }
-
-    pub fn add_to_produced(&self, record: DataMessage<T>) {
-        let mut queue = self.last_produced.borrow_mut();
-        queue.push_back(record);
-        queue.truncate(self.capacity_limit);
-    }
-
-    pub fn get_last_consumed(&self) -> Ref<VecDeque<DataMessage<T>>> {
-        self.last_consumed.borrow()
-    }
-
-    pub fn get_last_produced(&self) -> Ref<VecDeque<DataMessage<T>>> {
-        self.last_produced.borrow()
-    }
-
-    pub fn create() -> Self {
-        Self {
-            last_consumed: RefCell::new(VecDeque::new()),
-            last_produced: RefCell::new(VecDeque::new()),
-            capacity_limit: IN_OUT_TRACKER_SIZE,
-        }
-    }
-}
-
-const IN_OUT_TRACKER_SIZE: usize = 100;
-
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    use crate::data::kv::KeyValue;
-    use crate::data::message::DataMessage;
     use crate::processor::SimpleMapper;
-    use std::time;
+    use std::{time, thread};
 
     /// ctor runs this `init()` function for each test case.
     #[ctor::ctor]
@@ -288,20 +175,22 @@ mod tests {
     #[test]
     fn can_create_node() {
         let node = ExecutionNode::create();
-        let node_reader = NodeReader::create(&node);
-        node.write_to_self(DataMessage::from_single(KeyValue::from_str(
+        let node_reader = NodeReader::new(&node);
+        node.write_to_self(0, DataMessage::from_single(KeyValue::from_str(
             "mykey", "hello",
         )));
-        node.process_payload();
+        node.write_to_self(0, DataMessage::eof());
+        node.run();
         node_reader.read();
     }
 
     #[test]
     fn can_move_to_thread() {
         let node = ExecutionNode::<String>::create();
-        node.write_to_self(DataMessage::from_single("hello".to_string()));
+        node.write_to_self(0, DataMessage::from_single("hello".to_string()));
+        node.write_to_self(0, DataMessage::eof());
         thread::spawn(move || {
-            node.process_payload();
+            node.run();
         });
     }
 
@@ -309,19 +198,20 @@ mod tests {
     #[test]
     fn can_keep_self_writer() {
         let node = ExecutionNode::<String>::create();
-        let self_writer = node.self_writer();
+        let self_writer = node.self_writer(0);
         thread::spawn(move || {
-            node.process_payload(); // at this point, no data exists.
+            node.run(); // at this point, no data exists.
         });
         self_writer.write(DataMessage::from_single("hello".to_string()));
+        self_writer.write(DataMessage::eof());
     }
 
     #[test]
     fn can_stop() {
         let node = ExecutionNode::<String>::create();
-        let self_writer = node.self_writer();
+        let self_writer = node.self_writer(0);
         let handle = thread::spawn(move || {
-            node.run(); // at this point, no data exists, but keeps looping.
+            node.run(); // at this point, no data exists, but keeps waiting.
         });
         let ten_millis = time::Duration::from_millis(10);
         let now = time::Instant::now();
@@ -331,25 +221,19 @@ mod tests {
         assert!(now.elapsed() >= ten_millis);
     }
 
-    #[test]
-    fn processing_empty_queue_doesnt_block() {
-        let node = ExecutionNode::<KeyValue>::create();
-        node.process_payload();
-    }
-
     /// The source node's output channel and the target node's input channel have the
     /// same channel_id (because they are connected via the channel).
     #[test]
     fn channel_ids_match() {
         let node1 = ExecutionNode::<KeyValue>::create();
         let node2 = ExecutionNode::<KeyValue>::create();
-        node2.subscribe_to_node(&node1);
-        let node1_out_channel = node1.output_channels();
-        let node2_in_channel = node2.channel_reader();
+        node2.subscribe_to_node(&node1, 0);
+        let node1_out_channel = node1.output_writer();
+        let node2_in_channel = node2.input_reader();
         assert_eq!(node1_out_channel.len(), 1);
         assert_eq!(
-            node1_out_channel[0].channel_id(),
-            node2_in_channel.channel_id()
+            node1_out_channel.writer(0).channel_id(),
+            node2_in_channel.reader(0).channel_id()
         )
     }
 
@@ -361,7 +245,7 @@ mod tests {
         let loop_count = 10;
         for i in 0..loop_count {
             let mut node = ExecutionNode::create();
-            node.set_simple_map(SimpleMapper::<KeyValue>::from_lambda(|r| {
+            node.set_simple_map(SimpleMapper::<KeyValue>::from(|r: &KeyValue| {
                 Some(KeyValue::from_string(
                     r.key().into(),
                     r.value().to_string() + "X",
@@ -369,31 +253,34 @@ mod tests {
             }));
             if i > 0 {
                 let prev_node = &node_list[i - 1];
-                node.subscribe_to_node(prev_node);
+                node.subscribe_to_node(prev_node, 0);
             }
             node_list.push(node);
         }
         let first_node = &node_list[0];
         let last_node = &node_list[node_list.len() - 1];
-        let reader_node = NodeReader::create(last_node);
-        first_node
-            .self_writer()
-            .write(DataMessage::from_single(KeyValue::from_str("mykey", "")));
+        let reader_node = NodeReader::new(last_node);
+        first_node.write_to_self(0, 
+            DataMessage::from_single(KeyValue::from_str("mykey", "")));
+        first_node.write_to_self(0, DataMessage::eof());
 
         // process one by one
         for node in node_list.iter() {
-            node.process_payload();
+            node.run();
         }
 
-        let out_msg_optional = reader_node.read();
-        assert!(out_msg_optional.is_some());
-        let out_dataset = out_msg_optional.unwrap().clone();
-        assert_eq!(out_dataset.len(), 1);
-        let out_kv = &out_dataset[0];
-        assert_eq!(out_kv.key(), &"mykey".to_string());
-        assert_eq!(
-            out_kv.value(),
-            &(0..loop_count).map(|_| "X").collect::<String>()
-        );
+        let out_msg = reader_node.read().payload();
+        if let Payload::Some(data_arc) = out_msg {
+            let data = data_arc.data();
+            assert_eq!(data.len(), 1);
+            let kv = &data[0];
+            assert_eq!(kv.key(), &"mykey".to_string());
+            assert_eq!(
+                kv.value(),
+                &(0..loop_count).map(|_| "X").collect::<String>()
+            );
+        } else {
+            panic!("message not retrieved.");
+        }
     }
 }

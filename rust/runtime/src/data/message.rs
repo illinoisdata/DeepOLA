@@ -1,10 +1,10 @@
 use getset::Getters;
-use std::{ops::Index, sync::Arc, collections::HashMap};
+use std::{ops::Index, sync::Arc, collections::HashMap, fmt::Debug};
 
 use super::payload::*;
 
 /// DataMessage is the unit of exchanging information between execution nodes.
-#[derive(Getters, Debug)]
+#[derive(Getters)]
 pub struct DataMessage<T> {
     #[getset(set = "pub")]
     payload: Payload<T>,
@@ -24,6 +24,12 @@ impl<T> Index<usize> for DataMessage<T> {
 impl<T> Clone for DataMessage<T> {
     fn clone(&self) -> Self {
         Self { payload: self.payload.clone() }
+    }
+}
+
+impl<T> Debug for DataMessage<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DataMessage").field("payload", &self.payload).finish()
     }
 }
 

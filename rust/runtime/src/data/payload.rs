@@ -1,5 +1,5 @@
 use getset::Getters;
-use std::{sync::Arc, collections::HashMap};
+use std::{sync::Arc, collections::HashMap, fmt::Debug};
 
 use crate::data::data_type::DataCell;
 
@@ -8,7 +8,7 @@ use crate::data::data_type::DataCell;
 /// This is the unit of light-weight clone when exchanging messages via channels. That is,
 /// `Arc` provides an efficient cloning mechanism for any arbitrary data stored in
 /// `DataBlock`.
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum Payload<T> {
     EOF,
     Some(Arc<DataBlock<T>>),
@@ -19,6 +19,16 @@ impl<T> Payload<T> {
     pub fn new(dblock: DataBlock<T>) -> Self {
         Payload::Some(Arc::new(dblock))
     }
+
+    pub fn data_block(&self) -> &DataBlock<T> {
+        match self {
+            Self::EOF => panic!(),
+            Self::Signal(_) => panic!(),
+            Self::Some(dblock_arc) => {
+                dblock_arc.as_ref()
+            }
+        }
+    }
 }
 
 impl<T> Clone for Payload<T> {
@@ -27,6 +37,16 @@ impl<T> Clone for Payload<T> {
             Self::EOF => Self::EOF,
             Self::Some(records) => Self::Some(records.clone()),
             Self::Signal(s) => Self::Signal(s.clone()),
+        }
+    }
+}
+
+impl<T> Debug for Payload<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EOF => write!(f, "EOF"),
+            Self::Some(dblock_arc) => f.debug_tuple("Data").field(dblock_arc).finish(),
+            Self::Signal(s) => f.debug_tuple("Signal").field(s).finish(),
         }
     }
 }
@@ -48,7 +68,7 @@ impl Clone for Signal {
 ///
 /// Introduced to store the index for the primary key.
 /// TODO: Use something better than the String-String map for metadata.
-#[derive(Getters, Debug, PartialEq)]
+#[derive(Getters, PartialEq)]
 pub struct DataBlock<T> {
     #[getset(get = "pub")]
     data: Vec<T>,
@@ -58,7 +78,6 @@ pub struct DataBlock<T> {
 }
 
 impl<T> DataBlock<T> {
-
     /// Convenient public constructor for tests.
     pub fn from_records(records: Vec<T>) -> Self {
         DataBlock { data: records, metadata: HashMap::new() }
@@ -67,6 +86,12 @@ impl<T> DataBlock<T> {
     /// Public constructor.
     pub fn new(data: Vec<T>, metadata: HashMap<String, DataCell>) -> Self {
         DataBlock {data, metadata}
+    }
+}
+
+impl<T> Debug for DataBlock<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DataBlock").field("count", &self.data.len()).finish()
     }
 }
 

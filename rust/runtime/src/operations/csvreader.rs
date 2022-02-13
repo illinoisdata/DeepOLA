@@ -1,9 +1,5 @@
-use crate::graph::node::ExecutionNode;
-use crate::processor::SetProcessor;
-use crate::data::payload::DataBlock;
-use crate::data::schema::Schema;
-use crate::data::array_row::ArrayRow;
-use crate::data::data_type::DataCell;
+use crate::{graph::ExecutionNode, processor::SetProcessorV1};
+use crate::data::*;
 use std::{collections::HashMap};
 
 use itertools::izip;
@@ -16,7 +12,7 @@ pub struct CSVReaderNode;
 impl CSVReaderNode {
     pub fn new(batch_size: usize) -> ExecutionNode<ArrayRow> {
         let data_processor = CSVReader::new(batch_size);
-        ExecutionNode::<ArrayRow>::create_with_set_processor(data_processor)
+        ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 }
 
@@ -25,10 +21,10 @@ struct CSVReader {
     batch_size: usize,
 }
 
-impl SetProcessor<ArrayRow> for CSVReader {
+impl SetProcessorV1<ArrayRow> for CSVReader {
     /// This function receives a series of csv filenames, then read individual rows from those files
     /// and return those records (in a batch). These returned records will be sent to output channels.
-    fn process<'a>(&'a self, input_set: &'a DataBlock<ArrayRow>) -> Generator<'a, (), DataBlock<ArrayRow>> {
+    fn process_v1<'a>(&'a self, input_set: &'a DataBlock<ArrayRow>) -> Generator<'a, (), DataBlock<ArrayRow>> {
         // Each input ArrayRow contains the name of the files.
         // Each output DataBlock should contain rows of batch size.
         // The output DataBlock that you send should have this schema?
@@ -76,7 +72,7 @@ impl CSVReader {
         input_schema.clone()
     }
 
-    pub fn new(batch_size: usize) -> Box<dyn SetProcessor<ArrayRow>> {
+    pub fn new(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
         Box::new(CSVReader {batch_size})
     }
 }
@@ -84,8 +80,8 @@ impl CSVReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::message::DataMessage;
-    use crate::graph::node::NodeReader;
+    use crate::data::DataMessage;
+    use crate::graph::NodeReader;
 
     #[test]
     fn test_csv_reader_node() {
@@ -104,29 +100,30 @@ mod tests {
             [("schema".into(), DataCell::Schema(lineitem_schema.clone()))]
         );
         let dblock = DataBlock::new(input_vec,metadata);
-        csvreader.write_to_self(DataMessage::from_data_block(dblock));
-        let reader_node = NodeReader::create(&csvreader);
-        csvreader.process_payload();
+        csvreader.write_to_self(0, DataMessage::from_data_block(dblock));
+        csvreader.write_to_self(0, DataMessage::eof());
+        let reader_node = NodeReader::new(&csvreader);
+        csvreader.run();
 
         let total_input_len = 200;
         let mut total_output_len = 0;
         let mut number_of_blocks = 0;
         loop {
             let message = reader_node.read();
-            if message.is_some() {
-                let message_len = message.clone().unwrap().len();
-                number_of_blocks += 1;
-                // Assert individual data block length.
-                assert!(message_len <= batch_size);
-                total_output_len += message_len;
-                assert_eq!(
-                    message.unwrap().datablock().metadata().get("schema").unwrap(),
-                    &DataCell::Schema(lineitem_schema.clone())
-                );
-            }
-            else {
+            if message.is_eof() {
                 break;
             }
+            let dblock = message.datablock();
+            let data = dblock.data();
+            let message_len = data.len();
+            number_of_blocks += 1;
+            // Assert individual data block length.
+            assert!(message_len <= batch_size);
+            total_output_len += message_len;
+            assert_eq!(
+                dblock.metadata().get("schema").unwrap(),
+                &DataCell::Schema(lineitem_schema.clone())
+            );
         }
         // Assert total record length.
         assert_eq!(total_output_len, total_input_len);

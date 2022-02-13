@@ -53,17 +53,17 @@ impl<T: Send + 'static> ExecutionService<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{data::message::DataMessage, graph::node::ExecutionNode, processor::SimpleMapper};
+    use crate::{data::DataMessage, graph::node::ExecutionNode, processor::SimpleMapper};
 
     use super::ExecutionService;
 
     #[test]
     fn stop_given_eof() {
         let node =
-            ExecutionNode::create_with_record_mapper(SimpleMapper::from_lambda(|r: &String| {
+            ExecutionNode::create_with_record_mapper(SimpleMapper::from(|r: &String| {
                 Some(r.clone() + "X")
             }));
-        let self_writer = node.self_writer();
+        let self_writer = node.self_writer(0);
         let mut exec_service = ExecutionService::create();
         exec_service.add(node);
         exec_service.run();

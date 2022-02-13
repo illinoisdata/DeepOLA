@@ -2,7 +2,7 @@ use getset::Getters;
 use nanoid::nanoid;
 use std::sync::mpsc;
 
-use crate::data::message::DataMessage;
+use crate::data::DataMessage;
 
 const CHANNEL_SIZE: usize = 1000000;
 
@@ -39,8 +39,8 @@ pub struct ChannelWriter<T: Send> {
 }
 
 impl<T: Send> ChannelWriter<T> {
-    pub fn write(&self, record: DataMessage<T>) {
-        match self.channel_tx.send(record) {
+    pub fn write(&self, message: DataMessage<T>) {
+        match self.channel_tx.send(message) {
             Ok(_) => (),
             Err(e) => panic!("{}", e.to_string()),
         }
@@ -56,6 +56,9 @@ impl<T: Send> Clone for ChannelWriter<T> {
     }
 }
 
+/// Reads from a shared channel. There can be only one reader for a channel, which
+/// is an important difference than `ChannelWriter` since there can be multiple writers
+/// to the same channel.
 #[derive(Debug, Getters)]
 pub struct ChannelReader<T: Send> {
     #[getset(get = "pub")]
@@ -67,7 +70,7 @@ pub struct ChannelReader<T: Send> {
 const EMPTY_CHANNEL_MSG: &str = "receiving on an empty channel";
 
 impl<T: Send> ChannelReader<T> {
-    pub fn read(&self) -> Option<DataMessage<T>> {
+    pub fn try_read(&self) -> Option<DataMessage<T>> {
         match self.channel_rx.try_recv() {
             Ok(v) => Some(v),
             Err(e) => {
@@ -76,6 +79,15 @@ impl<T: Send> ChannelReader<T> {
                 } else {
                     panic!("{}", e.to_string())
                 }
+            }
+        }
+    }
+
+    pub fn read(&self) -> DataMessage<T> {
+        match self.channel_rx.recv() {
+            Ok(m) => m,
+            Err(e) => {
+                panic!("{}", e.to_string())
             }
         }
     }
