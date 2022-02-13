@@ -1,4 +1,5 @@
-use crate::data::message::{DataMessage, Payload, Signal};
+use crate::data::message::*;
+use crate::data::payload::{Payload, Signal};
 use crate::processor::{SetProcessor, SimpleMapper};
 
 use core::time;
@@ -105,8 +106,8 @@ impl<T: Send + 'static> ExecutionNode<T> {
                     );
                     ExecStatus::EOF
                 }
-                Payload::Some(data) => {
-                    let output = DataMessage::from_set(self.data_processor().process(&data));
+                Payload::Some(dblock) => {
+                    let output = DataMessage::from_data_block(self.data_processor().process(&dblock));
                     self.write_to_all_writers(&output);
                     log::info!(
                         "Processed: (Channel: {}; {} records) -> [Node: {}] -> (Channel: {}; {} records)",
