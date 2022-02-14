@@ -1,3 +1,6 @@
+use crate::data::payload::DataBlock;
+
+
 /// The interface for ExecutionNode.
 ///
 /// This is the interface for processing a set of input dataset and produces
@@ -7,7 +10,7 @@
 /// Since this is a generic trait, concrete implementations must be provided.
 /// See [`SimpleMap`] for an example
 pub trait SetProcessor<T> : Send {
-    fn process(&self, kv_set: &Vec<T>) -> Vec<T>;
+    fn process(&self, dblock: &DataBlock<T>) -> DataBlock<T>;
 }
 
 /// Processes a set of dataset in a stateless manner.
@@ -18,15 +21,15 @@ pub struct SimpleMapper<T> {
 unsafe impl<T> Send for SimpleMapper<T> {}
 
 impl<T> SetProcessor<T> for SimpleMapper<T> {
-    fn process(&self, input_set: &Vec<T>) -> Vec<T> {
+    fn process(&self, input_set: &DataBlock<T>) -> DataBlock<T> {
         let mut records: Vec<T> = vec![];
-        for r in input_set.iter() {
+        for r in input_set.data().iter() {
             match (self.record_map)(r) {
                 Some(a) => records.push(a),
                 None => (),
             }
         }
-        records
+        DataBlock::from_records(records)
     }
 }
 
@@ -63,7 +66,9 @@ mod tests {
         let mapper = SimpleMapper::from_lambda(|a: &KeyValue| {
             Some(KeyValue::from_string(a.key().into(), a.value().to_string() + " " + my_name))
         });
-        let result = mapper.process(&kv_set);
+        let in_dblock = DataBlock::from_records(kv_set);
+        let out_dblock = mapper.process(&in_dblock);
+        let result = out_dblock.data();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].key(), &"mykey".to_string());
         assert_eq!(result[0].value(), &"hello illinois".to_string());
@@ -73,7 +78,7 @@ mod tests {
     fn can_pass_rc() {
         let mapper = SimpleMapper::from_lambda(|a: &KeyValue| Some(a.clone()));
         let kv = KeyValue::from_str("mykey", "myvalue");
-        let _output = mapper.process(&Rc::new(vec!(kv)));
+        let _output = mapper.process(&Rc::new(DataBlock::from_records(vec!(kv))));
     }
 
     #[test]
