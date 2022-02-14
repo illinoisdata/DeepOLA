@@ -42,6 +42,10 @@ impl Schema {
         }
     }
 
+    pub fn get_column(&self, column: &str) -> Column {
+        self.columns[self.index(column)].clone()
+    }
+
     pub fn from_example(table: &str) -> Result<Schema, Box<dyn Error>> {
         match table {
             "lineitem" => Ok(Schema::new(

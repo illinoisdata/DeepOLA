@@ -1,6 +1,5 @@
 use crate::data::payload::DataBlock;
 
-
 /// The interface for ExecutionNode.
 ///
 /// This is the interface for processing a set of input dataset and produces
