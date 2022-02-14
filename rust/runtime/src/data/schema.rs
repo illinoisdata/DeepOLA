@@ -24,10 +24,9 @@ pub struct Schema {
     _column_index: HashMap<&'static str,usize>
 }
 
-// Implemented this trait to be able to reference columns in tests with column names.
 impl Schema {
     pub fn new(table: String, columns: Vec<Column>) -> Schema {
-        let _column_index = columns.iter().enumerate().map(|(i, x)| (x.name.clone(), i)).collect();
+        let _column_index = columns.iter().enumerate().map(|(i, x)| (x.name, i)).collect();
         Schema {
             table,
             columns,
@@ -35,6 +34,7 @@ impl Schema {
         }
     }
 
+    // Implemented this function to be able to reference columns in tests with column names.
     pub fn index(&self, column: &str) -> usize {
         match self._column_index.get(column) {
             Some(index) => index.clone(),
@@ -75,7 +75,7 @@ impl Schema {
                     Column::from_field("col4",DataType::Integer)
                 ]
             )),
-            _ => return Err("Schema Not Defined".into())
+            _ => Err("Schema Not Defined".into())
         }
     }
 }
