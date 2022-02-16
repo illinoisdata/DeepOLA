@@ -107,17 +107,22 @@ impl<T: Send + 'static> ExecutionNode<T> {
                     ExecStatus::EOF
                 }
                 Payload::Some(dblock) => {
-                    let output = DataMessage::from_data_block(self.data_processor().process(&dblock));
-                    self.write_to_all_writers(&output);
-                    log::info!(
-                        "Processed: (Channel: {}; {} records) -> [Node: {}] -> (Channel: {}; {} records)",
-                        self.channel_reader().channel_id(),
-                        message.len(),
-                        self.node_id(),
-                        self.output_channel_ids(),
-                        output.len(),
-                    );
-                    ExecStatus::Ok(output.len())
+                    let output_blocks = self.data_processor().process(&dblock);
+                    let mut total_output_len = 0;
+                    for output_block in output_blocks {
+                        let output = DataMessage::from_data_block(output_block);
+                        self.write_to_all_writers(&output);
+                        log::info!(
+                            "Processed: (Channel: {}; {} records) -> [Node: {}] -> (Channel: {}; {} records)",
+                            self.channel_reader().channel_id(),
+                            message.len(),
+                            self.node_id(),
+                            self.output_channel_ids(),
+                            output.len(),
+                        );
+                        total_output_len += output.len();
+                    }
+                    ExecStatus::Ok(total_output_len)
                 }
                 Payload::Signal(s) => {
                     log::info!("{:?}: (Channel: {})", s, self.channel_reader().channel_id());

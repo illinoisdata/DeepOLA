@@ -9,7 +9,7 @@ use crate::data::payload::DataBlock;
 /// Since this is a generic trait, concrete implementations must be provided.
 /// See [`SimpleMap`] for an example
 pub trait SetProcessor<T> : Send {
-    fn process(&self, dblock: &DataBlock<T>) -> DataBlock<T>;
+    fn process(&self, dblock: &DataBlock<T>) -> Vec<DataBlock<T>>;
 }
 
 /// Processes a set of dataset in a stateless manner.
@@ -20,7 +20,7 @@ pub struct SimpleMapper<T> {
 unsafe impl<T> Send for SimpleMapper<T> {}
 
 impl<T> SetProcessor<T> for SimpleMapper<T> {
-    fn process(&self, input_set: &DataBlock<T>) -> DataBlock<T> {
+    fn process(&self, input_set: &DataBlock<T>) -> Vec<DataBlock<T>> {
         let mut records: Vec<T> = vec![];
         for r in input_set.data().iter() {
             match (self.record_map)(r) {
@@ -28,7 +28,7 @@ impl<T> SetProcessor<T> for SimpleMapper<T> {
                 None => (),
             }
         }
-        DataBlock::from_records(records)
+        vec![DataBlock::from_records(records)]
     }
 }
 
@@ -66,7 +66,7 @@ mod tests {
             Some(KeyValue::from_string(a.key().into(), a.value().to_string() + " " + my_name))
         });
         let in_dblock = DataBlock::from_records(kv_set);
-        let out_dblock = mapper.process(&in_dblock);
+        let out_dblock = &mapper.process(&in_dblock)[0];
         let result = out_dblock.data();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].key(), &"mykey".to_string());
