@@ -338,11 +338,9 @@ mod tests {
 
     use super::*;
     use crate::data::kv::KeyValue;
-    use crate::data::array_data::{ArrayData,ArrayRow};
+    use crate::data::array_row::ArrayRow;
     use crate::data::data_type::DataCell;
     use crate::data::message::DataMessage;
-    use crate::data::schema::Schema;
-    use crate::data::payload::Payload;
     use crate::processor::SimpleMapper;
     use std::time;
 
@@ -494,33 +492,5 @@ mod tests {
         node.process_payload();
         let message = reader_node.read().unwrap();
         assert_eq!(message.len(),1);
-    }
-
-    #[test]
-    fn can_create_array_data_node() {
-        let mut node = ExecutionNode::<ArrayData>::create();
-        node.set_simple_map(SimpleMapper::<ArrayData>::from_lambda(|r| {
-            let mut records = Vec::new();
-            for record in r.rows.iter() {
-                // WHERE condition that checks the 4th column and if it is greater than 50.
-                match record.values[3] > DataCell::Integer(60) {
-                    true => records.push(record.clone()),
-                    false => ()
-                }
-            }
-            Some(ArrayData {
-                schema: r.schema.clone(),
-                rows: records
-            })
-        }));
-        let schema = Schema::from_example("test_arraydata").unwrap();
-        node.write_to_self(DataMessage::from_single(ArrayData::from_csv("src/resources/test_arraydata.csv",&schema).unwrap()));
-        let reader_node = NodeReader::create(&node);
-        node.process_payload();
-        let message = reader_node.read().unwrap();
-        match message.payload() {
-            Payload::Some(datablock) => assert_eq!(datablock.data()[0].rows.len(),2),
-            _ => panic!("Found Payload: {:?}", message.payload())
-        }
     }
 }

@@ -60,4 +60,14 @@ impl DataCell {
             // _ => Err("Invalid Data Type")?
         }
     }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            DataCell::Boolean(a) => a.to_string(),
+            DataCell::Integer(a) => a.to_string(),
+            DataCell::Float(a) => a.to_string(),
+            DataCell::Text(a) => a.to_string(),
+            _ => panic!("Invalid DataCell")
+        }
+    }
 }
