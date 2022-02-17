@@ -28,7 +28,7 @@ pub struct ExecutionNode<T: Send> {
     self_writer: ChannelWriter<T>,
 
     /// Once we process records, we send them via these writers.
-    /// 
+    ///
     /// `RefCell` makes it possible to treat `ExecutionNode` as immutable when we add
     /// additional output channels.
     output_channels: RefCell<Vec<ChannelWriter<T>>>,
@@ -203,8 +203,8 @@ impl<T: Send + 'static> ExecutionNode<T> {
     }
 
     /// A general factory constructor.
-    /// 
-    /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs 
+    ///
+    /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs
     /// a possibly empty set of T (which is again `Vec<T>`).
     pub fn create_with_set_processor(data_processor: Box<dyn SetProcessor<T>>) -> Self {
         let (write_channel, read_channel) = Channel::create::<T>();
@@ -243,8 +243,8 @@ pub struct ExecutionService<T: Send> {
 }
 
 impl<T: Send + 'static> ExecutionService<T> {
-    
-    /// Register a node to execute. Note that the registered node is 
+
+    /// Register a node to execute. Note that the registered node is
     /// **owned** by this service now.
     pub fn add(&mut self, node: ExecutionNode<T>) {
         self.nodes.push(node);
@@ -258,7 +258,7 @@ impl<T: Send + 'static> ExecutionService<T> {
 
     pub fn run(&mut self) {
         self.aseert_empty_thread_handles();
-        
+
         self.thread_handles.clear();
         while let Some(node) = self.nodes.pop() {
             let handle = thread::spawn(move || {
@@ -407,7 +407,7 @@ mod tests {
         node.process_payload();
     }
 
-    /// The source node's output channel and the target node's input channel have the 
+    /// The source node's output channel and the target node's input channel have the
     /// same channel_id (because they are connected via the channel).
     #[test]
     fn channel_ids_match() {

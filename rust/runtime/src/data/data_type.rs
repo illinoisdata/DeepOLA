@@ -1,12 +1,14 @@
 use std::error::Error;
+use crate::data::schema::{Schema,Column};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
     Boolean,
     UnsignedInt,
     Integer,
     Float,
-    Text
+    Text,
+    Schema
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -15,7 +17,8 @@ pub enum DataCell {
     UnsignedInt(usize),
     Integer(i32),
     Float(f64),
-    Text(String)
+    Text(String),
+    Schema(Schema),
 }
 
 // The PartialEq traits have been implemented to support direct comparison
@@ -56,8 +59,8 @@ impl DataCell {
             DataType::UnsignedInt => Ok(DataCell::UnsignedInt(value.parse::<usize>().unwrap())),
             DataType::Integer => Ok(DataCell::Integer(value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(value.parse::<f64>().unwrap())),
-            DataType::Text => Ok(DataCell::Text(value))
-            // _ => Err("Invalid Data Type")?
+            DataType::Text => Ok(DataCell::Text(value)),
+            _ => Err("Invalid Conversion Method")?
         }
     }
 
@@ -68,6 +71,13 @@ impl DataCell {
             DataCell::Float(a) => a.to_string(),
             DataCell::Text(a) => a.to_string(),
             _ => panic!("Invalid DataCell")
+        }
+    }
+
+    pub fn to_schema(&self) -> &Schema {
+        match self {
+            DataCell::Schema(a) => a,
+            _ => panic!("Not a Valid Schema DataCell")
         }
     }
 }

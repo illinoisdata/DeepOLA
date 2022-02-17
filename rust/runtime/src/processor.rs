@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn can_send() {
-        let set_processor: Box<dyn SetProcessor<String>> = 
+        let set_processor: Box<dyn SetProcessor<String>> =
             Box::new(SimpleMapper::<String>::from_lambda(|r| Some(r.clone())));
         thread::spawn( move || {
             // having `drop` prevents warning.

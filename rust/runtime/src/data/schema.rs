@@ -1,8 +1,9 @@
 use crate::data::data_type::DataType;
 use std::error::Error;
 use std::collections::HashMap;
+use std::cmp::Ordering;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Column {
     pub name: String,
     pub dtype: DataType,
@@ -28,12 +29,18 @@ impl Column {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Schema {
     pub table: String,
     pub columns: Vec<Column>,
     _column_index: HashMap<String,usize>,
     _key_index: Vec<usize>
+}
+
+impl PartialOrd for Schema {
+    fn partial_cmp(&self, _: &Schema) -> Option<Ordering> {
+        panic!{"Partial Order should not be called for Schema"};
+    }
 }
 
 impl Schema {

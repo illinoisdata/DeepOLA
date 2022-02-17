@@ -4,6 +4,7 @@ use crate::data::payload::DataBlock;
 use crate::data::schema::Schema;
 use crate::data::array_row::ArrayRow;
 use crate::data::data_type::DataCell;
+use std::{collections::HashMap};
 
 use itertools::izip;
 use generator::{Generator, Gn};
@@ -13,19 +14,14 @@ pub struct CSVReaderNode;
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
 /// read csv files.
 impl CSVReaderNode {
-    pub fn new(batch_size: usize, schema: Schema) -> ExecutionNode<ArrayRow> {
-        let data_processor = CSVReader::new(batch_size, schema);
+    pub fn new(batch_size: usize) -> ExecutionNode<ArrayRow> {
+        let data_processor = CSVReader::new(batch_size);
         ExecutionNode::<ArrayRow>::create_with_set_processor(data_processor)
     }
 }
 
 /// A custom SetProcessor<ArrayRow> type for reading csv files.
 struct CSVReader {
-    input_schema: Schema,
-    output_schema: Option<Schema>,
-    // Currently batch_size is unused.
-    // To use the batch_size to break down a set of batch_size records in one DataBlock
-    // process() would need to return a Vec<DataBlock>
     batch_size: usize,
 }
 
@@ -38,6 +34,11 @@ impl SetProcessor<ArrayRow> for CSVReader {
         // The output DataBlock that you send should have this schema?
         Gn::new_scoped(
             move |mut s| {
+                let input_schema = input_set.metadata().get("schema").unwrap().to_schema();
+                let metadata: HashMap<String, DataCell> = HashMap::from(
+                    [("schema".into(), DataCell::Schema(self._build_output_schema(input_schema)))]
+                );
+
                 let mut records: Vec<ArrayRow> = vec![];
                 for r in input_set.data().iter() {
                     let mut reader = csv::Reader::from_path(r.values[0].to_string()).unwrap();
@@ -46,20 +47,20 @@ impl SetProcessor<ArrayRow> for CSVReader {
                     for result in reader.records() {
                         let record = result.unwrap();
                         let mut data_cells = Vec::new();
-                        for (value,column) in izip!(&record,&self.input_schema.columns) {
+                        for (value,column) in izip!(&record,&input_schema.columns) {
                             data_cells.push(DataCell::create_data_cell(value.to_string(), &column.dtype).unwrap());
                         }
                         records.push(ArrayRow::from_vector(data_cells));
 
                         if records.len() == self.batch_size {
-                            let message = DataBlock::from_records(records);
+                            let message = DataBlock::new(records, metadata.clone());
                             records = vec![];
                             s.yield_(message);
                         }
                     }
                 }
                 if !records.is_empty() {
-                    let message = DataBlock::from_records(records);
+                    let message = DataBlock::new(records, metadata.clone());
                     s.yield_(message);
                 }
                 done!();
@@ -71,43 +72,39 @@ impl SetProcessor<ArrayRow> for CSVReader {
 /// A factory method for creating the custom SetProcessor<ArrayRow> type for
 /// reading csv files
 impl CSVReader {
-    fn _build_output_schema(&self) -> Option<Schema> {
-        Some(self.input_schema.clone())
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
+        input_schema.clone()
     }
 
-    pub fn new(batch_size: usize, input_schema:Schema) -> Box<dyn SetProcessor<ArrayRow>> {
-        let mut csv_reader = CSVReader {
-            input_schema,
-            output_schema: None,
-            batch_size
-        };
-        csv_reader.output_schema = csv_reader._build_output_schema();
-        Box::new(csv_reader)
+    pub fn new(batch_size: usize) -> Box<dyn SetProcessor<ArrayRow>> {
+        Box::new(CSVReader {batch_size})
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::CSVReaderNode;
-    use crate::data::schema::Schema;
-    use crate::data::data_type::DataCell;
-    use crate::data::array_row::ArrayRow;
+    use super::*;
     use crate::data::message::DataMessage;
     use crate::graph::node::NodeReader;
 
     #[test]
     fn test_csv_reader_node() {
-        let batch_size = 50;
-        let schema = Schema::from_example("lineitem").unwrap();
         // Create a CSV Reader Node with lineitem Schema.
-        let csvreader = CSVReaderNode::new(batch_size, schema);
+        let batch_size = 50;
+        let csvreader = CSVReaderNode::new(batch_size);
 
-        // The CSV files that we want to be read by this node.
+        // The CSV files that we want to be read by this node => data for DataBlock.
         let input_vec = vec![
             ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())]),
             ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())])
         ];
-        csvreader.write_to_self(DataMessage::from_set(input_vec));
+        // Metadata for DataBlock
+        let lineitem_schema = Schema::from_example("lineitem").unwrap();
+        let metadata: HashMap<String, DataCell> = HashMap::from(
+            [("schema".into(), DataCell::Schema(lineitem_schema.clone()))]
+        );
+        let dblock = DataBlock::new(input_vec,metadata);
+        csvreader.write_to_self(DataMessage::from_data_block(dblock));
         let reader_node = NodeReader::create(&csvreader);
         csvreader.process_payload();
 
@@ -117,11 +114,15 @@ mod tests {
         loop {
             let message = reader_node.read();
             if message.is_some() {
-                let message_len = message.unwrap().len();
+                let message_len = message.clone().unwrap().len();
                 number_of_blocks += 1;
                 // Assert individual data block length.
                 assert!(message_len <= batch_size);
                 total_output_len += message_len;
+                assert_eq!(
+                    message.unwrap().datablock().metadata().get("schema").unwrap(),
+                    &DataCell::Schema(lineitem_schema.clone())
+                );
             }
             else {
                 break;
