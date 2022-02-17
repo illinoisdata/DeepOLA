@@ -63,7 +63,7 @@ impl Schema {
         }
     }
 
-    // Get Column object corresponding to the column name. 
+    // Get Column object corresponding to the column name.
     pub fn get_column(&self, column: &str) -> Column {
         self.columns[self.index(column)].clone()
     }
