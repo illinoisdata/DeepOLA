@@ -38,7 +38,7 @@ impl<T> DataMessage<T> {
     }
 
     pub fn from_set_ref(records: Vec<T>) -> Self {
-        Self::from_data_block( 
+        Self::from_data_block(
             DataBlock::new(records, HashMap::new()))
     }
 
@@ -77,6 +77,13 @@ impl<T> DataMessage<T> {
         match &self.payload {
             Payload::Some(dblock) => dblock.data().iter(),
             _ => panic!("iter called on non-data."),
+        }
+    }
+
+    pub fn datablock(&self) -> &DataBlock<T> {
+        match &self.payload {
+            Payload::Some(dblock) => dblock,
+            _ => panic!("datablock called on non-data"),
         }
     }
 }

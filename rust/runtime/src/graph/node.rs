@@ -28,7 +28,7 @@ pub struct ExecutionNode<T: Send> {
     self_writer: ChannelWriter<T>,
 
     /// Once we process records, we send them via these writers.
-    /// 
+    ///
     /// `RefCell` makes it possible to treat `ExecutionNode` as immutable when we add
     /// additional output channels.
     output_channels: RefCell<Vec<ChannelWriter<T>>>,
@@ -107,17 +107,22 @@ impl<T: Send + 'static> ExecutionNode<T> {
                     ExecStatus::EOF
                 }
                 Payload::Some(dblock) => {
-                    let output = DataMessage::from_data_block(self.data_processor().process(&dblock));
-                    self.write_to_all_writers(&output);
-                    log::info!(
-                        "Processed: (Channel: {}; {} records) -> [Node: {}] -> (Channel: {}; {} records)",
-                        self.channel_reader().channel_id(),
-                        message.len(),
-                        self.node_id(),
-                        self.output_channel_ids(),
-                        output.len(),
-                    );
-                    ExecStatus::Ok(output.len())
+                    let output_blocks = self.data_processor().process(&dblock);
+                    let mut total_output_len = 0;
+                    for output_block in output_blocks {
+                        let output = DataMessage::from_data_block(output_block);
+                        self.write_to_all_writers(&output);
+                        log::info!(
+                            "Processed: (Channel: {}; {} records) -> [Node: {}] -> (Channel: {}; {} records)",
+                            self.channel_reader().channel_id(),
+                            message.len(),
+                            self.node_id(),
+                            self.output_channel_ids(),
+                            output.len(),
+                        );
+                        total_output_len += output.len();
+                    }
+                    ExecStatus::Ok(total_output_len)
                 }
                 Payload::Signal(s) => {
                     log::info!("{:?}: (Channel: {})", s, self.channel_reader().channel_id());
@@ -198,8 +203,8 @@ impl<T: Send + 'static> ExecutionNode<T> {
     }
 
     /// A general factory constructor.
-    /// 
-    /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs 
+    ///
+    /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs
     /// a possibly empty set of T (which is again `Vec<T>`).
     pub fn create_with_set_processor(data_processor: Box<dyn SetProcessor<T>>) -> Self {
         let (write_channel, read_channel) = Channel::create::<T>();
@@ -238,8 +243,8 @@ pub struct ExecutionService<T: Send> {
 }
 
 impl<T: Send + 'static> ExecutionService<T> {
-    
-    /// Register a node to execute. Note that the registered node is 
+
+    /// Register a node to execute. Note that the registered node is
     /// **owned** by this service now.
     pub fn add(&mut self, node: ExecutionNode<T>) {
         self.nodes.push(node);
@@ -253,7 +258,7 @@ impl<T: Send + 'static> ExecutionService<T> {
 
     pub fn run(&mut self) {
         self.aseert_empty_thread_handles();
-        
+
         self.thread_handles.clear();
         while let Some(node) = self.nodes.pop() {
             let handle = thread::spawn(move || {
@@ -338,6 +343,8 @@ mod tests {
 
     use super::*;
     use crate::data::kv::KeyValue;
+    use crate::data::array_row::ArrayRow;
+    use crate::data::data_type::DataCell;
     use crate::data::message::DataMessage;
     use crate::processor::SimpleMapper;
     use std::time;
@@ -400,7 +407,7 @@ mod tests {
         node.process_payload();
     }
 
-    /// The source node's output channel and the target node's input channel have the 
+    /// The source node's output channel and the target node's input channel have the
     /// same channel_id (because they are connected via the channel).
     #[test]
     fn channel_ids_match() {
@@ -473,5 +480,22 @@ mod tests {
         self_writer.write(DataMessage::eof());
 
         exec_service.join();
+    }
+
+    #[test]
+    fn can_create_array_row_node() {
+        let mut node = ExecutionNode::<ArrayRow>::create();
+        node.set_simple_map(SimpleMapper::<ArrayRow>::from_lambda(|r| {
+            // WHERE condition that checks the 1st index if the value is greater than 0.5
+            match r.values[1] > DataCell::Float(0.5) {
+                false => None,
+                true => Some(r.clone()),
+            }
+        }));
+        node.write_to_self(DataMessage::from_set(ArrayRow::from_example()));
+        let reader_node = NodeReader::create(&node);
+        node.process_payload();
+        let message = reader_node.read().unwrap();
+        assert_eq!(message.len(),1);
     }
 }
