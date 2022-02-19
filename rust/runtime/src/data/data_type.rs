@@ -24,11 +24,11 @@ pub enum DataCell {
 // The PartialEq traits have been implemented to support direct comparison
 // between DataCell and a value of the corresponding data type (i32, f64, str).
 // We do not needed custom traits if we create a DataCell::<DataType>() instance and use that.
-impl PartialEq<&str> for DataCell {
-    fn eq(&self, other: &&str) -> bool {
+impl PartialEq<String> for DataCell {
+    fn eq(&self, other: &String) -> bool {
         match self {
             DataCell::Text(a) => (a == other),
-            _ => panic!("Invalid Data Type Comparison")
+            _ => false
         }
     }
 }
@@ -36,15 +36,17 @@ impl PartialEq<i32> for DataCell {
     fn eq(&self, other: &i32) -> bool {
         match self {
             DataCell::Integer(a) => (a == other),
-            _ => panic!("Invalid Data Type Comparison")
+            DataCell::Float(a) => (*a == f64::from(*other)),
+            _ => false
         }
     }
 }
 impl PartialEq<f64> for DataCell {
     fn eq(&self, other: &f64) -> bool {
         match self {
+            DataCell::Integer(a) => (f64::from(*a) == *other),
             DataCell::Float(a) => (a == other),
-            _ => panic!("Invalid Data Type Comparison")
+            _ => false
         }
     }
 }
@@ -80,4 +82,45 @@ impl DataCell {
             _ => panic!("Not a Valid Schema DataCell")
         }
     }
+
+    pub fn from_str(value: &str) -> Self {
+        DataCell::Text(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DataCell;
+
+
+    #[test]
+    fn can_create_from_string() {
+        let d = DataCell::Text("hello".to_string());
+        assert_eq!(d, "hello".to_string());
+        assert_ne!(d, "world".to_string());
+    }
+
+    #[test]
+    fn can_create_from_str() {
+        let d = DataCell::from_str("hello");
+        assert_eq!(d, "hello".to_string());
+        assert_ne!(d, "world".to_string());
+    }
+
+    #[test]
+    fn can_create_from_float() {
+        let d = DataCell::Float(1.0);
+        assert_eq!(d, 1.0);
+        assert_ne!(d, 2.0);
+        assert_eq!(d, 1);
+    }
+
+    #[test]
+    fn can_create_from_int() {
+        let d = DataCell::Integer(1);
+        assert_eq!(d, 1);
+        assert_ne!(d, 2);
+        assert_eq!(d, 1.0);
+    }
+
 }
