@@ -275,8 +275,6 @@ mod tests {
 
     use super::*;
     use crate::data::kv::KeyValue;
-    use crate::data::array_row::ArrayRow;
-    use crate::data::data_type::DataCell;
     use crate::data::message::DataMessage;
     use crate::processor::SimpleMapper;
     use std::time;
