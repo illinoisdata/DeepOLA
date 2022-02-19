@@ -32,6 +32,16 @@ impl PartialEq<String> for DataCell {
         }
     }
 }
+
+impl PartialEq<&str> for DataCell {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            DataCell::Text(a) => (a == other),
+            _ => false
+        }
+    }
+}
+
 impl PartialEq<i32> for DataCell {
     fn eq(&self, other: &i32) -> bool {
         match self {
@@ -41,6 +51,7 @@ impl PartialEq<i32> for DataCell {
         }
     }
 }
+
 impl PartialEq<f64> for DataCell {
     fn eq(&self, other: &f64) -> bool {
         match self {
@@ -104,7 +115,9 @@ mod tests {
     fn can_create_from_str() {
         let d = DataCell::from_str("hello");
         assert_eq!(d, "hello".to_string());
+        assert_eq!(d, "hello");
         assert_ne!(d, "world".to_string());
+        assert_ne!(d, "world");
     }
 
     #[test]
