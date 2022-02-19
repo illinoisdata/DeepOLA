@@ -1,5 +1,5 @@
 use std::error::Error;
-use crate::data::schema::{Schema,Column};
+use crate::data::schema::Schema;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
