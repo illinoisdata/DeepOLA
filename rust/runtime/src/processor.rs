@@ -1,8 +1,4 @@
 use crate::data::payload::DataBlock;
-use crate::data::message::DataMessage;
-use std::cell::{Ref,RefCell};
-use crate::graph::channel::*;
-
 use generator::{Generator, Gn};
 
 /// The interface for ExecutionNode.
@@ -13,7 +9,7 @@ use generator::{Generator, Gn};
 ///
 /// Since this is a generic trait, concrete implementations must be provided.
 /// See [`SimpleMap`] for an example
-pub trait SetProcessor<T: Send> : Send {
+pub trait SetProcessor<T: Send>: Send {
     fn process<'a>(&'a self, dblock: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>>;
 }
 
@@ -26,20 +22,18 @@ unsafe impl<T> Send for SimpleMapper<T> {}
 
 impl<T: Send> SetProcessor<T> for SimpleMapper<T> {
     fn process<'a>(&'a self, input_set: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>> {
-        Gn::new_scoped(
-            move |mut s| {
-                let mut records: Vec<T> = vec![];
-                for r in input_set.data().iter() {
-                    match (self.record_map)(r) {
-                        Some(a) => records.push(a),
-                        None => (),
-                    }
+        Gn::new_scoped(move |mut s| {
+            let mut records: Vec<T> = vec![];
+            for r in input_set.data().iter() {
+                match (self.record_map)(r) {
+                    Some(a) => records.push(a),
+                    None => (),
                 }
-                let message = DataBlock::from_records(records);
-                s.yield_(message);
-                done!();
             }
-        )
+            let message = DataBlock::from_records(records);
+            s.yield_(message);
+            done!();
+        })
     }
 }
 
@@ -57,24 +51,29 @@ impl<T> SimpleMapper<T> {
     // How to store closure in a struct:
     // https://stackoverflow.com/questions/27831944/how-do-i-store-a-closure-in-a-struct-in-rust
     pub fn from_lambda(record_map: impl Fn(&T) -> Option<T> + 'static) -> Self {
-        SimpleMapper { record_map: Box::new(record_map) }
+        SimpleMapper {
+            record_map: Box::new(record_map),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{thread, rc::Rc};
+    use std::{rc::Rc, thread};
 
-    use crate::data::kv::{KeyValue};
+    use crate::data::kv::KeyValue;
 
     use super::*;
 
     #[test]
     fn test_closure() {
-        let kv_set = vec!(KeyValue::from_str("mykey", "hello"));
-        let my_name = "illinois";    // this variable is captured
+        let kv_set = vec![KeyValue::from_str("mykey", "hello")];
+        let my_name = "illinois"; // this variable is captured
         let mapper = SimpleMapper::from_lambda(|a: &KeyValue| {
-            Some(KeyValue::from_string(a.key().into(), a.value().to_string() + " " + my_name))
+            Some(KeyValue::from_string(
+                a.key().into(),
+                a.value().to_string() + " " + my_name,
+            ))
         });
         let in_dblock = DataBlock::from_records(kv_set);
         let out_dblocks = mapper.process(&in_dblock);
@@ -93,7 +92,7 @@ mod tests {
     fn can_pass_rc() {
         let mapper = SimpleMapper::from_lambda(|a: &KeyValue| Some(a.clone()));
         let kv = KeyValue::from_str("mykey", "myvalue");
-        let rc = Rc::new(DataBlock::from_records(vec!(kv)));
+        let rc = Rc::new(DataBlock::from_records(vec![kv]));
         let _output = mapper.process(&rc);
     }
 
@@ -101,9 +100,9 @@ mod tests {
     fn can_send() {
         let set_processor: Box<dyn SetProcessor<String>> =
             Box::new(SimpleMapper::<String>::from_lambda(|r| Some(r.clone())));
-        thread::spawn( move || {
+        thread::spawn(move || {
             // having `drop` prevents warning.
             drop(set_processor);
-        } );
+        });
     }
 }

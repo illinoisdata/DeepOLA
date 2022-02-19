@@ -3,13 +3,14 @@ use crate::data::payload::{Payload, Signal};
 use crate::processor::{SetProcessor, SimpleMapper};
 
 use core::time;
+use std::thread;
 use getset::{Getters, Setters};
 use nanoid::nanoid;
 use std::cell::{Ref, RefCell};
 use std::collections::VecDeque;
-use std::thread::{self, JoinHandle};
 
 use super::channel::*;
+use super::node_base::*;
 
 /// (input channel) -> [This Node] -> (output channels)
 ///
@@ -42,16 +43,12 @@ pub struct ExecutionNode<T: Send> {
 
 unsafe impl<T: Send> Send for ExecutionNode<T> {}
 
-#[derive(PartialEq)]
-pub enum NodeState {
-    /// A thread is not running.
-    STOPPED,
-
-    /// A signal is set to stop as early as possible.
-    STOPPING,
-
-    /// A tread is running to process input records as quickly as possible.
-    RUNNING,
+impl<T: Send> Subscribable<T> for ExecutionNode<T> {
+    fn add(&self, channel_writer: ChannelWriter<T>) {
+        self.output_channels
+            .borrow_mut()
+            .push(channel_writer);
+    }
 }
 
 impl<T: Send + 'static> ExecutionNode<T> {
@@ -82,11 +79,8 @@ impl<T: Send + 'static> ExecutionNode<T> {
         writer.write(record);
     }
 
-    pub fn subscribe_to_node(&self, source_node: &ExecutionNode<T>) {
-        source_node
-            .output_channels
-            .borrow_mut()
-            .push(self.self_writer.clone());
+    pub fn subscribe_to_node(&self, source_node: &dyn Subscribable<T>) {
+        source_node.add(self.self_writer.clone());
     }
 
     /// This is an internal function used to process a single data item. In practice, this
@@ -219,68 +213,6 @@ impl<T: Send + 'static> ExecutionNode<T> {
     }
 }
 
-const NODE_ID_ALPHABET: [char; 16] = [
-    '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f',
-];
-
-const NODE_ID_LEN: usize = 5;
-
-pub enum ExecStatus {
-    Ok(usize),
-    EmptyChannel,
-    EOF,
-    Err(String),
-}
-
-const NODE_SLEEP_MICRO_SECONDS: u64 = 1;
-
-#[derive(Getters)]
-pub struct ExecutionService<T: Send> {
-    #[getset(get="pub")]
-    nodes: Vec<ExecutionNode<T>>,
-
-    thread_handles: Vec<JoinHandle<ExecutionNode<T>>>,
-}
-
-impl<T: Send + 'static> ExecutionService<T> {
-
-    /// Register a node to execute. Note that the registered node is
-    /// **owned** by this service now.
-    pub fn add(&mut self, node: ExecutionNode<T>) {
-        self.nodes.push(node);
-    }
-
-    fn aseert_empty_thread_handles(&self) {
-        if !self.thread_handles.is_empty() {
-            panic!("There are {} thread handles.", self.thread_handles.len());
-        }
-    }
-
-    pub fn run(&mut self) {
-        self.aseert_empty_thread_handles();
-
-        self.thread_handles.clear();
-        while let Some(node) = self.nodes.pop() {
-            let handle = thread::spawn(move || {
-                node.run();
-                node
-            });
-            self.thread_handles.push(handle);
-        }
-    }
-
-    pub fn join(&mut self) {
-        while let Some(handle) = self.thread_handles.pop() {
-            handle.join().unwrap();
-        }
-    }
-
-    pub fn create() -> Self {
-        ExecutionService { nodes: vec![], thread_handles: vec![] }
-    }
-
-}
-
 pub struct NodeReader<T: Send> {
     /// We use the channel of this node to listens to the node we want to read from.
     internal_node: ExecutionNode<T>,
@@ -343,8 +275,6 @@ mod tests {
 
     use super::*;
     use crate::data::kv::KeyValue;
-    use crate::data::array_row::ArrayRow;
-    use crate::data::data_type::DataCell;
     use crate::data::message::DataMessage;
     use crate::processor::SimpleMapper;
     use std::time;
@@ -465,37 +395,5 @@ mod tests {
             out_kv.value(),
             &(0..loop_count).map(|_| "X").collect::<String>()
         );
-    }
-
-    #[test]
-    fn stop_given_eof() {
-        let node = ExecutionNode::create_with_record_mapper(
-            SimpleMapper::from_lambda(|r: &String| Some(r.clone() + "X") ));
-        let self_writer = node.self_writer();
-        let mut exec_service = ExecutionService::create();
-        exec_service.add(node);
-        exec_service.run();
-
-        // without this line, this test case doesn't stop, looping infinitely.
-        self_writer.write(DataMessage::eof());
-
-        exec_service.join();
-    }
-
-    #[test]
-    fn can_create_array_row_node() {
-        let mut node = ExecutionNode::<ArrayRow>::create();
-        node.set_simple_map(SimpleMapper::<ArrayRow>::from_lambda(|r| {
-            // WHERE condition that checks the 1st index if the value is greater than 0.5
-            match r.values[1] > DataCell::Float(0.5) {
-                false => None,
-                true => Some(r.clone()),
-            }
-        }));
-        node.write_to_self(DataMessage::from_set(ArrayRow::from_example()));
-        let reader_node = NodeReader::create(&node);
-        node.process_payload();
-        let message = reader_node.read().unwrap();
-        assert_eq!(message.len(),1);
     }
 }
