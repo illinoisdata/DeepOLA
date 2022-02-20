@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate generator;
 
+pub mod channel;
 pub mod data;
-pub mod processor;
 pub mod graph;
 pub mod operations;
+pub mod processor;
 
 #[cfg(test)]
 mod tests {
