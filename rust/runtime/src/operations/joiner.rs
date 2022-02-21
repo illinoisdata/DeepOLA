@@ -17,6 +17,10 @@ impl SingleArrayJoiner {
         }
     }
 
+    /// Compares which row comes first based on their respective key columns.
+    ///
+    /// Returns -1 if left_row is smaller. Returns 1 if right_row is smaller. Returns
+    /// 0 if both rows are the same.
     fn comp_values_on_key(&self, left_row: &ArrayRow, right_row: &ArrayRow) -> i8 {
         let left_join_index = &self.left_join_index;
         let right_join_index = &self.right_join_index;
@@ -47,6 +51,9 @@ impl SingleArrayJoiner {
 
     /// First copy all values from the left; and then copy the values from the right, except for
     /// the ones used for the join.
+    ///
+    /// Before using this function, the comparison check on join keys must have been performed to
+    /// ensure valid results.
     fn new_joined_row(&self, left_row: &ArrayRow, right_row: &ArrayRow) -> ArrayRow {
         let mut joined = left_row.values.clone();
         let right_row_len = right_row.len();
