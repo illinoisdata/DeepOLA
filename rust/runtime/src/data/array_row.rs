@@ -1,7 +1,9 @@
+use std::ops::{Index, IndexMut};
+
 use getset::Getters;
 use crate::data::data_type::DataCell;
 
-#[derive(Getters, Debug, Clone)]
+#[derive(Getters, Debug, Clone, PartialEq)]
 pub struct ArrayRow {
     pub values: Vec<DataCell>
 }
@@ -18,11 +20,43 @@ impl ArrayRow {
     }
 }
 
+impl From<Vec<DataCell>> for ArrayRow {
+    fn from(values: Vec<DataCell>) -> Self {
+        ArrayRow { values }
+    }
+}
+
+impl From<&[DataCell]> for ArrayRow {
+    fn from(array: &[DataCell]) -> Self {
+        ArrayRow { values: Vec::<DataCell>::from(array)}
+    }
+}
+
+impl<const N: usize> From<[DataCell; N]> for ArrayRow {
+    fn from(array: [DataCell; N]) -> Self {
+        ArrayRow { values: Vec::from(array) }
+    }
+}
+
 impl ArrayRow {
     pub fn from_example() -> Vec<ArrayRow> {
         let example_row_1 = ArrayRow::from_vector(vec![DataCell::Integer(0),DataCell::Float(0.1),DataCell::Text(String::from("value1"))]);
         let example_row_2 = ArrayRow::from_vector(vec![DataCell::Integer(1),DataCell::Float(0.9),DataCell::Text(String::from("value2"))]);
         vec![example_row_1, example_row_2]
+    }
+}
+
+impl Index<usize> for ArrayRow {
+    type Output = DataCell;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.values[index]
+    }
+}
+
+impl IndexMut<usize> for ArrayRow {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.values[index]
     }
 }
 

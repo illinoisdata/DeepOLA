@@ -1,7 +1,7 @@
 use getset::Getters;
-use std::{sync::Arc, collections::HashMap, fmt::Debug};
+use std::{sync::Arc, collections::HashMap, fmt::Debug, ops::Index};
 
-use crate::data::data_type::DataCell;
+use super::{SCHEMA_META_NAME, Schema, MetaCell};
 
 /// Either actual data (`DataBlock`) or other special signals (e.g., EOF, Signal).
 ///
@@ -74,7 +74,7 @@ pub struct DataBlock<T> {
     data: Vec<T>,
 
     #[getset(get = "pub")]
-    metadata: HashMap<String, DataCell>,
+    metadata: HashMap<String, MetaCell>,
 }
 
 impl<T> DataBlock<T> {
@@ -84,8 +84,20 @@ impl<T> DataBlock<T> {
     }
 
     /// Public constructor.
-    pub fn new(data: Vec<T>, metadata: HashMap<String, DataCell>) -> Self {
+    pub fn new(data: Vec<T>, metadata: HashMap<String, MetaCell>) -> Self {
         DataBlock {data, metadata}
+    }
+
+    pub fn schema(&self) -> &Schema {
+        self.metadata().get(SCHEMA_META_NAME).unwrap().to_schema()
+    }
+}
+
+impl<T> Index<usize> for DataBlock<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data()[index]
     }
 }
 
@@ -106,7 +118,7 @@ mod tests {
     #[test]
     fn datablock_new() {
         let data: Vec<i64> = vec![19241];
-        let metadata: HashMap<String, DataCell> = HashMap::from([("key".into(), DataCell::Text("value".to_string()))]);
+        let metadata = HashMap::from([("key".into(), MetaCell::Text("value".to_string()))]);
         let dblock = DataBlock::new(data.clone(), metadata.clone());
         assert_eq!(dblock.data, data);
         assert_eq!(dblock.metadata, metadata);
@@ -116,23 +128,23 @@ mod tests {
     fn datablock_new_with_schema() {
         let data: Vec<i64> = vec![19241];
         let lineitem_schema = Schema::from_example("lineitem").unwrap();
-        let metadata: HashMap<String, DataCell> = HashMap::from(
+        let metadata= HashMap::from(
             [
-                ("key".into(), DataCell::Text("value".to_string())),
-                ("schema".into(), DataCell::Schema(lineitem_schema.clone()))
+                ("key".into(), MetaCell::Text("value".to_string())),
+                ("schema".into(), MetaCell::Schema(lineitem_schema.clone()))
             ]
         );
         let dblock = DataBlock::new(data.clone(), metadata.clone());
         assert_eq!(dblock.data, data);
         assert_eq!(dblock.metadata, metadata);
-        assert_eq!(dblock.metadata.get("schema"), Some(&DataCell::Schema(lineitem_schema)));
+        assert_eq!(dblock.metadata.get("schema"), Some(&MetaCell::Schema(lineitem_schema)));
     }
 
     /// Even if a payload is cloned, their underlying data objects are the same.
     #[test]
     fn clone_doenst_copy_data() {
         let data: Vec<i64> = vec![19241];
-        let metadata: HashMap<String, DataCell> = HashMap::from([("key".into(), DataCell::Text("value".to_string()))]);
+        let metadata = HashMap::from([("key".into(), MetaCell::Text("value".to_string()))]);
         let dblock = DataBlock::new(data.clone(), metadata.clone());
         let payload = Payload::new(dblock);
         let payload_clone = payload.clone();
