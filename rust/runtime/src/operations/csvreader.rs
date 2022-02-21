@@ -30,9 +30,9 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
         // The output DataBlock that you send should have this schema?
         Gn::new_scoped(
             move |mut s| {
-                let input_schema = input_set.metadata().get("schema").unwrap().to_schema();
-                let metadata: HashMap<String, DataCell> = HashMap::from(
-                    [("schema".into(), DataCell::Schema(self._build_output_schema(input_schema)))]
+                let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
+                let metadata = HashMap::from(
+                    [(SCHEMA_META_NAME.into(), MetaCell::Schema(self._build_output_schema(input_schema)))]
                 );
 
                 let mut records: Vec<ArrayRow> = vec![];
@@ -96,10 +96,10 @@ mod tests {
         ];
         // Metadata for DataBlock
         let lineitem_schema = Schema::from_example("lineitem").unwrap();
-        let metadata: HashMap<String, DataCell> = HashMap::from(
-            [("schema".into(), DataCell::Schema(lineitem_schema.clone()))]
+        let metadata = HashMap::from(
+            [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
         );
-        let dblock = DataBlock::new(input_vec,metadata);
+        let dblock = DataBlock::new(input_vec, metadata);
         csvreader.write_to_self(0, DataMessage::from_data_block(dblock));
         csvreader.write_to_self(0, DataMessage::eof());
         let reader_node = NodeReader::new(&csvreader);
@@ -121,8 +121,8 @@ mod tests {
             assert!(message_len <= batch_size);
             total_output_len += message_len;
             assert_eq!(
-                dblock.metadata().get("schema").unwrap(),
-                &DataCell::Schema(lineitem_schema.clone())
+                dblock.metadata().get(SCHEMA_META_NAME).unwrap(),
+                &MetaCell::Schema(lineitem_schema.clone())
             );
         }
         // Assert total record length.

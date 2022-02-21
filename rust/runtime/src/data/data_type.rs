@@ -87,15 +87,26 @@ impl DataCell {
         }
     }
 
-    pub fn to_schema(&self) -> &Schema {
-        match self {
-            DataCell::Schema(a) => a,
-            _ => panic!("Not a Valid Schema DataCell")
-        }
-    }
-
     pub fn from_str(value: &str) -> Self {
         DataCell::Text(value.to_string())
+    }
+}
+
+impl From<&str> for DataCell {
+    fn from(value: &str) -> Self {
+        DataCell::Text(value.to_string())
+    }
+}
+
+impl From<i32> for DataCell {
+    fn from(value: i32) -> Self {
+        DataCell::Integer(value)
+    }
+}
+
+impl From<usize> for DataCell {
+    fn from(value: usize) -> Self {
+        DataCell::Integer(value.try_into().unwrap())
     }
 }
 
