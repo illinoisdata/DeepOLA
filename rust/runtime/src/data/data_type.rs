@@ -10,7 +10,6 @@ pub enum DataType {
     Float,
     Text,
     Null,
-    Schema,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]

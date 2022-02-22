@@ -86,6 +86,7 @@ impl Mul<DataCell> for DataCell {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::DataCell;
 
