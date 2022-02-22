@@ -85,3 +85,51 @@ impl Mul<DataCell> for DataCell {
         self.mul(&rhs)
     }
 }
+
+mod tests {
+    use super::DataCell;
+
+    #[test]
+    fn can_add_datacell() {
+        let int1 = DataCell::Integer(1);
+        let int2 = DataCell::Integer(2);
+        let float1 = DataCell::Float(4.0);
+        let float2 = DataCell::Float(2.5);
+        assert_eq!(int1.clone()+int2.clone(), DataCell::Integer(3));
+        assert_eq!(int1.clone()+float1.clone(), DataCell::Float(5.0));
+        assert_eq!(float1.clone()+float2.clone(), DataCell::Float(6.5));
+    }
+
+    #[test]
+    fn can_sub_datacell() {
+        let int1 = DataCell::Integer(1);
+        let int2 = DataCell::Integer(2);
+        let float1 = DataCell::Float(4.0);
+        let float2 = DataCell::Float(2.5);
+        assert_eq!(int1.clone()-int2.clone(), DataCell::Integer(-1));
+        assert_eq!(int1.clone()-float1.clone(), DataCell::Float(-3.0));
+        assert_eq!(float1.clone()-float2.clone(), DataCell::Float(1.5));
+    }
+
+    #[test]
+    fn can_mul_datacell() {
+        let int1 = DataCell::Integer(1);
+        let int2 = DataCell::Integer(2);
+        let float1 = DataCell::Float(4.0);
+        let float2 = DataCell::Float(2.5);
+        assert_eq!(int1.clone()*int2.clone(), DataCell::Integer(2));
+        assert_eq!(int1.clone()*float1.clone(), DataCell::Float(4.0));
+        assert_eq!(float1.clone()*float2.clone(), DataCell::Float(10.0));
+    }
+
+    #[test]
+    fn can_div_datacell() {
+        let int1 = DataCell::Integer(1);
+        let int2 = DataCell::Integer(2);
+        let float1 = DataCell::Float(4.0);
+        let float2 = DataCell::Float(2.5);
+        assert_eq!(int1.clone()/int2.clone(), DataCell::Float(0.5));
+        assert_eq!(int1.clone()/float1.clone(), DataCell::Float(0.25));
+        assert_eq!(float1.clone()/float2.clone(), DataCell::Float(4.0/2.5));
+    }
+}

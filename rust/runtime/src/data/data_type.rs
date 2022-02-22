@@ -238,4 +238,57 @@ mod tests {
         let r = DataCell::Integer(3);
         assert_eq!(p + q, r);
     }
+
+    #[test]
+    fn can_sum_datacells() {
+        let mut cells = vec![];
+        let mut target_sum = 0;
+        for i in 1..10 {
+            cells.push(DataCell::Integer(i));
+            target_sum += i;
+        }
+        assert_eq!(DataCell::sum(&cells), DataCell::Integer(target_sum));
+    }
+
+    #[test]
+    fn can_ct_datacells() {
+        let mut cells = vec![];
+        let mut target_ct = 0;
+        for i in 1..10 {
+            cells.push(DataCell::Integer(i));
+            target_ct += 1;
+            if i%2 == 0 {
+                cells.push(DataCell::Null());
+            }
+        }
+        assert_eq!(DataCell::count(&cells), DataCell::Integer(target_ct));
+    }
+
+    #[test]
+    fn can_avg_datacells() {
+        let mut cells = vec![];
+        let mut target_sum = 0;
+        let mut target_ct = 0;
+        for i in 1..10 {
+            cells.push(DataCell::Integer(i));
+            target_sum += i;
+            target_ct += 1;
+        }
+        assert_eq!(DataCell::avg(&cells), DataCell::Float((target_sum as f64)/(target_ct as f64)));
+    }
+
+    #[test]
+    fn can_hash_datacell() {
+        let cell1 = DataCell::Integer(1);
+        let cell2 = DataCell::Integer(1);
+        assert_eq!(cell1.hash(), cell2.hash());
+        assert_eq!(
+            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello".to_string())]),
+            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello".to_string())])
+        );
+        assert_ne!(
+            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello".to_string())]),
+            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello ".to_string())])
+        );
+    }
 }
