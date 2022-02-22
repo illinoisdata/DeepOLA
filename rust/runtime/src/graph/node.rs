@@ -128,7 +128,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
             input_channels.push(Rc::new(read_channel));
             self_writers.push(write_channel);
         }
-        
+
         Self {
             stream_processor,
             input_reader: RefCell::new(input_channels),
@@ -260,7 +260,7 @@ mod tests {
         let first_node = &node_list[0];
         let last_node = &node_list[node_list.len() - 1];
         let reader_node = NodeReader::new(last_node);
-        first_node.write_to_self(0, 
+        first_node.write_to_self(0,
             DataMessage::from_single(KeyValue::from_str("mykey", "")));
         first_node.write_to_self(0, DataMessage::eof());
 

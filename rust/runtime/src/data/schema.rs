@@ -72,15 +72,20 @@ impl Schema {
     }
 
     // Implemented this function to be able to reference columns in tests with column names.
-    pub fn index(&self, column: &str) -> usize {
-        match self._column_index.get(column) {
+    pub fn index(&self, column: String) -> usize {
+        match self._column_index.get(&column) {
             Some(index) => *index,
             None => panic!("Invalid column name"),
         }
     }
 
+    // Get DataType for a column
+    pub fn dtype(&self, column: String) -> DataType {
+        self.columns[self.index(column)].dtype.clone()
+    }
+
     // Get Column object corresponding to the column name.
-    pub fn get_column(&self, column: &str) -> Column {
+    pub fn get_column(&self, column: String) -> Column {
         self.columns[self.index(column)].clone()
     }
 
@@ -139,9 +144,9 @@ mod tests {
     fn can_create_schema_object() {
         let schema = Schema::from_example("lineitem").unwrap();
         assert_eq!(schema.columns.len(), 16);
-        assert_eq!(schema.index("l_orderkey"), 0);
-        assert_eq!(schema.index("l_suppkey"), 2);
-        assert_eq!(schema.index("l_comment"), 15);
+        assert_eq!(schema.index("l_orderkey".to_string()), 0);
+        assert_eq!(schema.index("l_suppkey".to_string()), 2);
+        assert_eq!(schema.index("l_comment".to_string()), 15);
     }
 
     #[test]
