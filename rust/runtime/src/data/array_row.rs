@@ -1,18 +1,16 @@
 use std::ops::{Index, IndexMut};
 
-use getset::Getters;
 use crate::data::data_type::DataCell;
+use getset::Getters;
 
 #[derive(Getters, Debug, Clone, PartialEq)]
 pub struct ArrayRow {
-    pub values: Vec<DataCell>
+    pub values: Vec<DataCell>,
 }
 
 impl ArrayRow {
     pub fn from_vector(values: Vec<DataCell>) -> ArrayRow {
-        ArrayRow { 
-            values
-        }
+        ArrayRow { values }
     }
 
     pub fn len(&self) -> usize {
@@ -28,20 +26,32 @@ impl From<Vec<DataCell>> for ArrayRow {
 
 impl From<&[DataCell]> for ArrayRow {
     fn from(array: &[DataCell]) -> Self {
-        ArrayRow { values: Vec::<DataCell>::from(array)}
+        ArrayRow {
+            values: Vec::<DataCell>::from(array),
+        }
     }
 }
 
 impl<const N: usize> From<[DataCell; N]> for ArrayRow {
     fn from(array: [DataCell; N]) -> Self {
-        ArrayRow { values: Vec::from(array) }
+        ArrayRow {
+            values: Vec::from(array),
+        }
     }
 }
 
 impl ArrayRow {
     pub fn from_example() -> Vec<ArrayRow> {
-        let example_row_1 = ArrayRow::from_vector(vec![DataCell::Integer(0),DataCell::Float(0.1),DataCell::Text(String::from("value1"))]);
-        let example_row_2 = ArrayRow::from_vector(vec![DataCell::Integer(1),DataCell::Float(0.9),DataCell::Text(String::from("value2"))]);
+        let example_row_1 = ArrayRow::from_vector(vec![
+            DataCell::Integer(0),
+            DataCell::Float(0.1),
+            DataCell::Text(String::from("value1")),
+        ]);
+        let example_row_2 = ArrayRow::from_vector(vec![
+            DataCell::Integer(1),
+            DataCell::Float(0.9),
+            DataCell::Text(String::from("value2")),
+        ]);
         vec![example_row_1, example_row_2]
     }
 }
@@ -67,7 +77,7 @@ mod tests {
     #[test]
     fn can_create_array_row() {
         let array_row = ArrayRow::from_example();
-        assert_eq!(array_row.len(),2);
-        assert_eq!(array_row[0].len(),3);
+        assert_eq!(array_row.len(), 2);
+        assert_eq!(array_row[0].len(), 3);
     }
 }

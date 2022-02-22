@@ -1,6 +1,6 @@
-use std::error::Error;
-use std::hash::{Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::error::Error;
+use std::hash::Hasher;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
@@ -10,7 +10,7 @@ pub enum DataType {
     Float,
     Text,
     Null,
-    Schema
+    Schema,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -31,9 +31,9 @@ impl DataCell {
             DataCell::Boolean(a) => hasher.write_u8(*a as u8),
             DataCell::UnsignedInt(a) => hasher.write_usize(*a),
             DataCell::Integer(a) => hasher.write_i32(*a),
-            DataCell::Float(_a) => {},
+            DataCell::Float(_a) => {}
             DataCell::Text(a) => hasher.write(a.as_bytes()),
-            _ => {},
+            _ => {}
         }
         hasher.finish()
     }
@@ -48,9 +48,9 @@ impl DataCell {
                 DataCell::Boolean(a) => hasher.write_u8(a as u8),
                 DataCell::UnsignedInt(a) => hasher.write_usize(a),
                 DataCell::Integer(a) => hasher.write_i32(a),
-                DataCell::Float(_a) => {},
+                DataCell::Float(_a) => {}
                 DataCell::Text(a) => hasher.write(a.as_bytes()),
-                _ => {},
+                _ => {}
             }
         }
         hasher.finish()
@@ -71,8 +71,12 @@ impl DataCell {
         let mut result = 0;
         for cell in cells {
             match cell {
-                DataCell::Null() => {result += 0;}
-                _ => {result += 1;}
+                DataCell::Null() => {
+                    result += 0;
+                }
+                _ => {
+                    result += 1;
+                }
             }
         }
         DataCell::Integer(result)
@@ -84,13 +88,11 @@ impl DataCell {
 
         if count == 0 {
             DataCell::Null()
-        }
-        else {
-            sum/count
+        } else {
+            sum / count
         }
     }
 }
-
 
 // The PartialEq traits have been implemented to support direct comparison
 // between DataCell and a value of the corresponding data type (i32, f64, str).
@@ -99,7 +101,7 @@ impl PartialEq<String> for DataCell {
     fn eq(&self, other: &String) -> bool {
         match self {
             DataCell::Text(a) => (a == other),
-            _ => false
+            _ => false,
         }
     }
 }
@@ -108,7 +110,7 @@ impl PartialEq<&str> for DataCell {
     fn eq(&self, other: &&str) -> bool {
         match self {
             DataCell::Text(a) => (a == other),
-            _ => false
+            _ => false,
         }
     }
 }
@@ -118,7 +120,7 @@ impl PartialEq<i32> for DataCell {
         match self {
             DataCell::Integer(a) => (a == other),
             DataCell::Float(a) => (*a == f64::from(*other)),
-            _ => false
+            _ => false,
         }
     }
 }
@@ -128,7 +130,7 @@ impl PartialEq<f64> for DataCell {
         match self {
             DataCell::Integer(a) => (f64::from(*a) == *other),
             DataCell::Float(a) => (a == other),
-            _ => false
+            _ => false,
         }
     }
 }
@@ -137,9 +139,9 @@ impl DataCell {
     // Convert the String value to the specified data type.
     // Returns a DataValue object with the specified value.
     // This function would be called for each field in the rows that are read.
-    pub fn create_data_cell(value: String, d: &DataType) -> Result<DataCell, Box<dyn Error> > {
+    pub fn create_data_cell(value: String, d: &DataType) -> Result<DataCell, Box<dyn Error>> {
         if value.chars().count() == 0 {
-            return Ok(DataCell::Null())
+            return Ok(DataCell::Null());
         }
         match d {
             DataType::Boolean => Ok(DataCell::Boolean(value.parse::<bool>().unwrap())),
@@ -147,7 +149,7 @@ impl DataCell {
             DataType::Integer => Ok(DataCell::Integer(value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(value.parse::<f64>().unwrap())),
             DataType::Text => Ok(DataCell::Text(value)),
-            _ => Err("Invalid Conversion Method")?
+            _ => Err("Invalid Conversion Method")?,
         }
     }
 
@@ -168,7 +170,7 @@ impl DataCell {
             DataCell::Integer(a) => a.to_string(),
             DataCell::Float(a) => a.to_string(),
             DataCell::Text(a) => a.to_string(),
-            _ => panic!("Invalid DataCell")
+            _ => panic!("Invalid DataCell"),
         }
     }
 
@@ -186,6 +188,12 @@ impl From<&str> for DataCell {
 impl From<i32> for DataCell {
     fn from(value: i32) -> Self {
         DataCell::Integer(value)
+    }
+}
+
+impl From<f64> for DataCell {
+    fn from(value: f64) -> Self {
+        DataCell::Float(value)
     }
 }
 
@@ -257,7 +265,7 @@ mod tests {
         for i in 1..10 {
             cells.push(DataCell::Integer(i));
             target_ct += 1;
-            if i%2 == 0 {
+            if i % 2 == 0 {
                 cells.push(DataCell::Null());
             }
         }
@@ -274,7 +282,10 @@ mod tests {
             target_sum += i;
             target_ct += 1;
         }
-        assert_eq!(DataCell::avg(&cells), DataCell::Float((target_sum as f64)/(target_ct as f64)));
+        assert_eq!(
+            DataCell::avg(&cells),
+            DataCell::Float((target_sum as f64) / (target_ct as f64))
+        );
     }
 
     #[test]
@@ -283,12 +294,24 @@ mod tests {
         let cell2 = DataCell::Integer(1);
         assert_eq!(cell1.hash(), cell2.hash());
         assert_eq!(
-            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello".to_string())]),
-            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello".to_string())])
+            DataCell::vector_hash(vec![
+                DataCell::Integer(1),
+                DataCell::Text("hello".to_string())
+            ]),
+            DataCell::vector_hash(vec![
+                DataCell::Integer(1),
+                DataCell::Text("hello".to_string())
+            ])
         );
         assert_ne!(
-            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello".to_string())]),
-            DataCell::vector_hash(vec![DataCell::Integer(1),DataCell::Text("hello ".to_string())])
+            DataCell::vector_hash(vec![
+                DataCell::Integer(1),
+                DataCell::Text("hello".to_string())
+            ]),
+            DataCell::vector_hash(vec![
+                DataCell::Integer(1),
+                DataCell::Text("hello ".to_string())
+            ])
         );
     }
 }

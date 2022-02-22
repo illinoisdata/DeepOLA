@@ -7,6 +7,7 @@ pub enum AggregationOperation {
     Count,
     CountDistinct,
 }
+
 impl ToString for AggregationOperation {
     fn to_string(&self) -> String {
         match self {
@@ -22,7 +23,7 @@ impl ToString for AggregationOperation {
 pub struct Aggregate {
     pub operation: AggregationOperation,
     pub column: String,
-    pub alias: Option<String>
+    pub alias: Option<String>,
 }
 
 impl Aggregate {
@@ -55,8 +56,8 @@ impl Aggregate {
         match self.operation {
             AggregationOperation::Sum => DataCell::sum(values),
             AggregationOperation::Count => DataCell::count(values),
-            AggregationOperation::Avg => DataCell::avg(values),
-            _ => DataCell::Integer(0)
+            AggregationOperation::Avg => panic!("AVG Not Implemented"),
+            _ => panic!("Invalid Aggregation Operation"),
         }
     }
 }
