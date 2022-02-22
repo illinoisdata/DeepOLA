@@ -79,6 +79,11 @@ impl Schema {
         }
     }
 
+    // Get DataType for a column
+    pub fn dtype(&self, column: String) -> DataType {
+        self.columns[self.index(column)].dtype.clone()
+    }
+
     // Get Column object corresponding to the column name.
     pub fn get_column(&self, column: String) -> Column {
         self.columns[self.index(column)].clone()

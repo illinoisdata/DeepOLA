@@ -1,5 +1,6 @@
 use crate::{graph::ExecutionNode, processor::SetProcessorV1};
 use crate::data::*;
+use crate::graph::*;
 use std::{collections::HashMap};
 
 use itertools::izip;
@@ -75,6 +76,35 @@ impl CSVReader {
     pub fn new(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
         Box::new(CSVReader {batch_size})
     }
+}
+
+pub fn get_example_arrayrow_messages() -> Vec<DataMessage<ArrayRow>> {
+    let batch_size = 50;
+    let csvreader = CSVReaderNode::new(batch_size);
+    // The CSV files that we want to be read by this node => data for DataBlock.
+    let input_vec = vec![
+        ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())]),
+        ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())])
+    ];
+    // Metadata for DataBlock
+    let lineitem_schema = Schema::from_example("lineitem").unwrap();
+    let metadata = HashMap::from(
+        [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
+    );
+    let dblock = DataBlock::new(input_vec, metadata);
+    csvreader.write_to_self(0, DataMessage::from_data_block(dblock));
+    csvreader.write_to_self(0, DataMessage::eof());
+    let reader_node = NodeReader::new(&csvreader);
+    csvreader.run();
+    let mut output_messages = vec![];
+    loop {
+        let message = reader_node.read();
+        if message.is_eof() {
+            break;
+        }
+        output_messages.push(message.clone());
+    }
+    output_messages
 }
 
 #[cfg(test)]

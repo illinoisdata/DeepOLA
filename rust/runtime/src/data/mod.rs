@@ -5,6 +5,7 @@ mod payload;
 mod data_type;
 mod schema;
 mod meta_type;
+mod arithmetic;
 
 pub use message::*;
 pub use kv::*;

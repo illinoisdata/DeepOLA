@@ -1,5 +1,6 @@
 use std::error::Error;
-use crate::data::schema::Schema;
+use std::hash::{Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
@@ -8,6 +9,7 @@ pub enum DataType {
     Integer,
     Float,
     Text,
+    Null,
     Schema
 }
 
@@ -18,8 +20,77 @@ pub enum DataCell {
     Integer(i32),
     Float(f64),
     Text(String),
-    Schema(Schema),
+    Null(),
 }
+
+impl DataCell {
+    // Hasher for a single DataCell
+    pub fn hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        match self {
+            DataCell::Boolean(a) => hasher.write_u8(*a as u8),
+            DataCell::UnsignedInt(a) => hasher.write_usize(*a),
+            DataCell::Integer(a) => hasher.write_i32(*a),
+            DataCell::Float(_a) => {},
+            DataCell::Text(a) => hasher.write(a.as_bytes()),
+            _ => {},
+        }
+        hasher.finish()
+    }
+
+    // Currently doesn't support hashing for f64 fields.
+    // It can be supported by converting f64 into its (exponent, mantissa) form and hashing three of them.
+    // Hasher for a vector of DataCell
+    pub fn vector_hash(cells: Vec<DataCell>) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        for cell in cells {
+            match cell {
+                DataCell::Boolean(a) => hasher.write_u8(a as u8),
+                DataCell::UnsignedInt(a) => hasher.write_usize(a),
+                DataCell::Integer(a) => hasher.write_i32(a),
+                DataCell::Float(_a) => {},
+                DataCell::Text(a) => hasher.write(a.as_bytes()),
+                _ => {},
+            }
+        }
+        hasher.finish()
+    }
+
+    pub fn sum(cells: &[DataCell]) -> DataCell {
+        if cells.is_empty() {
+            return DataCell::Null();
+        }
+        let mut result = cells[0].clone();
+        for i in 1..cells.len() {
+            result = result + &cells[i];
+        }
+        result
+    }
+
+    pub fn count(cells: &[DataCell]) -> DataCell {
+        let mut result = 0;
+        for cell in cells {
+            match cell {
+                DataCell::Null() => {result += 0;}
+                _ => {result += 1;}
+            }
+        }
+        DataCell::Integer(result)
+    }
+
+    pub fn avg(cells: &[DataCell]) -> DataCell {
+        let sum = Self::sum(cells);
+        let count = Self::count(cells);
+
+        if count == 0 {
+            DataCell::Null()
+        }
+        else {
+            sum/count
+        }
+    }
+}
+
 
 // The PartialEq traits have been implemented to support direct comparison
 // between DataCell and a value of the corresponding data type (i32, f64, str).
@@ -67,6 +138,9 @@ impl DataCell {
     // Returns a DataValue object with the specified value.
     // This function would be called for each field in the rows that are read.
     pub fn create_data_cell(value: String, d: &DataType) -> Result<DataCell, Box<dyn Error> > {
+        if value.chars().count() == 0 {
+            return Ok(DataCell::Null())
+        }
         match d {
             DataType::Boolean => Ok(DataCell::Boolean(value.parse::<bool>().unwrap())),
             DataType::UnsignedInt => Ok(DataCell::UnsignedInt(value.parse::<usize>().unwrap())),
@@ -74,6 +148,17 @@ impl DataCell {
             DataType::Float => Ok(DataCell::Float(value.parse::<f64>().unwrap())),
             DataType::Text => Ok(DataCell::Text(value)),
             _ => Err("Invalid Conversion Method")?
+        }
+    }
+
+    pub fn dtype(&self) -> DataType {
+        match self {
+            DataCell::Boolean(_a) => DataType::Boolean,
+            DataCell::UnsignedInt(_a) => DataType::UnsignedInt,
+            DataCell::Integer(_a) => DataType::Integer,
+            DataCell::Float(_a) => DataType::Float,
+            DataCell::Text(_a) => DataType::Text,
+            DataCell::Null() => DataType::Null,
         }
     }
 
@@ -114,7 +199,6 @@ impl From<usize> for DataCell {
 mod tests {
     use super::DataCell;
 
-
     #[test]
     fn can_create_from_string() {
         let d = DataCell::Text("hello".to_string());
@@ -147,4 +231,11 @@ mod tests {
         assert_eq!(d, 1.0);
     }
 
+    #[test]
+    fn can_add_datacell() {
+        let p = DataCell::Integer(1);
+        let q = DataCell::Integer(2);
+        let r = DataCell::Integer(3);
+        assert_eq!(p + q, r);
+    }
 }
