@@ -59,11 +59,22 @@ impl DataCell {
         if cells.is_empty() {
             return DataCell::Null();
         }
-        let mut result = cells[0].clone();
-        for i in 1..cells.len() {
-            result = result + &cells[i];
+        match cells[0] {
+            DataCell::Integer(a) => {
+                let mut result = a;
+                for i in 1..cells.len() {
+                    result += i32::from(cells[i].clone());
+                }
+                DataCell::Integer(result)
+            },
+            DataCell::Float(a) => {
+                let mut result = a;
+                for i in 1..cells.len() {
+                    result += f64::from(cells[i].clone());
+                }
+                DataCell::Float(result)
+            }
         }
-        result
     }
 
     pub fn count(cells: &[DataCell]) -> DataCell {
@@ -175,6 +186,26 @@ impl DataCell {
 
     pub fn from_str(value: &str) -> Self {
         DataCell::Text(value.to_string())
+    }
+}
+
+impl From<DataCell> for i32 {
+    fn from(value: DataCell) -> Self {
+        match value {
+            DataCell::Integer(a) => a,
+            DataCell::Float(a) => a as i32,
+            _ => panic!("Invalid Conversion")
+        }
+    }
+}
+
+impl From<DataCell> for f64 {
+    fn from(value: DataCell) -> Self {
+        match value {
+            DataCell::Float(a) => a,
+            DataCell::Integer(a) => f64::from(a),
+            _ => panic!("Invalid Conversion")
+        }
     }
 }
 
