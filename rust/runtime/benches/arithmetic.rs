@@ -44,33 +44,10 @@ fn datacell_arithmetic_sum_f64(c: &mut Criterion) {
     }));
 }
 
-
-fn base_arithmetic_mul_i32(c: &mut Criterion) {
-    c.bench_function("Base Mul i32", |b| b.iter(||{
-        let mut result = 1;
-        for i in 1..BENCH_SIZE {
-            result *= i;
-        }
-        result
-    }));
-}
-
-fn datacell_arithmetic_mul_i32(c: &mut Criterion) {
-    c.bench_function("DataCell Mul i32", |b| b.iter(||{
-        let mut result = DataCell::Integer(1);
-        for i in 1..BENCH_SIZE {
-            result = result * DataCell::Integer(i);
-        }
-        result
-    }));
-}
-
 criterion_group!(arithmetic_benches,
     base_arithmetic_sum_i32,
     datacell_arithmetic_sum_i32,
     base_arithmetic_sum_f64,
-    datacell_arithmetic_sum_f64,
-    base_arithmetic_mul_i32,
-    datacell_arithmetic_mul_i32
+    datacell_arithmetic_sum_f64
 );
 criterion_main!(arithmetic_benches);

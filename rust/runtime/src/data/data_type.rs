@@ -73,7 +73,8 @@ impl DataCell {
                     result += f64::from(cells[i].clone());
                 }
                 DataCell::Float(result)
-            }
+            },
+            _ => panic!("SUM not implemented")
         }
     }
 
