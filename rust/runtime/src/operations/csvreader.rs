@@ -11,8 +11,8 @@ pub struct CSVReaderNode;
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
 /// read csv files.
 impl CSVReaderNode {
-    pub fn new(batch_size: usize) -> ExecutionNode<ArrayRow> {  // TODO: new usually return Self
-        let data_processor = CSVReader::new(batch_size);
+    pub fn node(batch_size: usize) -> ExecutionNode<ArrayRow> {
+        let data_processor = CSVReader::new_boxed(batch_size);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 }
@@ -73,14 +73,14 @@ impl CSVReader {
         input_schema.clone()
     }
 
-    pub fn new(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {  // TODO: new usually return Self
+    pub fn new_boxed(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
         Box::new(CSVReader {batch_size})
     }
 }
 
 pub fn get_example_arrayrow_messages() -> Vec<DataMessage<ArrayRow>> {
     let batch_size = 50;
-    let csvreader = CSVReaderNode::new(batch_size);
+    let csvreader = CSVReaderNode::node(batch_size);
     // The CSV files that we want to be read by this node => data for DataBlock.
     let input_vec = vec![
         ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())]),
@@ -117,7 +117,7 @@ mod tests {
     fn test_csv_reader_node() {
         // Create a CSV Reader Node with lineitem Schema.
         let batch_size = 50;
-        let csvreader = CSVReaderNode::new(batch_size);
+        let csvreader = CSVReaderNode::node(batch_size);
 
         // The CSV files that we want to be read by this node => data for DataBlock.
         let input_vec = vec![
