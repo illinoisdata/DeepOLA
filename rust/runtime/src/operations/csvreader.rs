@@ -11,7 +11,7 @@ pub struct CSVReaderNode;
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
 /// read csv files.
 impl CSVReaderNode {
-    pub fn new(batch_size: usize) -> ExecutionNode<ArrayRow> {
+    pub fn new(batch_size: usize) -> ExecutionNode<ArrayRow> {  // TODO: new usually return Self
         let data_processor = CSVReader::new(batch_size);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
@@ -57,7 +57,7 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                     }
                 }
                 if !records.is_empty() {
-                    let message = DataBlock::new(records, metadata.clone());
+                    let message = DataBlock::new(records, metadata);
                     s.yield_(message);
                 }
                 done!();
@@ -73,7 +73,7 @@ impl CSVReader {
         input_schema.clone()
     }
 
-    pub fn new(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
+    pub fn new(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {  // TODO: new usually return Self
         Box::new(CSVReader {batch_size})
     }
 }
@@ -89,7 +89,7 @@ pub fn get_example_arrayrow_messages() -> Vec<DataMessage<ArrayRow>> {
     // Metadata for DataBlock
     let lineitem_schema = Schema::from_example("lineitem").unwrap();
     let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
+        [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema))]
     );
     let dblock = DataBlock::new(input_vec, metadata);
     csvreader.write_to_self(0, DataMessage::from_data_block(dblock));

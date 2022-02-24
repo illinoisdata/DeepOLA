@@ -52,7 +52,7 @@ impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
                     }
                 }
                 Payload::EOF => {
-                    output_stream.write(message.clone());
+                    output_stream.write(message);
                     break;
                 }
                 Payload::Signal(_) => break,

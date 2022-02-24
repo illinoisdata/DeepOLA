@@ -17,7 +17,7 @@ impl Channel {
             channel_tx,
         };
         let reader = ChannelReader {
-            channel_id: channel_id.clone(),
+            channel_id,
             channel_rx,
         };
         (writer, reader)

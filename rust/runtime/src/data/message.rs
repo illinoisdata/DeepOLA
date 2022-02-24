@@ -79,6 +79,10 @@ impl<T> DataMessage<T> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn iter(&self) -> impl Iterator<Item=&T> + '_ {
         match &self.payload {
             Payload::Some(dblock) => dblock.data().iter(),

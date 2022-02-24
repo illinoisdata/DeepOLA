@@ -11,7 +11,7 @@ pub struct GroupByNode;
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
 /// perform GROUP BY operation.
 impl GroupByNode {
-    pub fn new(groupby_cols: Vec<String>, aggregates: Vec<Aggregate>) -> ExecutionNode<ArrayRow> {
+    pub fn new(groupby_cols: Vec<String>, aggregates: Vec<Aggregate>) -> ExecutionNode<ArrayRow> {  // TODO: new usually return Self
         let data_processor = GroupByMapper::new_boxed(groupby_cols, aggregates);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
@@ -71,20 +71,20 @@ impl GroupByMapper {
     // Merges the current_groupby_result with the stored_groupby_result
     pub fn update_groupby_result(&self, current_groupby_result: HashMap<u64, Vec<DataCell>>) {
         let mut result_hashmap = self.stored_groupby_agg.borrow_mut();
-        for (key, value) in current_groupby_result.iter() {
-            if result_hashmap.contains_key(key) {
+        for (key, value) in current_groupby_result.into_iter() {
+            if result_hashmap.contains_key(&key) {
                 // Key exist. Update the value.
                 // Currently supports only SUM and AVG operation.
-                let old_values = &result_hashmap[key];
+                let old_values = &result_hashmap[&key];
                 let new_values = value
                     .iter()
                     .enumerate()
                     .map(|(i, v)| v.clone() + &old_values[i])
                     .collect::<Vec<DataCell>>();
-                result_hashmap.insert(key.clone(), new_values);
+                result_hashmap.insert(key, new_values);
             } else {
                 // Key doesn't exist. Insert the key.
-                result_hashmap.insert(key.clone(), value.clone());
+                result_hashmap.insert(key, value);
             }
         }
     }

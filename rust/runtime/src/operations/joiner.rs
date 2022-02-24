@@ -9,11 +9,11 @@ struct SingleArrayJoiner {
 }
 
 impl SingleArrayJoiner {
-    pub fn new(left_join_index: &Vec<usize>, right_join_index: &Vec<usize>) -> Self {
+    pub fn new(left_join_index: &[usize], right_join_index: &[usize]) -> Self {
         SingleArrayJoiner {
-            left_join_index: left_join_index.clone(),
-            right_join_index: right_join_index.clone(),
-            right_index_set: HashSet::from_iter(right_join_index.clone().into_iter()),
+            left_join_index: left_join_index.to_vec(),
+            right_join_index: right_join_index.to_vec(),
+            right_index_set: HashSet::from_iter(right_join_index.to_owned().into_iter()),
         }
     }
 
@@ -40,12 +40,10 @@ impl SingleArrayJoiner {
         }
 
         // At this point all the items up until `min_len` are identical.
-        if left_len == right_len {
-            return 0;
-        } else if left_len < right_len {
-            return -1;
-        } else {
-            return 1;
+        match left_len.cmp(&right_len) {
+            std::cmp::Ordering::Greater => 1,
+            std::cmp::Ordering::Less => -1,
+            std::cmp::Ordering::Equal => 0,
         }
     }
 
@@ -63,7 +61,7 @@ impl SingleArrayJoiner {
             }
             joined.push(right_row[i].clone());
         }
-        return ArrayRow::from(joined);
+        ArrayRow::from(joined)
     }
 }
 
