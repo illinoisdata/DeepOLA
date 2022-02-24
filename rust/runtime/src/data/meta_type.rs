@@ -31,7 +31,7 @@ impl MetaCell {
 
 impl From<Schema> for MetaCell {
     fn from(schema: Schema) -> Self {
-        MetaCell::Schema(schema.clone())
+        MetaCell::Schema(schema)
     }
 }
 

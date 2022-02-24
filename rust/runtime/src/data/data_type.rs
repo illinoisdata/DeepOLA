@@ -62,15 +62,15 @@ impl DataCell {
         match cells[0] {
             DataCell::Integer(a) => {
                 let mut result = a;
-                for i in 1..cells.len() {
-                    result += i32::from(&cells[i]);
+                for cell in cells.iter().skip(1) {
+                    result += i32::from(cell);
                 }
                 DataCell::Integer(result)
             },
             DataCell::Float(a) => {
                 let mut result = a;
-                for i in 1..cells.len() {
-                    result += f64::from(&cells[i]);
+                for cell in cells.iter().skip(1) {
+                    result += f64::from(cell);
                 }
                 DataCell::Float(result)
             },
@@ -160,7 +160,7 @@ impl DataCell {
             DataType::Integer => Ok(DataCell::Integer(value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(value.parse::<f64>().unwrap())),
             DataType::Text => Ok(DataCell::Text(value)),
-            _ => Err("Invalid Conversion Method")?,
+            _ => Err("Invalid Conversion Method".into()),
         }
     }
 
@@ -175,7 +175,7 @@ impl DataCell {
         }
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {  // implement display instead
         match self {
             DataCell::Boolean(a) => a.to_string(),
             DataCell::Integer(a) => a.to_string(),
@@ -185,7 +185,7 @@ impl DataCell {
         }
     }
 
-    pub fn from_str(value: &str) -> Self {
+    pub fn from_str(value: &str) -> Self {  // confused with FromStr::from_str
         DataCell::Text(value.to_string())
     }
 }

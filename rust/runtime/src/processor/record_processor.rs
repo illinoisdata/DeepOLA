@@ -28,10 +28,7 @@ impl<T: Send> SetProcessorV1<T> for SimpleMapper<T> {
         Gn::new_scoped(move |mut s| {
             let mut records: Vec<T> = vec![];
             for r in input_set.data().iter() {
-                match (*self.record_map)(r) {
-                    Some(a) => records.push(a),
-                    None => (),
-                }
+                if let Some(a) = (*self.record_map)(r) { records.push(a) }
             }
             let message = DataBlock::from_records(records);
             s.yield_(message);

@@ -10,6 +10,12 @@ pub struct MultiChannelReader<T: Send> {
     readers: Vec<Rc<ChannelReader<T>>>,
 }
 
+impl<T: Send> Default for MultiChannelReader<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Send> MultiChannelReader<T> {
     pub fn new() -> Self {
         Self { readers: vec![] }
@@ -51,6 +57,12 @@ pub struct MultiChannelBroadcaster<T: Send> {
     writers: Vec<ChannelWriter<T>>,
 }
 
+impl<T: Send> Default for MultiChannelBroadcaster<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Send> MultiChannelBroadcaster<T> {
     pub fn new() -> Self {
         Self { writers: vec![] }
@@ -81,6 +93,10 @@ impl<T: Send> MultiChannelBroadcaster<T> {
 
     pub fn len(&self) -> usize {
         self.writers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
