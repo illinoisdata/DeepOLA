@@ -11,7 +11,7 @@ pub struct GroupByNode;
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
 /// perform GROUP BY operation.
 impl GroupByNode {
-    pub fn new(groupby_cols: Vec<String>, aggregates: Vec<Aggregate>) -> ExecutionNode<ArrayRow> {  // TODO: new usually return Self
+    pub fn node(groupby_cols: Vec<String>, aggregates: Vec<Aggregate>) -> ExecutionNode<ArrayRow> {
         let data_processor = GroupByMapper::new_boxed(groupby_cols, aggregates);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
@@ -343,7 +343,7 @@ mod tests {
             operation: AggregationOperation::Sum,
             alias: None,
         }];
-        let groupby_node = GroupByNode::new(groupby_cols, aggregates);
+        let groupby_node = GroupByNode::node(groupby_cols, aggregates);
         groupby_node.write_to_self(0, arrayrow_message);
         groupby_node.write_to_self(0, DataMessage::eof());
         let reader_node = NodeReader::new(&groupby_node);
@@ -376,7 +376,7 @@ mod tests {
                 alias: None,
             },
         ];
-        let groupby_node = GroupByNode::new(groupby_cols, aggregates);
+        let groupby_node = GroupByNode::node(groupby_cols, aggregates);
         groupby_node.write_to_self(0, arrayrow_message);
         groupby_node.write_to_self(0, DataMessage::eof());
         let reader_node = NodeReader::new(&groupby_node);
@@ -402,7 +402,7 @@ mod tests {
             operation: AggregationOperation::Sum,
             alias: None,
         }];
-        let groupby_node = GroupByNode::new(groupby_cols, aggregates);
+        let groupby_node = GroupByNode::node(groupby_cols, aggregates);
         groupby_node.write_to_self(0, arrayrow_message);
         groupby_node.write_to_self(0, DataMessage::eof());
         let reader_node = NodeReader::new(&groupby_node);

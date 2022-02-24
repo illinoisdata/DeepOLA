@@ -1,6 +1,9 @@
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::Hasher;
+use std::fmt;
+use std::str::FromStr;
+use std::convert::Infallible;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
@@ -174,19 +177,25 @@ impl DataCell {
             DataCell::Null() => DataType::Null,
         }
     }
+}
 
-    pub fn to_string(&self) -> String {  // implement display instead
-        match self {
+impl FromStr for DataCell {
+    type Err = Infallible;
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Ok(DataCell::Text(value.to_string()))
+    }
+}
+
+impl fmt::Display for DataCell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let result = match self {
             DataCell::Boolean(a) => a.to_string(),
             DataCell::Integer(a) => a.to_string(),
             DataCell::Float(a) => a.to_string(),
             DataCell::Text(a) => a.to_string(),
             _ => panic!("Invalid DataCell"),
-        }
-    }
-
-    pub fn from_str(value: &str) -> Self {  // confused with FromStr::from_str
-        DataCell::Text(value.to_string())
+        };
+        write!(f, "{}", result)
     }
 }
 
@@ -248,7 +257,7 @@ impl From<usize> for DataCell {
 
 #[cfg(test)]
 mod tests {
-    use super::DataCell;
+    use super::*;
 
     #[test]
     fn can_create_from_string() {
@@ -259,7 +268,7 @@ mod tests {
 
     #[test]
     fn can_create_from_str() {
-        let d = DataCell::from_str("hello");
+        let d = DataCell::from_str("hello").unwrap();
         assert_eq!(d, "hello".to_string());
         assert_eq!(d, "hello");
         assert_ne!(d, "world".to_string());
