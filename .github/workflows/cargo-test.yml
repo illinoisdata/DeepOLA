@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     name: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -21,4 +21,13 @@ jobs:
       working-directory: rust/runtime/
     - name: Run tests
       run: cargo test --verbose
+      working-directory: rust/runtime/
+  benchmark:
+    name: benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run Benchmarks
+      run: cargo bench
       working-directory: rust/runtime/
