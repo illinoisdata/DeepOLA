@@ -63,14 +63,14 @@ impl DataCell {
             DataCell::Integer(a) => {
                 let mut result = a;
                 for i in 1..cells.len() {
-                    result += i32::from(cells[i].clone());
+                    result += i32::from(&cells[i]);
                 }
                 DataCell::Integer(result)
             },
             DataCell::Float(a) => {
                 let mut result = a;
                 for i in 1..cells.len() {
-                    result += f64::from(cells[i].clone());
+                    result += f64::from(&cells[i]);
                 }
                 DataCell::Float(result)
             },
@@ -192,9 +192,15 @@ impl DataCell {
 
 impl From<DataCell> for i32 {
     fn from(value: DataCell) -> Self {
+        i32::from(&value)
+    }
+}
+
+impl From<&DataCell> for i32 {
+    fn from(value: &DataCell) -> Self {
         match value {
-            DataCell::Integer(a) => a,
-            DataCell::Float(a) => a as i32,
+            DataCell::Integer(a) => *a,
+            DataCell::Float(a) => *a as i32,
             _ => panic!("Invalid Conversion")
         }
     }
@@ -202,9 +208,15 @@ impl From<DataCell> for i32 {
 
 impl From<DataCell> for f64 {
     fn from(value: DataCell) -> Self {
+        f64::from(&value)
+    }
+}
+
+impl From<&DataCell> for f64 {
+    fn from(value: &DataCell) -> Self {
         match value {
-            DataCell::Float(a) => a,
-            DataCell::Integer(a) => f64::from(a),
+            DataCell::Float(a) => *a,
+            DataCell::Integer(a) => f64::from(*a),
             _ => panic!("Invalid Conversion")
         }
     }
