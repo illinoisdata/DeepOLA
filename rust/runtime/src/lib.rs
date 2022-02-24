@@ -7,6 +7,7 @@ pub mod graph;
 pub mod operations;
 pub mod processor;
 pub mod benchmarks;
+pub mod forecast;
 
 #[cfg(test)]
 mod tests {
