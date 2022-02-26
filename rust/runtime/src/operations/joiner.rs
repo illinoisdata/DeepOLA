@@ -156,7 +156,7 @@ impl SortedArraysJoiner {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::data::{ArrayRow, Column, DataBlock, DataType, MetaCell, DataCell};
+    use crate::data::{ArrayRow, Column, DataBlock, DataType, MetaCell};
 
     use super::{SingleArrayJoiner, SortedArraysJoiner};
 
@@ -383,51 +383,5 @@ mod tests {
             joined,
             DataBlock::new(vec![], MetaCell::from(vec![]).into_meta_map())
         );
-    }
-
-    fn create_meta(col_count: usize) -> HashMap<String, MetaCell> {
-        let mut cols = vec![];
-        for i in 0..col_count {
-            cols.push(Column::from_field(format!("col{}", i), DataType::Text));
-        }
-        MetaCell::from(cols).into_meta_map()
-    }
-
-    fn setup_left_block(row_count: usize, col_count: usize) -> DataBlock<ArrayRow> {
-        let mut rows = vec![];
-        for r in 0..row_count {
-            let mut cols = vec![];
-            for i in 0..(col_count-1) {
-                cols.push(DataCell::from(format!("col{}", i)));
-            }
-            cols.push(DataCell::Integer(r.try_into().unwrap()));
-            rows.push(ArrayRow::from(cols));
-        }
-        DataBlock::new(rows, create_meta(col_count))
-    }
-
-    fn setup_right_block(row_count: usize, col_count: usize) -> DataBlock<ArrayRow>{
-        let mut rows = vec![];
-        for r in 0..row_count {
-            let mut cols = vec![];
-            cols.push(DataCell::Integer(r.try_into().unwrap()));
-            for i in 0..(col_count-1) {
-                cols.push(DataCell::from(format!("col{}", i)));
-            }
-            rows.push(ArrayRow::from(cols));
-        }
-        DataBlock::new(rows, create_meta(col_count))
-    }
-
-    #[test]
-    fn bench_inner_join() {
-        let row_count = 1000;
-        let col_count = 10;
-        let left_block = setup_left_block(row_count, col_count);
-        let right_block = setup_right_block(row_count, col_count);
-        let joiner = SortedArraysJoiner::new(vec![col_count-1],vec![0]);
-
-        let joined = joiner.inner_join(&left_block, &right_block);
-        println!("{:?}", joined);
     }
 }
