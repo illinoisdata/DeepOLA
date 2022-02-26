@@ -15,11 +15,18 @@ impl CSVReaderNode {
         let data_processor = CSVReader::new_boxed(batch_size);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
+
+    pub fn new_with_delimiter(batch_size: usize, delimiter: char) -> ExecutionNode<ArrayRow> {
+        let data_processor = CSVReader::new_with_delimiter(batch_size, delimiter);
+        ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
+    }
+
 }
 
 /// A custom SetProcessor<ArrayRow> type for reading csv files.
 struct CSVReader {
     batch_size: usize,
+    delimiter: char
 }
 
 impl SetProcessorV1<ArrayRow> for CSVReader {
@@ -38,14 +45,15 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
 
                 let mut records: Vec<ArrayRow> = vec![];
                 for r in input_set.data().iter() {
-                    let mut reader = csv::Reader::from_path(r.values[0].to_string()).unwrap();
+                    let mut reader = csv::ReaderBuilder::new().delimiter(self.delimiter as u8).from_path(r.values[0].to_string()).unwrap();
                     // Currently assumes that the first row corresponds to header.
                     // Can add a boolean header and optionally read the first row as header or data.
-                    for result in reader.records() {
-                        let record = result.unwrap();
+                    // With Byte records, UTF-8 validation is not performed.
+                    let mut record = csv::ByteRecord::new();
+                    while reader.read_byte_record(&mut record).unwrap() {
                         let mut data_cells = Vec::new();
                         for (value,column) in izip!(&record,&input_schema.columns) {
-                            data_cells.push(DataCell::create_data_cell(value.to_string(), &column.dtype).unwrap());
+                            data_cells.push(DataCell::create_data_cell_from_bytes(value, &column.dtype).unwrap());
                         }
                         records.push(ArrayRow::from_vector(data_cells));
 
@@ -74,7 +82,11 @@ impl CSVReader {
     }
 
     pub fn new_boxed(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
-        Box::new(CSVReader {batch_size})
+        Box::new(CSVReader {batch_size, delimiter: ','})
+    }
+
+    pub fn new_with_delimiter(batch_size: usize, delimiter: char) -> Box<dyn SetProcessorV1<ArrayRow>> {
+        Box::new(CSVReader {batch_size, delimiter})
     }
 }
 

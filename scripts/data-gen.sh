@@ -1,8 +1,8 @@
-scale=10
-partition=1
+scale=$1
+partition=$2
 cd ../
-mkdir -p data/scale=$scale/partition=$partition
-export DSS_PATH=$PWD/data/scale=$scale/partition=$partition
+export DSS_PATH=$PWD/rust/runtime/src/resources/tpc-h/scale=$scale/partition=$partition
+mkdir -p $DSS_PATH
 echo $DSS_PATH
 cd tpch-kit/dbgen/
 if [ $partition -eq 1 ];

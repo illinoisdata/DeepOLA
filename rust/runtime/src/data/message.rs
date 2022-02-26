@@ -52,6 +52,10 @@ impl<T> DataMessage<T> {
         Self { payload: Payload::Some(Arc::new(dblock)) }
     }
 
+    pub fn from_data_block_ref(dblock: &Arc<DataBlock<T>>) -> Self {
+        Self { payload: Payload::Some(Arc::clone(dblock)) }
+    }
+
     pub fn eof() -> Self {
         Self { payload: Payload::EOF }
     }

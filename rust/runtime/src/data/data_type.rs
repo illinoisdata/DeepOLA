@@ -4,6 +4,7 @@ use std::error::Error;
 use std::fmt;
 use std::hash::Hasher;
 use std::str::FromStr;
+use std::str;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
@@ -163,6 +164,21 @@ impl DataCell {
             DataType::Integer => Ok(DataCell::Integer(value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(value.parse::<f64>().unwrap())),
             DataType::Text => Ok(DataCell::from(value)),
+            _ => Err("Invalid Conversion Method")?,
+        }
+    }
+
+    pub fn create_data_cell_from_bytes(value: &[u8], d: &DataType) -> Result<DataCell, Box<dyn Error>> {
+        if value.len() == 0 {
+            return Ok(DataCell::Null());
+        }
+        let parsed_value = unsafe {str::from_utf8_unchecked(value).to_string()};
+        match d {
+            DataType::Boolean => Ok(DataCell::Boolean(parsed_value.parse::<bool>().unwrap())),
+            DataType::UnsignedInt => Ok(DataCell::UnsignedInt(parsed_value.parse::<usize>().unwrap())),
+            DataType::Integer => Ok(DataCell::Integer(parsed_value.parse::<i32>().unwrap())),
+            DataType::Float => Ok(DataCell::Float(parsed_value.parse::<f64>().unwrap())),
+            DataType::Text => Ok(DataCell::from(parsed_value)),
             _ => Err("Invalid Conversion Method")?,
         }
     }
