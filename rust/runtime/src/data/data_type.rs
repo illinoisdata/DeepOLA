@@ -1,9 +1,9 @@
 use std::collections::hash_map::DefaultHasher;
-use std::error::Error;
-use std::hash::Hasher;
-use std::fmt;
-use std::str::FromStr;
 use std::convert::Infallible;
+use std::error::Error;
+use std::fmt;
+use std::hash::Hasher;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
@@ -21,7 +21,7 @@ pub enum DataCell {
     UnsignedInt(usize),
     Integer(i32),
     Float(f64),
-    Text(String),
+    Text(Box<str>),
     Null(),
 }
 
@@ -76,8 +76,8 @@ impl DataCell {
                     result += f64::from(cell);
                 }
                 DataCell::Float(result)
-            },
-            _ => panic!("SUM not implemented")
+            }
+            _ => panic!("SUM not implemented"),
         }
     }
 
@@ -87,7 +87,7 @@ impl DataCell {
             match cell {
                 DataCell::Null() => {
                     result += 0;
-                }
+                },
                 _ => {
                     result += 1;
                 }
@@ -114,7 +114,7 @@ impl DataCell {
 impl PartialEq<String> for DataCell {
     fn eq(&self, other: &String) -> bool {
         match self {
-            DataCell::Text(a) => (a == other),
+            DataCell::Text(a) => (a.as_ref() == other),
             _ => false,
         }
     }
@@ -123,7 +123,7 @@ impl PartialEq<String> for DataCell {
 impl PartialEq<&str> for DataCell {
     fn eq(&self, other: &&str) -> bool {
         match self {
-            DataCell::Text(a) => (a == other),
+            DataCell::Text(a) => (a.as_ref() == *other),
             _ => false,
         }
     }
@@ -162,8 +162,8 @@ impl DataCell {
             DataType::UnsignedInt => Ok(DataCell::UnsignedInt(value.parse::<usize>().unwrap())),
             DataType::Integer => Ok(DataCell::Integer(value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(value.parse::<f64>().unwrap())),
-            DataType::Text => Ok(DataCell::Text(value)),
-            _ => Err("Invalid Conversion Method".into()),
+            DataType::Text => Ok(DataCell::from(value)),
+            _ => Err("Invalid Conversion Method")?,
         }
     }
 
@@ -182,7 +182,7 @@ impl DataCell {
 impl FromStr for DataCell {
     type Err = Infallible;
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(DataCell::Text(value.to_string()))
+        Ok(DataCell::Text(value.into()))
     }
 }
 
@@ -210,7 +210,7 @@ impl From<&DataCell> for i32 {
         match value {
             DataCell::Integer(a) => *a,
             DataCell::Float(a) => *a as i32,
-            _ => panic!("Invalid Conversion")
+            _ => panic!("Invalid Conversion"),
         }
     }
 }
@@ -226,14 +226,26 @@ impl From<&DataCell> for f64 {
         match value {
             DataCell::Float(a) => *a,
             DataCell::Integer(a) => f64::from(*a),
-            _ => panic!("Invalid Conversion")
+            _ => panic!("Invalid Conversion"),
         }
     }
 }
 
 impl From<&str> for DataCell {
     fn from(value: &str) -> Self {
-        DataCell::Text(value.to_string())
+        DataCell::Text(value.into())
+    }
+}
+
+impl From<&String> for DataCell {
+    fn from(value: &String) -> Self {
+        DataCell::Text(value.clone().into_boxed_str())
+    }
+}
+
+impl From<String> for DataCell {
+    fn from(value: String) -> Self {
+        DataCell::Text(value.into_boxed_str())
     }
 }
 
@@ -261,14 +273,14 @@ mod tests {
 
     #[test]
     fn can_create_from_string() {
-        let d = DataCell::Text("hello".to_string());
+        let d = DataCell::from("hello");
         assert_eq!(d, "hello".to_string());
         assert_ne!(d, "world".to_string());
     }
 
     #[test]
     fn can_create_from_str() {
-        let d = DataCell::from_str("hello").unwrap();
+        let d = DataCell::from("hello");
         assert_eq!(d, "hello".to_string());
         assert_eq!(d, "hello");
         assert_ne!(d, "world".to_string());
@@ -346,24 +358,12 @@ mod tests {
         let cell2 = DataCell::Integer(1);
         assert_eq!(cell1.hash(), cell2.hash());
         assert_eq!(
-            DataCell::vector_hash(vec![
-                DataCell::Integer(1),
-                DataCell::Text("hello".to_string())
-            ]),
-            DataCell::vector_hash(vec![
-                DataCell::Integer(1),
-                DataCell::Text("hello".to_string())
-            ])
+            DataCell::vector_hash(vec![DataCell::Integer(1), DataCell::from("hello")]),
+            DataCell::vector_hash(vec![DataCell::Integer(1), DataCell::from("hello")])
         );
         assert_ne!(
-            DataCell::vector_hash(vec![
-                DataCell::Integer(1),
-                DataCell::Text("hello".to_string())
-            ]),
-            DataCell::vector_hash(vec![
-                DataCell::Integer(1),
-                DataCell::Text("hello ".to_string())
-            ])
+            DataCell::vector_hash(vec![DataCell::Integer(1), DataCell::from("hello")]),
+            DataCell::vector_hash(vec![DataCell::Integer(1), DataCell::from("hello ")])
         );
     }
 }

@@ -8,6 +8,8 @@ pub struct ArrayRow {
     pub values: Vec<DataCell>,
 }
 
+unsafe impl Send for ArrayRow {}
+
 impl ArrayRow {
     pub fn from_vector(values: Vec<DataCell>) -> ArrayRow {
         ArrayRow { values }
@@ -49,12 +51,12 @@ impl ArrayRow {
         let example_row_1 = ArrayRow::from_vector(vec![
             DataCell::Integer(0),
             DataCell::Float(0.1),
-            DataCell::Text(String::from("value1")),
+            DataCell::from("value1"),
         ]);
         let example_row_2 = ArrayRow::from_vector(vec![
             DataCell::Integer(1),
             DataCell::Float(0.9),
-            DataCell::Text(String::from("value2")),
+            DataCell::from("value2"),
         ]);
         vec![example_row_1, example_row_2]
     }

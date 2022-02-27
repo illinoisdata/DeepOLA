@@ -71,6 +71,10 @@ pub struct SortedArraysJoiner {
 }
 
 impl SortedArraysJoiner {
+    pub fn new(left_join_index: Vec<usize>, right_join_index: Vec<usize>) -> Self {
+        SortedArraysJoiner { left_join_index, right_join_index }
+    }
+
     fn construct_meta_of_join(&self, left_schema: &Schema, right_schema: &Schema) -> Schema {
         let mut joined_cols = left_schema.columns.clone();
 

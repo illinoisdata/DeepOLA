@@ -83,8 +83,8 @@ pub fn get_example_arrayrow_messages() -> Vec<DataMessage<ArrayRow>> {
     let csvreader = CSVReaderNode::node(batch_size);
     // The CSV files that we want to be read by this node => data for DataBlock.
     let input_vec = vec![
-        ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())]),
-        ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())])
+        ArrayRow::from_vector(vec![DataCell::from("src/resources/lineitem-100.csv")]),
+        ArrayRow::from_vector(vec![DataCell::from("src/resources/lineitem-100.csv")])
     ];
     // Metadata for DataBlock
     let lineitem_schema = Schema::from_example("lineitem").unwrap();
@@ -121,8 +121,8 @@ mod tests {
 
         // The CSV files that we want to be read by this node => data for DataBlock.
         let input_vec = vec![
-            ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())]),
-            ArrayRow::from_vector(vec![DataCell::Text("src/resources/lineitem-100.csv".to_string())])
+            ArrayRow::from_vector(vec![DataCell::from("src/resources/lineitem-100.csv")]),
+            ArrayRow::from_vector(vec![DataCell::from("src/resources/lineitem-100.csv")])
         ];
         // Metadata for DataBlock
         let lineitem_schema = Schema::from_example("lineitem").unwrap();
