@@ -164,12 +164,12 @@ impl DataCell {
             DataType::Integer => Ok(DataCell::Integer(value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(value.parse::<f64>().unwrap())),
             DataType::Text => Ok(DataCell::from(value)),
-            _ => Err("Invalid Conversion Method")?,
+            _ => Err("Invalid Conversion Method".into()),
         }
     }
 
     pub fn create_data_cell_from_bytes(value: &[u8], d: &DataType) -> Result<DataCell, Box<dyn Error>> {
-        if value.len() == 0 {
+        if value.is_empty() {
             return Ok(DataCell::Null());
         }
         let parsed_value = unsafe {str::from_utf8_unchecked(value).to_string()};
@@ -179,7 +179,7 @@ impl DataCell {
             DataType::Integer => Ok(DataCell::Integer(parsed_value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(parsed_value.parse::<f64>().unwrap())),
             DataType::Text => Ok(DataCell::from(parsed_value)),
-            _ => Err("Invalid Conversion Method")?,
+            _ => Err("Invalid Conversion Method".into()),
         }
     }
 
