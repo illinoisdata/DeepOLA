@@ -50,8 +50,10 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                     // Can add a boolean header and optionally read the first row as header or data.
                     // With Byte records, UTF-8 validation is not performed.
                     let mut record = csv::ByteRecord::new();
+                    let record_length = input_schema.columns.len();
                     while reader.read_byte_record(&mut record).unwrap() {
-                        let mut data_cells = Vec::new();
+                        // Create vector with pre-defined capacity
+                        let mut data_cells = Vec::with_capacity(record_length);
                         for (value,column) in izip!(&record,&input_schema.columns) {
                             data_cells.push(DataCell::create_data_cell_from_bytes(value, &column.dtype).unwrap());
                         }
