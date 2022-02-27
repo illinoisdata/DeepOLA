@@ -20,7 +20,7 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
             // Create a CSV Node with this scale
             let batch_size = 1000000;
             let input_vec = vec![
-                ArrayRow::from_vector(vec![DataCell::Text(filename.clone())])
+                ArrayRow::from_vector(vec![DataCell::from(filename.clone())])
             ];
             // Metadata for DataBlock
             let lineitem_schema = Schema::from_example("lineitem").unwrap();

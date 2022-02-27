@@ -35,3 +35,7 @@ harness = false
 [[bench]]
 name = "csvreader"
 harness = false
+
+[[bench]]
+name = "groupby"
+harness = false
