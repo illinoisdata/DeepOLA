@@ -1,12 +1,12 @@
 use criterion::{criterion_group, criterion_main};
 use criterion::BenchmarkId;
 use criterion::Criterion;
-use std::sync::Arc;
 
 use runtime::data::*;
 use runtime::operations::{GroupByNode, Aggregate, AggregationOperation};
 use runtime::graph::ExecutionNode;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 static RECORD_SIZE: usize = 1000000;
 static NUM_GROUP_KEYS: usize = 5;
