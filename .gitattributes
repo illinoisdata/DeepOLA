@@ -1,0 +1,2 @@
+rust/runtime/src/resources/tpc-h/scale=1/partition=1/lineitem.tbl filter=lfs diff=lfs merge=lfs -text
+rust/runtime/src/resources/tpc-h/scale=1/partition=1/orders.tbl filter=lfs diff=lfs merge=lfs -text

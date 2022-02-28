@@ -32,8 +32,9 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
 
             group.bench_with_input(BenchmarkId::from_parameter(scale), scale, |b, &_scale| {
                 b.iter(|| {
-                    let csvreader = CSVReaderNode::new_with_delimiter(batch_size,'|');
-                    csvreader.write_to_self(0, DataMessage::from_data_block_ref(&dblock_ref));
+                    // Arguments are delimiter and has_headers
+                    let csvreader = CSVReaderNode::new_with_params(batch_size,'|',false);
+                    csvreader.write_to_self(0, DataMessage::from(&dblock_ref));
                     csvreader.write_to_self(0, DataMessage::eof());
                     csvreader.run();
                 });
@@ -49,7 +50,7 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
 // The idea is to see the difference between this and the above benchmark to understand the
 // additional time added due to DataCell processing and Message passing
 fn raw_csvreader_lineitem(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Read and Process a CSV Throughput (LineItem)");
+    let mut group = c.benchmark_group("Raw CSV Throughput (LineItem)");
     for scale in [1].iter() {
         let filename = format!("src/resources/tpc-h/scale={}/partition=1/lineitem.tbl",scale);
         let path = Path::new(&filename);

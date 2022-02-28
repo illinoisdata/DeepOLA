@@ -33,6 +33,12 @@ impl<T> Debug for DataMessage<T> {
     }
 }
 
+impl<T> From<&Arc<DataBlock<T>>> for DataMessage<T> {
+    fn from(dblock: &Arc<DataBlock<T>>) -> Self {
+        Self { payload: Payload::Some(Arc::clone(dblock)) }
+    }
+}
+
 impl<T> DataMessage<T> {
 
     pub fn from_single(record: T) -> Self {
@@ -50,10 +56,6 @@ impl<T> DataMessage<T> {
 
     pub fn from_data_block(dblock: DataBlock<T>) -> Self {
         Self { payload: Payload::Some(Arc::new(dblock)) }
-    }
-
-    pub fn from_data_block_ref(dblock: &Arc<DataBlock<T>>) -> Self {
-        Self { payload: Payload::Some(Arc::clone(dblock)) }
     }
 
     pub fn eof() -> Self {

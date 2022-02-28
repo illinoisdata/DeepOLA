@@ -96,7 +96,7 @@ fn groupby_node(c: &mut Criterion) {
                 )
             );
             b.iter(|| {
-                let arrayrow_message = DataMessage::from_data_block_ref(&dblock);
+                let arrayrow_message = DataMessage::from(&dblock);
                 groupby_node.write_to_self(0, arrayrow_message);
                 groupby_node.write_to_self(0, DataMessage::eof());
                 groupby_node.run();

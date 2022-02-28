@@ -16,8 +16,8 @@ impl CSVReaderNode {
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 
-    pub fn new_with_delimiter(batch_size: usize, delimiter: char) -> ExecutionNode<ArrayRow> {
-        let data_processor = CSVReader::new_with_delimiter(batch_size, delimiter);
+    pub fn new_with_params(batch_size: usize, delimiter: char, has_headers: bool) -> ExecutionNode<ArrayRow> {
+        let data_processor = CSVReader::new_with_params(batch_size, delimiter, has_headers);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 
@@ -26,7 +26,8 @@ impl CSVReaderNode {
 /// A custom SetProcessor<ArrayRow> type for reading csv files.
 struct CSVReader {
     batch_size: usize,
-    delimiter: char
+    delimiter: char,
+    has_headers: bool,
 }
 
 impl SetProcessorV1<ArrayRow> for CSVReader {
@@ -45,9 +46,7 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
 
                 let mut records: Vec<ArrayRow> = vec![];
                 for r in input_set.data().iter() {
-                    let mut reader = csv::ReaderBuilder::new().delimiter(self.delimiter as u8).from_path(r.values[0].to_string()).unwrap();
-                    // Currently assumes that the first row corresponds to header.
-                    // Can add a boolean header and optionally read the first row as header or data.
+                    let mut reader = csv::ReaderBuilder::new().delimiter(self.delimiter as u8).has_headers(self.has_headers as bool).from_path(r.values[0].to_string()).unwrap();
                     // With Byte records, UTF-8 validation is not performed.
                     let mut record = csv::ByteRecord::new();
                     let record_length = input_schema.columns.len();
@@ -84,11 +83,11 @@ impl CSVReader {
     }
 
     pub fn new_boxed(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
-        Box::new(CSVReader {batch_size, delimiter: ','})
+        Box::new(CSVReader {batch_size, delimiter: ',', has_headers: true})
     }
 
-    pub fn new_with_delimiter(batch_size: usize, delimiter: char) -> Box<dyn SetProcessorV1<ArrayRow>> {
-        Box::new(CSVReader {batch_size, delimiter})
+    pub fn new_with_params(batch_size: usize, delimiter: char, has_headers: bool) -> Box<dyn SetProcessorV1<ArrayRow>> {
+        Box::new(CSVReader {batch_size, delimiter, has_headers})
     }
 }
 
