@@ -11,13 +11,13 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
     let mut group = c.benchmark_group("CSVReaderNode Throughput (LineItem)");
     // Currently running only on scale=1
     for scale in [1].iter() {
-        let filename = format!("src/resources/tpc-h/scale={}/partition=1/lineitem.tbl",scale);
+        let filename = format!("src/resources/tpc-h/scale={}/partition=1/lineitem.tbl", scale);
         let path = Path::new(&filename);
         if path.exists() {
             group.throughput(Throughput::Bytes(path.metadata().unwrap().len() as u64));
             group.sample_size(10);
             // Create a CSV Node with this scale
-            let batch_size = 1000000;
+            let batch_size = 1_000_000;
             let input_vec = vec![
                 ArrayRow::from_vector(vec![DataCell::from(filename.clone())])
             ];
