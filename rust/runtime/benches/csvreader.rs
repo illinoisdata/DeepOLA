@@ -30,7 +30,7 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
 
             group.bench_with_input(BenchmarkId::from_parameter(scale), scale, |b, &_scale| {
                 b.iter(|| {
-                    let csvreader = CSVReaderNode::new_with_params(batch_size, '|', true);
+                    let csvreader = CSVReaderNode::new_with_params(batch_size, '|', false);
                     csvreader.write_to_self(0, DataMessage::from(dblock.clone()));
                     csvreader.write_to_self(0, DataMessage::eof());
                     csvreader.run();
