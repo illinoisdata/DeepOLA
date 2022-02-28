@@ -5,6 +5,7 @@ use crate::processor::*;
 use generator::{Generator, Gn};
 use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 pub struct GroupByNode;
 
@@ -23,11 +24,14 @@ pub struct GroupByMapper {
 
     // group_vals stores the actual DataCell corresponding to group by columns.
     // RefCell to treat GroupByMapper as immutable
-    stored_groupby_keys: RefCell<HashMap<u64, Vec<DataCell>>>,
+    stored_groupby_keys: RefCell<FxHashMap<u64, Vec<DataCell>>>,
 
     // Stores the current result of the group by node.
     // RefCell to treat GroupByMapper as immutable
-    stored_groupby_agg: RefCell<HashMap<u64, Vec<DataCell>>>,
+    stored_groupby_agg: RefCell<FxHashMap<u64, Vec<DataCell>>>,
+
+    // Output record length
+    record_length: usize,
 }
 
 impl GroupByMapper {
@@ -53,11 +57,13 @@ impl GroupByMapper {
     }
 
     pub fn new(groupby_cols: Vec<String>, aggregates: Vec<Aggregate>) -> GroupByMapper {
+        let record_length = groupby_cols.len() + aggregates.len();
         GroupByMapper {
             groupby_cols,
             aggregates,
-            stored_groupby_keys: RefCell::new(HashMap::new()),
-            stored_groupby_agg: RefCell::new(HashMap::new()),
+            stored_groupby_keys: RefCell::new(FxHashMap::default()),
+            stored_groupby_agg: RefCell::new(FxHashMap::default()),
+            record_length
         }
     }
 
@@ -100,12 +106,12 @@ impl GroupByMapper {
     // Return Vec<ArrayRow> from the stored HashMap
     fn _build_output_records(
         &self,
-        groupby_col_hashmap: Ref<HashMap<u64, Vec<DataCell>>>,
-        agg_val_hashmap: Ref<HashMap<u64, Vec<DataCell>>>,
+        groupby_col_hashmap: Ref<FxHashMap<u64, Vec<DataCell>>>,
+        agg_val_hashmap: Ref<FxHashMap<u64, Vec<DataCell>>>
     ) -> Vec<ArrayRow> {
         let mut records = Vec::new();
         for (key, value) in agg_val_hashmap.iter() {
-            let mut record: Vec<DataCell> = Vec::new();
+            let mut record: Vec<DataCell> = Vec::with_capacity(self.record_length);
             let groupby_keys = &groupby_col_hashmap[key];
             let agg_values = value;
             for col in groupby_keys {

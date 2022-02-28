@@ -18,6 +18,7 @@ env_logger = "0.9.0"
 nanoid = "0.4.0"
 itertools = "0.10"
 generator = "0.6"
+rustc-hash = "1.1.0"
 
 [dev-dependencies]
 ctor = "0.1.21"
@@ -30,4 +31,12 @@ harness = false
 
 [[bench]]
 name = "arithmetic"
+harness = false
+
+[[bench]]
+name = "csvreader"
+harness = false
+
+[[bench]]
+name = "groupby"
 harness = false
