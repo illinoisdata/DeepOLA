@@ -3,7 +3,6 @@ use runtime::data::DataCell;
 use criterion::{Criterion, Throughput, BenchmarkId};
 use std::path::Path;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::str;
 use runtime::data::*;
 use runtime::operations::*;
@@ -28,13 +27,11 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
                 [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
             );
             let dblock = DataBlock::new(input_vec, metadata);
-            let dblock_ref = Arc::new(dblock);
 
             group.bench_with_input(BenchmarkId::from_parameter(scale), scale, |b, &_scale| {
                 b.iter(|| {
-                    // Arguments are delimiter and has_headers
-                    let csvreader = CSVReaderNode::new_with_params(batch_size,'|',false);
-                    csvreader.write_to_self(0, DataMessage::from(&dblock_ref));
+                    let csvreader = CSVReaderNode::new_with_params(batch_size, '|', true);
+                    csvreader.write_to_self(0, DataMessage::from(dblock.clone()));
                     csvreader.write_to_self(0, DataMessage::eof());
                     csvreader.run();
                 });

@@ -30,7 +30,7 @@ impl<T: Send> SetProcessorV1<T> for SimpleMapper<T> {
             for r in input_set.data().iter() {
                 if let Some(a) = (*self.record_map)(r) { records.push(a) }
             }
-            let message = DataBlock::from_records(records);
+            let message = DataBlock::from(records);
             s.yield_(message);
             done!();
         })
@@ -55,7 +55,7 @@ mod tests {
                 a.value().to_string() + " " + my_name,
             ))
         });
-        let in_dblock = DataBlock::from_records(kv_set);
+        let in_dblock = DataBlock::from(kv_set);
         let out_dblocks = mapper.process_v1(&in_dblock);
         let mut checked = false;
         for out_dblock in out_dblocks {
@@ -72,7 +72,7 @@ mod tests {
     fn can_pass_rc() {
         let mapper = SimpleMapper::from(|a: &KeyValue| Some(a.clone()));
         let kv = KeyValue::from_str("mykey", "myvalue");
-        let rc = Rc::new(DataBlock::from_records(vec![kv]));
+        let rc = Rc::new(DataBlock::from(vec![kv]));
         let _output = mapper.process_v1(&rc);
     }
 

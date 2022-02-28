@@ -6,7 +6,6 @@ use runtime::data::*;
 use runtime::operations::{GroupByNode, Aggregate, AggregationOperation};
 use runtime::graph::ExecutionNode;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 static RECORD_SIZE: usize = 1000000;
 static NUM_GROUP_KEYS: usize = 5;
@@ -89,14 +88,13 @@ fn groupby_node(c: &mut Criterion) {
                 (SCHEMA_META_NAME.into(),MetaCell::Schema(get_schema(NUM_GROUP_KEYS, NUM_VAL_COLS))),
                 (DATABLOCK_TYPE.into(),MetaCell::Text(DATABLOCK_TYPE_DM.into())),
             ]);
-            let dblock = Arc::new(
+            let dblock = 
                 DataBlock::new(
                     arrayrow_records,
                     metadata
-                )
-            );
+                );
             b.iter(|| {
-                let arrayrow_message = DataMessage::from(&dblock);
+                let arrayrow_message = DataMessage::from(dblock.clone());
                 groupby_node.write_to_self(0, arrayrow_message);
                 groupby_node.write_to_self(0, DataMessage::eof());
                 groupby_node.run();

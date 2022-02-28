@@ -337,7 +337,7 @@ mod tests {
                 DataCell::Null(),
             ]),
         ];
-        DataMessage::from_data_block(DataBlock::new(input_rows, metadata))
+        DataMessage::from(DataBlock::new(input_rows, metadata))
     }
 
     #[test]

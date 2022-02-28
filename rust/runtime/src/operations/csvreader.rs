@@ -105,7 +105,7 @@ pub fn get_example_arrayrow_messages() -> Vec<DataMessage<ArrayRow>> {
         [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema))]
     );
     let dblock = DataBlock::new(input_vec, metadata);
-    csvreader.write_to_self(0, DataMessage::from_data_block(dblock));
+    csvreader.write_to_self(0, DataMessage::from(dblock));
     csvreader.write_to_self(0, DataMessage::eof());
     let reader_node = NodeReader::new(&csvreader);
     csvreader.run();
@@ -143,7 +143,7 @@ mod tests {
             [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
         );
         let dblock = DataBlock::new(input_vec, metadata);
-        csvreader.write_to_self(0, DataMessage::from_data_block(dblock));
+        csvreader.write_to_self(0, DataMessage::from(dblock));
         csvreader.write_to_self(0, DataMessage::eof());
         let reader_node = NodeReader::new(&csvreader);
         csvreader.run();
