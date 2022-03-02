@@ -1,8 +1,6 @@
 use core::time;
 use std::thread;
 
-use generator::Generator;
-
 use crate::{
     channel::{MultiChannelBroadcaster, MultiChannelReader},
     data::*,
@@ -12,10 +10,6 @@ use super::stream_processor::*;
 use super::set_processor::*;
 
 pub struct RightCompleteProcessor<T: Send> {
-    // Creates the right complete processor
-    // What are the left nodes?
-    // What are the right nodes?
-    // A processor that consumes the left channel messages?
     set_processor: Box<dyn SetMultiProcessor<T>>,
 }
 
@@ -33,7 +27,7 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
         output_stream: MultiChannelBroadcaster<T>,
     ) {
         let left_channel_seq = 0;
-        let right_channel_seq = 0;
+        let right_channel_seq = 1;
         let mut processed_right_channel = false;
         loop {
             // Call pre_process on right_channel_seq
@@ -61,10 +55,11 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
                         // This datablock can update the state.
                         let generator = self.set_processor.process(&dblock);
                         for dblock in generator {
-                            output_stream.write(DataMessage::<T>::from_data_block(dblock));
+                            output_stream.write(DataMessage::<T>::from(dblock));
                         }
                     }
                     Payload::EOF => {
+                        output_stream.write(message);
                         break;
                     }
                     Payload::Signal(_) => break,
@@ -72,5 +67,11 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
                 self.sleep_micro_secs(PROCESSOR_SLEEP_MICRO_SECONDS);
             }
         }
+    }
+}
+
+impl<T: Send> From<Box<dyn SetMultiProcessor<T>>> for RightCompleteProcessor<T> {
+    fn from(set_processor: Box<dyn SetMultiProcessor<T>>) -> Self {
+        RightCompleteProcessor { set_processor }
     }
 }

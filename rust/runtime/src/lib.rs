@@ -6,6 +6,7 @@ pub mod data;
 pub mod graph;
 pub mod operations;
 pub mod processor;
+pub mod benchmarks;
 
 #[cfg(test)]
 mod tests {

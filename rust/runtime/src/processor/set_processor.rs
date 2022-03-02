@@ -28,7 +28,7 @@ pub trait SetProcessorV1<T: Send>: Send {
 /// An example is RightCompleteProcessor, which first streams the right channel and call pre_process
 /// on them till it receives EOF. Then, it streams the left channel and calls process on each message block.
 pub trait SetMultiProcessor<T: Send>: Send {
-    fn pre_process<'a>(&'a self, dblock: &'a DataBlock<T>);
+    fn pre_process(&self, dblock: &DataBlock<T>);
     fn process<'a>(&'a self, dblock: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>>;
 }
 
