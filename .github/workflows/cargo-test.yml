@@ -22,16 +22,3 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
       working-directory: rust/runtime/
-  benchmark:
-    name: benchmark
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: true
-    - name: Checkout LFS objects
-      run: git lfs checkout
-    - name: Run Benchmarks
-      run: cargo bench
-      working-directory: rust/runtime/
