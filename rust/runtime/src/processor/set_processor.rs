@@ -22,6 +22,17 @@ pub trait SetProcessorV1<T: Send>: Send {
     fn process_v1<'a>(&'a self, dblock: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>>;
 }
 
+/// SetMultiProcessor is an interface for ExecutionNode
+/// where you have to perform node pre-computation on specific input streams
+/// before streaming from another channel.
+/// An example is RightCompleteProcessor, which first streams the right channel and call pre_process
+/// on them till it receives EOF. Then, it streams the left channel and calls process on each message block.
+pub trait SetMultiProcessor<T: Send>: Send {
+    fn pre_process<'a>(&'a self, dblock: &'a DataBlock<T>);
+    fn process<'a>(&'a self, dblock: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>>;
+}
+
+
 /// A wrapper for SetProcessorV1 to support StreamProcessor.
 /// Hnadles a single input channel.
 pub struct SimpleStreamProcessor<T: Send> {
