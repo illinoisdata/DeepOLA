@@ -3,6 +3,7 @@
 #container name = postgres-db
 #password = docker
 #port = 5432
+#postgres version = 14.2
 docker run --name postgres-db -e POSTGRES_PASSWORD=docker -p 5432:5432 -d postgres
 
 #output container-id of Docker container postgres-db
