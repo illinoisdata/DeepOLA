@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use runtime::{
     data::{ArrayRow, Column, DataBlock, DataCell, DataType, MetaCell},
-    operations::SortedArraysJoiner,
+    operations::{SortedArraysJoiner, JoinType},
 };
 
 fn create_meta(col_count: usize) -> HashMap<String, MetaCell> {
@@ -47,10 +47,11 @@ pub fn bench_inner_join(c: &mut Criterion) {
     let col_count = 10;
     let left_block = setup_left_block(row_count, col_count);
     let right_block = setup_right_block(row_count, col_count);
-    let joiner = SortedArraysJoiner::new(vec![col_count - 1], vec![0]);
+    let joiner = SortedArraysJoiner::new(
+        vec![col_count - 1], vec![0], JoinType::Inner);
     group.sample_size(10);
     group.bench_function("inner_join", |b| {
-        b.iter(|| joiner.inner_join(black_box(&left_block), black_box(&right_block)))
+        b.iter(|| joiner.join_blocks(black_box(&left_block), black_box(&right_block)))
     });
     group.finish();
 }
