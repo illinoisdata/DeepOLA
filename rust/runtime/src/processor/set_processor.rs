@@ -48,7 +48,7 @@ impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
                 Payload::Some(dblock) => {
                     let generator = self.set_processor.process_v1(&dblock);
                     for dblock in generator {
-                        output_stream.write(DataMessage::<T>::from_data_block(dblock));
+                        output_stream.write(DataMessage::<T>::from(dblock));
                     }
                 }
                 Payload::EOF => {

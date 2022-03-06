@@ -3,7 +3,6 @@ use runtime::data::DataCell;
 use criterion::{Criterion, Throughput, BenchmarkId};
 use std::path::Path;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::str;
 use runtime::data::*;
 use runtime::operations::*;
@@ -12,13 +11,13 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
     let mut group = c.benchmark_group("CSVReaderNode Throughput (LineItem)");
     // Currently running only on scale=1
     for scale in [1].iter() {
-        let filename = format!("src/resources/tpc-h/scale={}/partition=1/lineitem.tbl",scale);
+        let filename = format!("src/resources/tpc-h/scale={}/partition=1/lineitem.tbl", scale);
         let path = Path::new(&filename);
         if path.exists() {
             group.throughput(Throughput::Bytes(path.metadata().unwrap().len() as u64));
             group.sample_size(10);
             // Create a CSV Node with this scale
-            let batch_size = 1000000;
+            let batch_size = 1_000_000;
             let input_vec = vec![
                 ArrayRow::from_vector(vec![DataCell::from(filename.clone())])
             ];
@@ -28,13 +27,11 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
                 [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
             );
             let dblock = DataBlock::new(input_vec, metadata);
-            let dblock_ref = Arc::new(dblock);
 
             group.bench_with_input(BenchmarkId::from_parameter(scale), scale, |b, &_scale| {
                 b.iter(|| {
-                    // Arguments are delimiter and has_headers
-                    let csvreader = CSVReaderNode::new_with_params(batch_size,'|',false);
-                    csvreader.write_to_self(0, DataMessage::from(&dblock_ref));
+                    let csvreader = CSVReaderNode::new_with_params(batch_size, '|', false);
+                    csvreader.write_to_self(0, DataMessage::from(dblock.clone()));
                     csvreader.write_to_self(0, DataMessage::eof());
                     csvreader.run();
                 });

@@ -1,5 +1,5 @@
 use getset::Getters;
-use std::{ops::Index, sync::Arc, collections::HashMap, fmt::Debug};
+use std::{ops::Index, collections::HashMap, fmt::Debug};
 
 use super::payload::*;
 
@@ -33,9 +33,9 @@ impl<T> Debug for DataMessage<T> {
     }
 }
 
-impl<T> From<&Arc<DataBlock<T>>> for DataMessage<T> {
-    fn from(dblock: &Arc<DataBlock<T>>) -> Self {
-        Self { payload: Payload::Some(Arc::clone(dblock)) }
+impl<T> From<DataBlock<T>> for DataMessage<T> {
+    fn from(dblock: DataBlock<T>) -> Self {
+        Self { payload: Payload::Some(dblock) }
     }
 }
 
@@ -50,12 +50,7 @@ impl<T> DataMessage<T> {
     }
 
     pub fn from_set_ref(records: Vec<T>) -> Self {
-        Self::from_data_block(
-            DataBlock::new(records, HashMap::new()))
-    }
-
-    pub fn from_data_block(dblock: DataBlock<T>) -> Self {
-        Self { payload: Payload::Some(Arc::new(dblock)) }
+        Self::from(DataBlock::new(records, HashMap::new()))
     }
 
     pub fn eof() -> Self {
