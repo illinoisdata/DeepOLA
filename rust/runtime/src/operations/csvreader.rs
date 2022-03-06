@@ -6,6 +6,41 @@ use std::{collections::HashMap};
 use itertools::izip;
 use generator::{Generator, Gn};
 
+pub struct CSVReaderBuilder {
+    batch_size: usize,
+    delimiter: char,
+    has_headers: bool,
+}
+
+impl CSVReaderBuilder {
+    pub fn new() -> Self {
+        CSVReaderBuilder {
+            batch_size: 100_000,
+            delimiter: ',',
+            has_headers: false,
+        }
+    }
+
+    pub fn batch_size(&mut self, batch_size: usize) -> &mut Self {
+        self.batch_size = batch_size;
+        self
+    }
+
+    pub fn delimiter(&mut self, delimiter: char) -> &mut Self {
+        self.delimiter = delimiter;
+        self
+    }
+
+    pub fn has_headers(&mut self, has_header: bool) -> &mut Self {
+        self.has_headers = has_header;
+        self
+    }
+
+    pub fn build(&self) -> ExecutionNode<ArrayRow> {
+        CSVReaderNode::new_with_params(self.batch_size, self.delimiter, self.has_headers)
+    }
+}
+
 pub struct CSVReaderNode;
 
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
