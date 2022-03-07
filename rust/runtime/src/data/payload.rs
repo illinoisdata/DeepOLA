@@ -24,7 +24,7 @@ impl<T> Payload<T> {
         match self {
             Self::EOF => panic!(),
             Self::Signal(_) => panic!(),
-            Self::Some(dblock_arc) => dblock_arc,
+            Self::Some(dblock) => dblock,
         }
     }
 }
@@ -43,7 +43,7 @@ impl<T> Debug for Payload<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EOF => write!(f, "EOF"),
-            Self::Some(dblock_arc) => f.debug_tuple("Data").field(dblock_arc).finish(),
+            Self::Some(dblock) => f.debug_tuple("Data").field(dblock).finish(),
             Self::Signal(s) => f.debug_tuple("Signal").field(s).finish(),
         }
     }
@@ -92,6 +92,10 @@ impl<T> DataBlock<T> {
 
     pub fn schema(&self) -> &Schema {
         self.metadata().get(SCHEMA_META_NAME).unwrap().to_schema()
+    }
+
+    pub fn len(&self) -> usize {
+        self.data().len()
     }
 }
 
