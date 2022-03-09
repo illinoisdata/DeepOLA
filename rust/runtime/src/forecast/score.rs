@@ -13,17 +13,17 @@ pub struct Score {
 impl Score {
   pub fn new(complexity: ValueType, log_likelihood: ValueType, num_samples: ValueType) -> Score {
     Score {
-      complexity,
-      log_likelihood,
-      num_samples,
+        complexity,
+        log_likelihood,
+        num_samples,
     }
   }
 
   pub fn new_into<N: Numeric> (complexity: N, log_likelihood: N, num_samples: N) -> Score {
     Score {
-      complexity: complexity.into(),
-      log_likelihood: log_likelihood.into(),
-      num_samples: num_samples.into(),
+        complexity: complexity.into(),
+        log_likelihood: log_likelihood.into(),
+        num_samples: num_samples.into(),
     }
   }
 }
