@@ -9,8 +9,12 @@ pub fn example_city_arrow_message() -> DataMessage<ArrayRow> {
         Column::from_field("area".into(), DataType::Float),
     ])
     .into_meta_map();
+    let input_rows = self::example_city_arrow_rows();
+    DataMessage::from(DataBlock::new(input_rows, metadata))
+}
 
-    let input_rows = vec![
+pub fn example_city_arrow_rows() -> Vec<ArrayRow> {
+    vec![
         ArrayRow::from([
             "US".into(),
             "IL".into(),
@@ -67,6 +71,5 @@ pub fn example_city_arrow_message() -> DataMessage<ArrayRow> {
             800i32.into(),
             DataCell::Null(),
         ]),
-    ];
-    DataMessage::from(DataBlock::new(input_rows, metadata))
+    ]
 }
