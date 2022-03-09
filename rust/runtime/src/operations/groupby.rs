@@ -269,80 +269,9 @@ mod tests {
         assert_eq!(output_schema, tgt_output_schema);
     }
 
-    fn example_arrow_message() -> DataMessage<ArrayRow> {
-        let metadata = MetaCell::from(vec![
-            Column::from_field("country".into(), DataType::Text),
-            Column::from_field("state".into(), DataType::Text),
-            Column::from_field("city".into(), DataType::Text),
-            Column::from_field("population".into(), DataType::Integer),
-            Column::from_field("area".into(), DataType::Float),
-        ])
-        .into_meta_map();
-
-        let input_rows = vec![
-            ArrayRow::from([
-                "US".into(),
-                "IL".into(),
-                "Champaign".into(),
-                100i32.into(),
-                1.5f64.into(),
-            ]),
-            ArrayRow::from([
-                "US".into(),
-                "IL".into(),
-                "Urbana".into(),
-                200i32.into(),
-                DataCell::Null(),
-            ]),
-            ArrayRow::from([
-                "US".into(),
-                "CA".into(),
-                "San Francisco".into(),
-                300i32.into(),
-                2.5f64.into(),
-            ]),
-            ArrayRow::from([
-                "US".into(),
-                "CA".into(),
-                "San Jose".into(),
-                400i32.into(),
-                3.5f64.into(),
-            ]),
-            ArrayRow::from([
-                "IN".into(),
-                "UP".into(),
-                "Lucknow".into(),
-                500i32.into(),
-                4.5f64.into(),
-            ]),
-            ArrayRow::from([
-                "IN".into(),
-                "UP".into(),
-                "Noida".into(),
-                600i32.into(),
-                DataCell::Null(),
-            ]),
-            ArrayRow::from([
-                "IN".into(),
-                "KA".into(),
-                "Bangalore".into(),
-                700i32.into(),
-                5.5f64.into(),
-            ]),
-            ArrayRow::from([
-                "IN".into(),
-                "KA".into(),
-                "Mysore".into(),
-                800i32.into(),
-                DataCell::Null(),
-            ]),
-        ];
-        DataMessage::from(DataBlock::new(input_rows, metadata))
-    }
-
     #[test]
     fn test_groupby_node_one_key_one_agg() {
-        let arrayrow_message = example_arrow_message();
+        let arrayrow_message = utils::example_city_arrow_message();
         let groupby_cols = vec!["country".to_string()];
         let aggregates = vec![Aggregate {
             column: "population".to_string(),
@@ -368,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_groupby_node_one_key_multi_agg() {
-        let arrayrow_message = example_arrow_message();
+        let arrayrow_message = utils::example_city_arrow_message();
         let groupby_cols = vec!["country".to_string()];
         let aggregates = vec![
             Aggregate {
@@ -401,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_groupby_node_multi_key() {
-        let arrayrow_message = example_arrow_message();
+        let arrayrow_message = utils::example_city_arrow_message();
         let groupby_cols = vec!["country".to_string(), "state".to_string()];
         let aggregates = vec![Aggregate {
             column: "population".to_string(),
