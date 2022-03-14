@@ -8,7 +8,7 @@ use crate::operations::JoinType;
 pub struct HashJoinNode;
 
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
-/// perform GROUP BY operation.
+/// perform Hash Join operation.
 impl HashJoinNode {
     pub fn node(left_join_index: Vec<usize>, right_join_index: Vec<usize>, join_type: JoinType) -> ExecutionNode<ArrayRow> {
         let data_processor = HashJoinProcessor::new_boxed(left_join_index, right_join_index, join_type);
@@ -120,7 +120,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
                             }
                         }
                     },
-                    _ => {}
+                    _ => {panic!("Invalid JOIN type")}
                 }
             }
             let message = DataBlock::new(output_records, metadata);

@@ -1,6 +1,3 @@
-use core::time;
-use std::thread;
-
 use crate::{
     channel::{MultiChannelBroadcaster, MultiChannelReader},
     data::*,
@@ -11,13 +8,6 @@ use super::set_processor::*;
 
 pub struct RightCompleteProcessor<T: Send> {
     set_processor: Box<dyn SetMultiProcessor<T>>,
-}
-
-impl<T: Send> RightCompleteProcessor<T> {
-    fn sleep_micro_secs(&self, micro_secs: u64) {
-        let sleep_micros = time::Duration::from_micros(micro_secs);
-        thread::sleep(sleep_micros);
-    }
 }
 
 impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
@@ -35,7 +25,7 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
             let message = input_stream.read(right_channel_seq);
             match message.payload() {
                 Payload::Some(dblock) => {
-                    // This datablock can update the state.
+                    // This datablock can update the node state.
                     self.set_processor.pre_process(&dblock);
                 }
                 Payload::EOF => {
@@ -44,7 +34,6 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
                 }
                 Payload::Signal(_) => break,
             }
-            self.sleep_micro_secs(PROCESSOR_SLEEP_MICRO_SECONDS);
         }
         if processed_right_channel {
             // Stream the left channel
@@ -52,7 +41,6 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
                 let message = input_stream.read(left_channel_seq);
                 match message.payload() {
                     Payload::Some(dblock) => {
-                        // This datablock can update the state.
                         let generator = self.set_processor.process(&dblock);
                         for dblock in generator {
                             output_stream.write(DataMessage::<T>::from(dblock));
@@ -64,7 +52,6 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
                     }
                     Payload::Signal(_) => break,
                 }
-                self.sleep_micro_secs(PROCESSOR_SLEEP_MICRO_SECONDS);
             }
         }
     }
