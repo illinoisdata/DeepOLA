@@ -112,6 +112,11 @@ impl<T: Send + 'static> ExecutionNode<T> {
         Self::new(Box::new(stream_processor), 1)
     }
 
+    pub fn from_right_complete_processor(data_processor: Box<dyn SetMultiProcessor<T>>, num_channels: usize) -> Self {
+        let stream_processor = RightCompleteProcessor::<T>::from(data_processor);
+        Self::new(Box::new(stream_processor), num_channels)
+    }
+
     pub fn new_single_input(stream_processor: Box<dyn StreamProcessor<T>>) -> Self {
         Self::new(stream_processor, 1)
     }
@@ -138,21 +143,6 @@ impl<T: Send + 'static> ExecutionNode<T> {
         }
     }
 }
-
-impl<T: Send + 'static> From<Box<dyn SetMultiProcessor<T>>> for ExecutionNode<T> {
-    fn from(data_processor: Box<dyn SetMultiProcessor<T>>) -> Self {
-        let stream_processor = RightCompleteProcessor::<T>::from(data_processor);
-        Self::new(Box::new(stream_processor), 1)
-    }
-}
-
-impl<T: Send + 'static> From<(Box<dyn SetMultiProcessor<T>>,usize)> for ExecutionNode<T> {
-    fn from(input: (Box<dyn SetMultiProcessor<T>>,usize)) -> Self {
-        let stream_processor = RightCompleteProcessor::<T>::from(input.0);
-        Self::new(Box::new(stream_processor), input.1)
-    }
-}
-
 
 pub struct NodeReader<T: Send> {
     /// We use the channel of this node to listens to the node we want to read from.

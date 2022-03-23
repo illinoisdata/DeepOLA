@@ -15,20 +15,22 @@ pub fn bench_hash_join(c: &mut Criterion) {
 
     group.sample_size(10);
     group.bench_function("hash_join", |b| {
-        b.iter(|| {
-            let hashjoin = HashJoinNode::node(
-                vec![col_count - 1], vec![0], JoinType::Inner
-            );
+        let hashjoin = HashJoinNode::node(
+            vec![col_count - 1], vec![0], JoinType::Inner
+        );
 
-            // Add block to left channel
+        // Add block to right channel and process hashing.
+        hashjoin.write_to_self(1, DataMessage::from(right_block.clone()));
+        hashjoin.write_to_self(1, DataMessage::eof());
+        hashjoin.write_to_self(0, DataMessage::eof());
+        hashjoin.run();
+        println!("FINISHED PRE-PROCESSING PART");
+
+        b.iter(|| {
+            // Add block to left channel and process records.
+            hashjoin.write_to_self(1, DataMessage::eof());
             hashjoin.write_to_self(0, DataMessage::from(left_block.clone()));
             hashjoin.write_to_self(0, DataMessage::eof());
-
-            // Add block to right channel
-            hashjoin.write_to_self(1, DataMessage::from(right_block.clone()));
-            hashjoin.write_to_self(1, DataMessage::eof());
-
-            // Run hashjoin
             hashjoin.run();
         })
     });

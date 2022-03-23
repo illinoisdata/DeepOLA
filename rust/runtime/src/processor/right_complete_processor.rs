@@ -18,7 +18,6 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
     ) {
         let left_channel_seq = 0;
         let right_channel_seq = 1;
-        let mut processed_right_channel = false;
         loop {
             // Call pre_process on right_channel_seq
             // Keep calling that till it reads an EOF
@@ -29,29 +28,26 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
                     self.set_processor.pre_process(&dblock);
                 }
                 Payload::EOF => {
-                    processed_right_channel = true;
                     break;
                 }
                 Payload::Signal(_) => break,
             }
         }
-        if processed_right_channel {
-            // Stream the left channel
-            loop {
-                let message = input_stream.read(left_channel_seq);
-                match message.payload() {
-                    Payload::Some(dblock) => {
-                        let generator = self.set_processor.process(&dblock);
-                        for dblock in generator {
-                            output_stream.write(DataMessage::<T>::from(dblock));
-                        }
+        // Stream the left channel
+        loop {
+            let message = input_stream.read(left_channel_seq);
+            match message.payload() {
+                Payload::Some(dblock) => {
+                    let generator = self.set_processor.process(&dblock);
+                    for dblock in generator {
+                        output_stream.write(DataMessage::<T>::from(dblock));
                     }
-                    Payload::EOF => {
-                        output_stream.write(message);
-                        break;
-                    }
-                    Payload::Signal(_) => break,
                 }
+                Payload::EOF => {
+                    output_stream.write(message);
+                    break;
+                }
+                Payload::Signal(_) => break,
             }
         }
     }
