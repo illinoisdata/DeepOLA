@@ -1,4 +1,5 @@
 use std::ops::{Index, IndexMut};
+use std::fmt;
 
 use crate::data::data_type::DataCell;
 use getset::Getters;
@@ -66,6 +67,16 @@ impl ArrayRow {
             DataCell::from("value2"),
         ]);
         vec![example_row_1, example_row_2]
+    }
+}
+
+impl fmt::Display for ArrayRow {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for cell in &self.values {
+            write!(f,"{} | ",cell);
+        }
+        write!(f,"\n")
     }
 }
 

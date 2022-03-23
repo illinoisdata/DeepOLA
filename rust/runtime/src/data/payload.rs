@@ -1,7 +1,9 @@
 use getset::Getters;
 use std::{sync::Arc, collections::HashMap, fmt::Debug, ops::Index};
+use std::fmt;
 
 use super::{SCHEMA_META_NAME, Schema, MetaCell};
+use crate::data::ArrayRow;
 
 /// Either actual data (`DataBlock`) or other special signals (e.g., EOF, Signal).
 ///
@@ -116,6 +118,30 @@ impl<T> Index<usize> for DataBlock<T> {
 impl<T> Debug for DataBlock<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DataBlock").field("count", &self.data.len()).finish()
+    }
+}
+
+impl<ArrayRow: std::fmt::Display> fmt::Display for DataBlock<ArrayRow> {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Write strictly the first element into the supplied output
+        // stream: `f`. Returns `fmt::Result` which indicates whether the
+        // operation succeeded or failed. Note that `write!` uses syntax which
+        // is very similar to `println!`.
+
+        // Print output
+        let schema = self.metadata.get(SCHEMA_META_NAME)
+        .unwrap()
+        .to_schema();
+
+        for col in schema.columns.clone() {
+            write!(f, "{} | ", col.name);
+        }
+        write!(f,"\n");
+        for row in self.data() {
+            write!(f, "{}", row);
+        }
+        write!(f,"Table Output")
     }
 }
 
