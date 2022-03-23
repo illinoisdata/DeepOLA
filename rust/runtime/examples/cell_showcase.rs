@@ -1,5 +1,8 @@
 use rand::Rng;
 use std::collections::HashSet;
+use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::time::Instant;
 
 use runtime::forecast::cell::AverageTrendAffineEstimator;
@@ -116,19 +119,57 @@ fn make_count_distinct_data() -> Dataset {
     }
 }
 
-fn do_test(dataset: Dataset, mut est: Box<dyn CellEstimator>) {
-    for tv in Series::new(&dataset.times, &dataset.values).iter() {
+fn read_q1_data() -> Vec<Dataset> {
+    const FILENAME: &str = "src/resources/q1_flatten.txt";
+    let file = File::open(FILENAME).expect("file wasn't found.");
+    let reader = BufReader::new(file);
+    reader.lines()
+        .map(|line| {
+            let values: Vec<ValueType> = line.unwrap()
+                .split(' ')
+                .map(|num_str| num_str.parse::<ValueType>().unwrap())
+                .collect();
+            let times: Vec<TimeType> = (1..values.len()+1).map(|t| t as TimeType).collect();
+            let final_time = times[times.len()-1];
+            let final_answer = values[values.len()-1];
+            Dataset {
+                times,
+                values,
+                final_time,
+                final_answer,
+            }
+        })
+        .collect()
+}
+
+fn do_test(dataset: &Dataset, mut est: Box<dyn CellEstimator>) {
+    const SUCCEED_PERR: f64 = 1.0;
+    let mut succeed_flag = false;
+    let series = Series::new(&dataset.times, &dataset.values);
+    for (idx, tv) in series.iter().enumerate() {
         est.consume(&tv);
         let f = est.produce();
         let pred_v = f.predict(dataset.final_time);
         let perr = 100.0 * (dataset.final_answer - pred_v).abs() / dataset.final_answer;
-        log::info!(
-            "t= {}: ans= {}, pred_t= {}, perr= {}",
-            tv.t,
-            dataset.final_answer,
-            pred_v,
-            perr,
-        );
+        if idx % (series.len() / 10) == 0 || idx == series.len() {
+            log::info!(
+                "t= {}: ans= {}, pred_t= {}, perr= {}",
+                tv.t,
+                dataset.final_answer,
+                pred_v,
+                perr,
+            );
+        }
+        if !succeed_flag && perr < SUCCEED_PERR {
+            succeed_flag = true;
+            log::info!(
+                "t= {}: ans= {}, pred_t= {}, perr= {}  <SUCCESS>",
+                tv.t,
+                dataset.final_answer,
+                pred_v,
+                perr,
+            );
+        }
         log::debug!("\tusing {:?}", f);
     }
 }
@@ -138,7 +179,7 @@ fn test_sum() {
     let dataset = make_sum_data();
     let est = make_est_candidate();
     let start_time = Instant::now();
-    do_test(dataset, est);
+    do_test(&dataset, est);
     log::info!("Forecasting took {:?}", start_time.elapsed());
 }
 
@@ -147,7 +188,7 @@ fn test_avg() {
     let dataset = make_avg_data();
     let est = make_est_candidate();
     let start_time = Instant::now();
-    do_test(dataset, est);
+    do_test(&dataset, est);
     log::info!("Forecasting took {:?}", start_time.elapsed());
 }
 
@@ -156,8 +197,22 @@ fn test_count_distinct() {
     let dataset = make_count_distinct_data();
     let est = make_est_candidate();
     let start_time = Instant::now();
-    do_test(dataset, est);
+    do_test(&dataset, est);
     log::info!("Forecasting took {:?}", start_time.elapsed());
+}
+
+fn test_q1() {
+    log::info!("Testing q1");
+    let q1_start_time = Instant::now();
+    let datasets = read_q1_data();
+    for (idx, dataset) in datasets.iter().enumerate() {
+        log::info!("Testing q1: series {} / {}", idx + 1, datasets.len());
+        let est = make_est_candidate();
+        let start_time = Instant::now();
+        do_test(dataset, est);   
+        log::info!("Forecasting took {:?}", start_time.elapsed());
+    }
+    log::info!("Testing q1 took {:?}", q1_start_time.elapsed());
 }
 
 fn main() {
@@ -166,7 +221,9 @@ fn main() {
         .format_timestamp_micros()
         .init();
 
+    // run showcase tests
     test_sum();
     test_avg();
     test_count_distinct();
+    test_q1();
 }
