@@ -40,8 +40,12 @@ impl<'a> Series<'a> {
         SeriesIter::new(self)
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.times.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.times.is_empty()
     }
 }
 

@@ -50,3 +50,8 @@ harness = false
 [[bench]]
 name = "where_filter"
 harness = false
+
+[[bench]]
+name = "forecast_cell"
+harness = false
+
