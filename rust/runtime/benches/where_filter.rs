@@ -9,7 +9,7 @@ pub fn bench_where_filter(c: &mut Criterion) {
     let col_count = 10;
     let block = setup_left_block(row_count, col_count);
 
-    fn predicate(record: ArrayRow) -> bool {
+    fn predicate(record: &ArrayRow) -> bool {
         (record.values[9] <= DataCell::from(1_000)) ||
         (record.values[9] >= DataCell::from(100_000))
     }

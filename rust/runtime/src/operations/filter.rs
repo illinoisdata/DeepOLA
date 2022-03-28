@@ -9,23 +9,23 @@ pub struct WhereNode;
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
 /// perform WHERE filter operations.
 impl WhereNode {
-    pub fn node(predicate: fn(ArrayRow) -> bool) -> ExecutionNode<ArrayRow> {
+    pub fn node(predicate: fn(&ArrayRow) -> bool) -> ExecutionNode<ArrayRow> {
         let data_processor = WhereMapper::new_boxed(predicate);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 }
 
 pub struct WhereMapper {
-    predicate: fn(ArrayRow) -> bool,
+    predicate: fn(&ArrayRow) -> bool,
 }
 
 impl WhereMapper {
-    pub fn new(predicate: fn(ArrayRow) -> bool) -> WhereMapper {
+    pub fn new(predicate: fn(&ArrayRow) -> bool) -> WhereMapper {
         WhereMapper { predicate }
     }
 
     pub fn new_boxed(
-        predicate: fn(ArrayRow) -> bool
+        predicate: fn(&ArrayRow) -> bool
     ) -> Box<dyn SetProcessorV1<ArrayRow>> {
         Box::new(Self::new(predicate))
     }
@@ -43,7 +43,7 @@ impl SetProcessorV1<ArrayRow> for WhereMapper {
             // Evaluate predicate on each record
             let mut output_records = vec![];
             for record in input_set.data().iter() {
-                let result = (self.predicate)(record.clone());
+                let result = (self.predicate)(&record);
                 if result {
                     output_records.push(record.clone())
                 }
@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn test_where_node() {
         // Test predicate with OR of multiple ANDs
-        fn predicate_example(record: ArrayRow) -> bool {
+        fn predicate_example(record: &ArrayRow) -> bool {
             (record.values[3] >= 300.into() && record.values[0] == DataCell::from("US")) ||
             (record.values[3] >= 600.into() && record.values[0] == DataCell::from("IN"))
         }
