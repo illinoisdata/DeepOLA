@@ -42,7 +42,7 @@ impl GroupByMapper {
         for groupby_col in &self.groupby_cols {
             output_columns.push(Column::from_key_field(
                 groupby_col.clone(),
-                input_schema.dtype(groupby_col.clone()),
+                input_schema.dtype(groupby_col),
             ));
         }
 
@@ -50,7 +50,7 @@ impl GroupByMapper {
         for aggregate in &self.aggregates {
             output_columns.push(Column::from_field(
                 aggregate.name(),
-                aggregate.dtype(input_schema.dtype(aggregate.column.clone())),
+                aggregate.dtype(input_schema.dtype(&aggregate.column)),
             ));
         }
         Schema::new(format!("groupby({})",input_schema.table), output_columns)
@@ -153,12 +153,12 @@ impl SetProcessorV1<ArrayRow> for GroupByMapper {
             let key_indexes = self
                 .groupby_cols
                 .iter()
-                .map(|a| input_schema.index(a.to_string()))
+                .map(|a| input_schema.index(a))
                 .collect::<Vec<usize>>();
             let val_indexes = self
                 .aggregates
                 .iter()
-                .map(|a| input_schema.index(a.column.to_string()))
+                .map(|a| input_schema.index(&a.column))
                 .collect::<Vec<usize>>();
             let mut col_indexes: Vec<usize> = vec![];
             col_indexes.extend(&key_indexes);

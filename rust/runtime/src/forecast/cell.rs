@@ -24,7 +24,7 @@ pub trait CellConsumer: Debug {
 }
 
 /// Model estimator that iteratively fit and generates CellForecast
-pub trait CellEstimator: CellConsumer {
+pub trait CellEstimator: CellConsumer + Send {
     /// Produce current best forecaster
     fn produce(&self) -> Box<dyn CellForecast>;
     /// Fit the target model with
@@ -35,7 +35,7 @@ pub trait CellEstimator: CellConsumer {
 }
 
 /// Model estimator that iteratively fit and generates CellForecast
-pub trait Averager: CellConsumer {  // mostly to reuse averaging logics
+pub trait Averager: CellConsumer + Send {  // mostly to reuse averaging logics
     /// Average of time-series so far
     fn average(&self) -> ValueType;
 }
@@ -378,6 +378,18 @@ impl ForecastSelector {
         Some(train_tv) => Box::new(ConstantForecast::new(train_tv.v)),
         None => Box::new(ConstantForecast::new(0.0)),
       }
+    }
+
+    pub fn make_with_default_candidates() -> Box<dyn CellEstimator> {
+        let mut selector = ForecastSelector::default();
+        selector.include(Box::new(TailEstimator::default()));
+        selector.include(Box::new(MeanEstimator::default()));
+        selector.include(Box::new(SimpleExponentSmoothEstimator::with_base(0.5)));
+        selector.include(Box::new(LeastSquareAffineEstimator::default()));
+        selector.include(Box::new(AverageTrendAffineEstimator::with_tail()));
+        selector.include(Box::new(AverageTrendAffineEstimator::with_mean()));
+        selector.include(Box::new(AverageTrendAffineEstimator::with_ses(0.5)));
+        Box::new(selector)
     }
 }
 
