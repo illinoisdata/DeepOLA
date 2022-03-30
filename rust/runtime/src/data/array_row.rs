@@ -23,6 +23,10 @@ impl ArrayRow {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    pub fn slice_indices(&self, indices: &[usize]) -> Vec<DataCell> {
+      indices.iter().map(|idx| self[*idx].clone()).collect()
+    }
 }
 
 impl From<Vec<DataCell>> for ArrayRow {

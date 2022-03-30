@@ -80,4 +80,6 @@ impl<'a> Iterator for SeriesIter<'a> {
 /* Imports */
 
 pub mod cell;
+pub mod row;
+pub mod table;
 pub mod score;
