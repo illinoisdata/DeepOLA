@@ -30,6 +30,13 @@ impl From<Vec<DataCell>> for ArrayRow {
     }
 }
 
+// Clone values from a vector of DataCell references
+impl From<Vec<&DataCell>> for ArrayRow {
+    fn from(values: Vec<&DataCell>) -> Self {
+        ArrayRow { values: values.into_iter().cloned().collect() }
+    }
+}
+
 impl From<&[DataCell]> for ArrayRow {
     fn from(array: &[DataCell]) -> Self {
         ArrayRow {
@@ -75,6 +82,8 @@ impl IndexMut<usize> for ArrayRow {
         &mut self.values[index]
     }
 }
+
+// TODO: Implement Iterator for ArrayRow that iterates over values.
 
 #[cfg(test)]
 mod tests {

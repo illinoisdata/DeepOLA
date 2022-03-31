@@ -11,22 +11,20 @@ use super::{SCHEMA_META_NAME, Schema, MetaCell};
 #[derive(PartialEq)]
 pub enum Payload<T> {
     EOF,
-    Some(Arc<DataBlock<T>>),
+    Some(DataBlock<T>),
     Signal(Signal),
 }
 
 impl<T> Payload<T> {
     pub fn new(dblock: DataBlock<T>) -> Self {
-        Payload::Some(Arc::new(dblock))
+        Payload::Some(dblock)
     }
 
     pub fn data_block(&self) -> &DataBlock<T> {
         match self {
             Self::EOF => panic!(),
             Self::Signal(_) => panic!(),
-            Self::Some(dblock_arc) => {
-                dblock_arc.as_ref()
-            }
+            Self::Some(dblock) => dblock,
         }
     }
 }
@@ -35,7 +33,7 @@ impl<T> Clone for Payload<T> {
     fn clone(&self) -> Self {
         match self {
             Self::EOF => Self::EOF,
-            Self::Some(records) => Self::Some(records.clone()),
+            Self::Some(records) => Self::Some((*records).clone()),
             Self::Signal(s) => Self::Signal(s.clone()),
         }
     }
@@ -45,7 +43,7 @@ impl<T> Debug for Payload<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EOF => write!(f, "EOF"),
-            Self::Some(dblock_arc) => f.debug_tuple("Data").field(dblock_arc).finish(),
+            Self::Some(dblock) => f.debug_tuple("Data").field(dblock).finish(),
             Self::Signal(s) => f.debug_tuple("Signal").field(s).finish(),
         }
     }
@@ -66,30 +64,44 @@ impl Clone for Signal {
 
 /// Data and metadata
 ///
-/// Introduced to store the index for the primary key.
-/// TODO: Use something better than the String-String map for metadata.
+/// Introduced to store the index for the primary key. It is efficient to clone DataBlock<T>
+/// since the `data` field contains `Arc`.
 #[derive(Getters, PartialEq)]
 pub struct DataBlock<T> {
-    #[getset(get = "pub")]
-    data: Vec<T>,
+    data: Arc<Vec<T>>,
 
     #[getset(get = "pub")]
     metadata: HashMap<String, MetaCell>,
 }
 
-impl<T> DataBlock<T> {
-    /// Convenient public constructor for tests.
-    pub fn from_records(records: Vec<T>) -> Self {
-        DataBlock { data: records, metadata: HashMap::new() }
+impl<T> Clone for DataBlock<T> {
+    fn clone(&self) -> Self {
+        Self { data: self.data.clone(), metadata: self.metadata.clone() }
     }
+}
 
+impl<T> DataBlock<T> {
     /// Public constructor.
     pub fn new(data: Vec<T>, metadata: HashMap<String, MetaCell>) -> Self {
-        DataBlock {data, metadata}
+        DataBlock { data: Arc::new(data), metadata}
+    }
+
+    pub fn data(&self) -> &Vec<T> {
+        self.data.as_ref()
     }
 
     pub fn schema(&self) -> &Schema {
         self.metadata().get(SCHEMA_META_NAME).unwrap().to_schema()
+    }
+
+    pub fn len(&self) -> usize {
+        self.data().len()
+    }
+}
+
+impl<T> From<Vec<T>> for DataBlock<T> {
+    fn from(data: Vec<T>) -> Self {
+        Self::new(data, HashMap::new())
     }
 }
 
@@ -120,7 +132,7 @@ mod tests {
         let data: Vec<i64> = vec![19241];
         let metadata = HashMap::from([("key".into(), MetaCell::Text("value".to_string()))]);
         let dblock = DataBlock::new(data.clone(), metadata.clone());
-        assert_eq!(dblock.data, data);
+        assert_eq!(dblock.data.as_ref(), &data);
         assert_eq!(dblock.metadata, metadata);
     }
 
@@ -135,7 +147,7 @@ mod tests {
             ]
         );
         let dblock = DataBlock::new(data.clone(), metadata.clone());
-        assert_eq!(dblock.data, data);
+        assert_eq!(dblock.data.as_ref(), &data);
         assert_eq!(dblock.metadata, metadata);
         assert_eq!(dblock.metadata.get("schema"), Some(&MetaCell::Schema(lineitem_schema)));
     }
@@ -149,10 +161,10 @@ mod tests {
         let payload = Payload::new(dblock);
         let payload_clone = payload.clone();
 
-        if let Payload::Some(dblock_arc) = payload {
-            if let Payload::Some(dblock_arc2) = payload_clone {
-                let data1 = dblock_arc.as_ref();
-                let data2 = dblock_arc2.as_ref();
+        if let Payload::Some(dblock) = payload {
+            if let Payload::Some(dblock2) = payload_clone {
+                let data1 = dblock.data.as_ref();
+                let data2 = dblock2.data.as_ref();
                 assert!(std::ptr::eq(data1, data2));
                 return;
             }
