@@ -1,0 +1,13 @@
+Pager usage is off.
+Timing is on.
+CREATE VIEW
+Time: 5.702 ms
+ s_suppkey |          s_name           |     s_address     |     s_phone     | total_revenue 
+-----------+---------------------------+-------------------+-----------------+---------------
+      8449 | Supplier#000008449        | Wp34zim9qYFbVctdW | 20-469-856-8873 |  1772627.2087
+(1 row)
+
+Time: 1281.719 ms (00:01.282)
+DROP VIEW
+Time: 4.176 ms
+Timing is off.
