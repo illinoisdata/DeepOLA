@@ -10,6 +10,8 @@ container="postgres-db" #container name
 password="docker" #container password
 port="5563" #port for PSQL
 path="$HOME/DeepOLA" #path to main directory
+scale=1
+partition=1
 
 #run container
 docker run --rm   --name $container -e POSTGRES_PASSWORD=$password -d -p $port:$port -v $path/baselines/postgres/results:/deepola postgres
@@ -27,7 +29,7 @@ docker exec -it $container psql -U postgres -c "\i /deepola/resources/execution_
 #copy .tbl files into database
 for tbl in nation region part customer supplier partsupp orders lineitem
 do
-	docker exec -it $container psql -U postgres -c "\copy $tbl FROM '/deepola/data/tpc-h/scale=1/partition=1/$tbl.tbl' WITH (FORMAT csv, DELIMITER '|')"
+	docker exec -it $container psql -U postgres -c "\copy $tbl FROM '/deepola/data/tpc-h/scale=$scale/partition=$partition/$tbl.tbl' WITH (FORMAT csv, DELIMITER '|')"
 done
 
 #add indexes
