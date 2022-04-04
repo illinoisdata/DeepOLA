@@ -10,10 +10,10 @@ container="postgres-db" #container name
 password="docker" #container password
 port="5563" #port for PSQL
 path="$HOME/DeepOLA" #path to main directory
-scale=1
-partition=1
+scale=1 #scale of data
+partition=1 #number of partitions of data
 
-#run container
+#run container mounted onto local directory
 docker run --rm   --name $container -e POSTGRES_PASSWORD=$password -d -p $port:$port -v $path/baselines/postgres/results:/deepola postgres
 
 #change user to postgres
