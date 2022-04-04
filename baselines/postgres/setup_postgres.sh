@@ -16,15 +16,12 @@ partition=1
 #run container
 docker run --rm   --name $container -e POSTGRES_PASSWORD=$password -d -p $port:$port -v $path/baselines/postgres/results:/deepola postgres
 
-#copy files query files 
-docker cp $path/baselines/resources $container:/deepola
-
-#copy .tbl files
-docker cp $path/data $container:/deepola
+#change user to postgres
+docker exec $container sh -c "su postgres && exit && exit"
 
 #create tables in PSQL
-docker exec -it $container psql -U postgres -c "\i /deepola/resources/tpch-create.sql"
-docker exec -it $container psql -U postgres -c "\i /deepola/resources/execution_stats.sql"
+docker exec -it $container psql -U postgres -c "\i /deepola/baselines/resources/tpch-create.sql"
+docker exec -it $container psql -U postgres -c "\i /deepola/baselines/resources/execution_stats.sql"
 
 #copy .tbl files into database
 for tbl in nation region part customer supplier partsupp orders lineitem
@@ -33,12 +30,12 @@ do
 done
 
 #add indexes
-docker exec -it $container psql -U postgres -c "\i /deepola/resources/tpch-alter.sql"
+docker exec -it $container psql -U postgres -c "\i /deepola/baselines/resources/tpch-alter.sql"
 
 #run the queries
 for i in {1..22}
 do
-	docker exec -it $container psql -U postgres -c "\pset pager off" -c "\timing" -c "\i /deepola/resources/$i.sql" -c "\timing" > $path/baselines/postgres/results/result_$i.csv
+	docker exec -it $container psql -U postgres -c "\pset pager off" -c "\timing" -c "\i /deepola/baselines/resources/$i.sql" -c "\timing" > $path/baselines/postgres/results/result_$i.csv
 done
 
 #kill container
