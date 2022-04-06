@@ -10,6 +10,7 @@ use std::env;
 
 mod utils;
 mod q1;
+mod q12;
 
 fn main() {
     let mut table_input = HashMap::new();
@@ -17,7 +18,15 @@ fn main() {
         TableInput {
             batch_size: 100_000,
             input_files: vec![
-                "src/resources/tpc-h/scale=1/partition=1/lineitem.tbl".into()
+                "src/resources/tpc-h/scale=1/partition=1/lineitem_sorted.tbl".into()
+            ]
+        }
+    );
+    table_input.insert("orders".to_string(),
+        TableInput {
+            batch_size: 100_000,
+            input_files: vec![
+                "src/resources/tpc-h/scale=1/partition=1/orders_sorted.tbl".into()
             ]
         }
     );
@@ -31,9 +40,9 @@ fn main() {
             "q1" => {
                 query_service = q1::query(table_input,&mut output_reader);
             },
-            // "q12" => {
-            //     query_service = q12::query(table_input,&mut output_reader);
-            // }
+            "q12" => {
+                query_service = q12::query(table_input,&mut output_reader);
+            },
             _ => panic!("Invalid Query Parameter")
         }
     } else {
