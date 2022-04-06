@@ -81,7 +81,12 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
 
                 let mut records: Vec<ArrayRow> = vec![];
                 for r in input_set.data().iter() {
-                    let mut reader = csv::ReaderBuilder::new().delimiter(self.delimiter as u8).has_headers(self.has_headers as bool).from_path(r.values[0].to_string()).unwrap();
+                    let mut reader = 
+                      csv::ReaderBuilder::new()
+                          .delimiter(self.delimiter as u8)
+                          .has_headers(self.has_headers as bool)
+                          .from_path(r.values[0].to_string())
+                          .unwrap();
                     // With Byte records, UTF-8 validation is not performed.
                     let mut record = csv::ByteRecord::new();
                     let record_length = input_schema.columns.len();
@@ -89,7 +94,9 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                         // Create vector with pre-defined capacity
                         let mut data_cells = Vec::with_capacity(record_length);
                         for (value,column) in izip!(&record,&input_schema.columns) {
-                            data_cells.push(DataCell::create_data_cell_from_bytes(value, &column.dtype).unwrap());
+                            data_cells.push(
+                              DataCell::create_data_cell_from_bytes(
+                                value, &column.dtype).unwrap());
                         }
                         records.push(ArrayRow::from_vector(data_cells));
 

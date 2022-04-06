@@ -159,7 +159,6 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
                             }
                         }
                     },
-                    _ => {panic!("Invalid JOIN type")}
                 }
             }
             let message = DataBlock::new(output_records, metadata);
