@@ -1,6 +1,3 @@
-use core::time;
-use std::thread;
-
 use generator::Generator;
 
 use crate::{
@@ -39,13 +36,6 @@ pub struct SimpleStreamProcessor<T: Send> {
     set_processor: Box<dyn SetProcessorV1<T>>,
 }
 
-impl<T: Send> SimpleStreamProcessor<T> {
-    fn sleep_micro_secs(&self, micro_secs: u64) {
-        let sleep_micros = time::Duration::from_micros(micro_secs);
-        thread::sleep(sleep_micros);
-    }
-}
-
 impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
     fn process(
         &self,
@@ -68,7 +58,6 @@ impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
                 }
                 Payload::Signal(_) => break,
             }
-            self.sleep_micro_secs(PROCESSOR_SLEEP_MICRO_SECONDS);
         }
     }
 }

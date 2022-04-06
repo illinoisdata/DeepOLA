@@ -2,6 +2,43 @@ use crate::data::*;
 use crate::graph::*;
 use crate::processor::*;
 use generator::{Generator, Gn};
+use std::cmp;
+
+/// Builder for SelectNode
+pub struct SelectNodeBuilder {
+    cols: Vec<String>,
+    orderby: Option<fn(&ArrayRow,&ArrayRow) -> cmp::Ordering>,
+    limit: Option<usize>,
+}
+
+impl SelectNodeBuilder {
+    pub fn new(cols: Vec<String>) -> Self {
+        SelectNodeBuilder {
+            cols: cols,
+            orderby: None,
+            limit: None
+        }
+    }
+
+    pub fn orderby(&mut self, orderby: fn(&ArrayRow,&ArrayRow) -> cmp::Ordering) -> &mut Self {
+        self.orderby = Some(orderby);
+        self
+    }
+
+    pub fn limit(&mut self, limit: usize) -> &mut Self {
+        self.limit = Some(limit);
+        self
+    }
+
+    pub fn build(&self) -> ExecutionNode<ArrayRow> {
+        let data_processor = Box::new(SelectMapper {
+            cols: self.cols.clone(),
+            orderby: self.orderby,
+            limit: self.limit
+        });
+        ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
+    }
+}
 
 pub struct SelectNode;
 
@@ -16,7 +53,9 @@ impl SelectNode {
 }
 
 pub struct SelectMapper {
-    cols: Vec<String>
+    cols: Vec<String>,
+    orderby: Option<fn(&ArrayRow,&ArrayRow) -> cmp::Ordering>,
+    limit: Option<usize>
 }
 
 impl SelectMapper {
@@ -38,7 +77,9 @@ impl SelectMapper {
 
     pub fn new(cols: Vec<String>) -> SelectMapper {
         SelectMapper {
-            cols
+            cols: cols,
+            orderby: None,
+            limit: None
         }
     }
 
@@ -66,12 +107,36 @@ impl SetProcessorV1<ArrayRow> for SelectMapper {
 
             let col_indexes = output_schema.columns.iter().map(|x| input_schema.index(x.name.clone())).collect::<Vec<usize>>();
             let mut output_records = Vec::new();
-            for record in input_set.data().iter() {
-                let filtered_row = col_indexes
-                    .iter()
-                    .map(|a| record[*a].clone())
-                    .collect::<Vec<DataCell>>();
-                output_records.push(ArrayRow::from(filtered_row));
+
+            let mut select_all_cols = false;
+            for col in &self.cols {
+                if col == "*" {
+                    select_all_cols = true;
+                }
+            }
+
+            if !select_all_cols {
+                for record in input_set.data().iter() {
+                    let filtered_row = col_indexes
+                        .iter()
+                        .map(|a| record[*a].clone())
+                        .collect::<Vec<DataCell>>();
+                    output_records.push(ArrayRow::from(filtered_row));
+                }
+            } else {
+                output_records = input_set.data().clone();
+            }
+
+            // Apply ORDERBY
+            match self.orderby {
+                Some(sorting_function) => output_records.sort_unstable_by(sorting_function),
+                _ => {}
+            }
+
+            // Apply LIMIT
+            match self.limit {
+                Some(a) => output_records = output_records[0..cmp::min(a, output_records.len())].to_vec(),
+                _ => {}
             }
 
             let message = DataBlock::new(output_records, metadata);

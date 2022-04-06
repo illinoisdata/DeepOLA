@@ -15,6 +15,20 @@ impl Add<&DataCell> for DataCell {
     }
 }
 
+impl Add<&Box<DataCell>> for Box<DataCell> {
+    type Output = Box<DataCell>;
+    fn add(self, rhs: &Box<DataCell>) -> Self::Output {
+        Box::new(*self + *rhs.clone())
+    }
+}
+
+impl Add<Box<DataCell>> for Box<DataCell> {
+    type Output = Box<DataCell>;
+    fn add(self, rhs: Box<DataCell>) -> Self::Output {
+        self.add(&rhs)
+    }
+}
+
 impl Add<DataCell> for DataCell {
     type Output = DataCell;
     fn add(self, rhs: DataCell) -> Self::Output {

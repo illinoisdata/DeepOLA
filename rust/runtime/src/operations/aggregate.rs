@@ -56,7 +56,24 @@ impl Aggregate {
         match self.operation {
             AggregationOperation::Sum => DataCell::sum(values),
             AggregationOperation::Count => DataCell::count(values),
-            AggregationOperation::Avg => panic!("AVG Not Implemented"),
+            AggregationOperation::Avg => DataCell::from((DataCell::sum(values),DataCell::count(values))),
+            _ => panic!("Invalid Aggregation Operation"),
+        }
+    }
+
+    pub fn merge(&self, old_value: DataCell, new_value: &DataCell) -> DataCell {
+        match self.operation {
+            AggregationOperation::Sum => old_value + new_value,
+            AggregationOperation::Count => old_value + new_value,
+            AggregationOperation::Avg => match old_value {
+                DataCell::Tuple(old_sum,old_ct) => match new_value {
+                    DataCell::Tuple(new_sum, new_ct) => {
+                        DataCell::Tuple(old_sum + new_sum, old_ct + new_ct)
+                    },
+                    _ => panic!("Invalid new_value DataCell for AVG operation")
+                },
+                _ => panic!("Invalid old_value DataCell for AVG operation")
+            },
             _ => panic!("Invalid Aggregation Operation"),
         }
     }
