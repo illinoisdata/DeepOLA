@@ -80,12 +80,12 @@ impl GroupByMapper {
         for (key, value) in current_groupby_result.into_iter() {
             if result_hashmap.contains_key(&key) {
                 // Key exist. Update the value.
-                // Currently supports only SUM and AVG operation.
+                // Currently supports only SUM and COUNT operation.
                 let old_values = &result_hashmap[&key];
                 let new_values = value
                     .iter()
                     .enumerate()
-                    .map(|(i, v)| v.clone() + &old_values[i])
+                    .map(|(i, v)| self.aggregates[i].merge(v.clone(),&old_values[i])) // Here I need to know the aggregate.
                     .collect::<Vec<DataCell>>();
                 result_hashmap.insert(key, new_values);
             } else {
@@ -132,6 +132,7 @@ impl SetProcessorV1<ArrayRow> for GroupByMapper {
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
+            log::debug!("GROUP BY NODE PROCESSING BLOCK");
             // Build output schema metadata
             let input_schema = input_set
                 .metadata()
