@@ -52,7 +52,12 @@ fn raw_csvreader_lineitem(c: &mut Criterion) {
         group.sample_size(10);
         group.bench_function("default csv reader", |b| {
             b.iter(|| {
-                let mut rdr = csv::ReaderBuilder::new().delimiter(b'|').has_headers(false).from_path(filename.clone()).unwrap();
+                let mut rdr = 
+                  csv::ReaderBuilder::new()
+                      .delimiter(b'|')
+                      .has_headers(false)
+                      .from_path(filename.clone())
+                      .unwrap();
                 let mut record = csv::ByteRecord::new();
                 while rdr.read_byte_record(&mut record).unwrap() {
                     let _count = record.len();

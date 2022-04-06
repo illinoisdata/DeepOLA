@@ -1,4 +1,3 @@
-use super::*;
 use crate::data::*;
 use crate::graph::*;
 use crate::processor::*;
@@ -58,6 +57,8 @@ impl SetProcessorV1<ArrayRow> for WhereMapper {
 
 #[cfg(test)]
 mod tests {
+    use crate::operations::utils;
+
     use super::*;
 
     #[test]
