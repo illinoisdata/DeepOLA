@@ -74,7 +74,7 @@ impl fmt::Display for ArrayRow {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for cell in &self.values {
-            write!(f,"{} | ",cell);
+            write!(f,"{} | ",cell).expect("Error displaying ArrayRow");
         }
         write!(f,"\n")
     }

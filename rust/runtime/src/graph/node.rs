@@ -179,6 +179,16 @@ impl<T: Send + 'static> NodeReader<T> {
             internal_node: node,
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            internal_node: ExecutionNode::create(),
+        }
+    }
+
+    pub fn subscribe_to_node(&mut self, listens_to: &ExecutionNode<T>, for_channel: usize) {
+        self.internal_node.subscribe_to_node(listens_to, for_channel);
+    }
 }
 
 #[cfg(test)]

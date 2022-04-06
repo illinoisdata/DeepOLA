@@ -24,7 +24,7 @@ pub enum DataCell {
     Integer(i32),
     Float(f64),
     Text(Box<str>),
-    Tuple(Box<DataCell>,Box<DataCell>),
+    Tuple(Box<(DataCell,DataCell)>),
     Null(),
 }
 
@@ -38,9 +38,9 @@ impl DataCell {
             DataCell::Integer(a) => hasher.write_i32(*a),
             DataCell::Float(_a) => {}
             DataCell::Text(a) => hasher.write(a.as_bytes()),
-            DataCell::Tuple(a,b) => {
-                hasher.write_u64(a.hash());
-                hasher.write_u64(b.hash());
+            DataCell::Tuple(a) => {
+                hasher.write_u64((*a).0.hash());
+                hasher.write_u64((*a).1.hash());
             },
             _ => {}
         }
@@ -59,10 +59,10 @@ impl DataCell {
                 DataCell::Integer(a) => hasher.write_i32(a),
                 DataCell::Float(_a) => {}
                 DataCell::Text(a) => hasher.write(a.as_bytes()),
-                DataCell::Tuple(a,b) => {
-                    hasher.write_u64(a.hash());
-                    hasher.write_u64(b.hash());
-                },
+                DataCell::Tuple(a) => {
+                    hasher.write_u64((*a).0.hash());
+                    hasher.write_u64((*a).1.hash());
+                    },
                 _ => {}
             }
         }
@@ -110,7 +110,7 @@ impl DataCell {
     pub fn avg(cells: &[DataCell]) -> DataCell {
         let sum = Self::sum(cells);
         let count = Self::count(cells);
-        DataCell::Tuple(Box::new(sum), Box::new(count))
+        DataCell::Tuple(Box::new((sum,count)))
     }
 }
 
@@ -195,7 +195,7 @@ impl DataCell {
             DataCell::Integer(_a) => DataType::Integer,
             DataCell::Float(_a) => DataType::Float,
             DataCell::Text(_a) => DataType::Text,
-            DataCell::Tuple(_a, _b) => DataType::Tuple,
+            DataCell::Tuple(_a) => DataType::Tuple,
             DataCell::Null() => DataType::Null,
         }
     }
@@ -215,7 +215,7 @@ impl fmt::Display for DataCell {
             DataCell::Integer(a) => a.to_string(),
             DataCell::Float(a) => a.to_string(),
             DataCell::Text(a) => a.to_string(),
-            DataCell::Tuple(a,b) => format!("({},{})",a.to_string(),b.to_string()),
+            DataCell::Tuple(a) => format!("({},{})",(*a).0.to_string(),(*a).1.to_string()),
             _ => panic!("Invalid DataCell"),
         };
         write!(f, "{}", result)
@@ -292,7 +292,7 @@ impl From<usize> for DataCell {
 
 impl From<(DataCell, DataCell)> for DataCell {
     fn from(value: (DataCell, DataCell)) -> Self {
-        DataCell::Tuple(Box::new(value.0),Box::new(value.1))
+        DataCell::Tuple(Box::new((value.0,value.1)))
     }
 }
 
@@ -377,7 +377,7 @@ mod tests {
         }
         assert_eq!(
             DataCell::avg(&cells),
-            DataCell::Tuple(Box::new(DataCell::from(target_sum)), Box::new(DataCell::from(target_ct)))
+            DataCell::Tuple(Box::new((DataCell::from(target_sum), DataCell::from(target_ct))))
         );
     }
 

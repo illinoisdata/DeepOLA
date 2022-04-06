@@ -66,9 +66,14 @@ impl Aggregate {
             AggregationOperation::Sum => old_value + new_value,
             AggregationOperation::Count => old_value + new_value,
             AggregationOperation::Avg => match old_value {
-                DataCell::Tuple(old_sum,old_ct) => match new_value {
-                    DataCell::Tuple(new_sum, new_ct) => {
-                        DataCell::Tuple(old_sum + new_sum, old_ct + new_ct)
+                DataCell::Tuple(old_values) => match new_value {
+                    DataCell::Tuple(new_values) => {
+                        DataCell::Tuple(
+                            Box::new((
+                                (*old_values).0 + (*new_values).clone().0,
+                                (*old_values).1 + (*new_values).clone().1
+                            ))
+                        )
                     },
                     _ => panic!("Invalid new_value DataCell for AVG operation")
                 },
