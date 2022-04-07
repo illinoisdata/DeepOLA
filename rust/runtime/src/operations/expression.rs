@@ -1,4 +1,3 @@
-use super::*;
 use crate::data::*;
 use crate::graph::*;
 use crate::processor::*;
@@ -10,7 +9,7 @@ pub struct ExpressionNode;
 pub struct Expression {
     pub predicate: fn(&ArrayRow) -> DataCell,
     pub alias: String,
-    pub dtype: DataType
+    pub dtype: DataType,
 }
 
 impl ExpressionNode {
@@ -21,7 +20,7 @@ impl ExpressionNode {
 }
 
 pub struct ExpressionMapper {
-    expressions: Vec<Expression>
+    expressions: Vec<Expression>,
 }
 
 impl ExpressionMapper {
@@ -43,7 +42,10 @@ impl ExpressionMapper {
         }
 
         for expression in self.expressions.iter() {
-            output_columns.push(Column::from_field(expression.alias.clone(), expression.dtype.clone()));
+            output_columns.push(Column::from_field(
+                expression.alias.clone(),
+                expression.dtype.clone(),
+            ));
         }
         Schema::new("unnamed".to_string(), output_columns)
     }
@@ -55,8 +57,13 @@ impl SetProcessorV1<ArrayRow> for ExpressionMapper {
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
-            let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-            let metadata = MetaCell::Schema(self.build_output_schema(input_schema.clone())).into_meta_map();
+            let input_schema = input_set
+                .metadata()
+                .get(SCHEMA_META_NAME)
+                .unwrap()
+                .to_schema();
+            let metadata =
+                MetaCell::Schema(self.build_output_schema(input_schema.clone())).into_meta_map();
 
             let mut output_records = vec![];
             for record in input_set.data().iter() {
@@ -76,7 +83,11 @@ impl SetProcessorV1<ArrayRow> for ExpressionMapper {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::{
+        data::{ArrayRow, DataCell, DataMessage, DataType, SCHEMA_META_NAME},
+        graph::NodeReader,
+        operations::{utils, Expression, ExpressionNode},
+    };
 
     #[test]
     fn test_expression_node() {
@@ -95,7 +106,14 @@ mod tests {
             }
         ];
         let arrayrow_message = utils::example_city_arrow_message();
-        let number_input_cols = arrayrow_message.datablock().metadata().get(SCHEMA_META_NAME).unwrap().to_schema().columns.len();
+        let number_input_cols = arrayrow_message
+            .datablock()
+            .metadata()
+            .get(SCHEMA_META_NAME)
+            .unwrap()
+            .to_schema()
+            .columns
+            .len();
         let where_node = ExpressionNode::node(expressions.clone());
         where_node.write_to_self(0, arrayrow_message);
         where_node.write_to_self(0, DataMessage::eof());
@@ -108,7 +126,13 @@ mod tests {
                 break;
             }
             let dblock = message.datablock();
-            let number_output_cols = dblock.metadata().get(SCHEMA_META_NAME).unwrap().to_schema().columns.len();
+            let number_output_cols = dblock
+                .metadata()
+                .get(SCHEMA_META_NAME)
+                .unwrap()
+                .to_schema()
+                .columns
+                .len();
             assert_eq!(number_output_cols, number_input_cols + expressions.len());
         }
     }
