@@ -3,7 +3,6 @@ use std::{sync::Arc, collections::HashMap, fmt::Debug, ops::Index};
 use std::fmt;
 
 use super::{SCHEMA_META_NAME, Schema, MetaCell};
-use crate::data::ArrayRow;
 
 /// Either actual data (`DataBlock`) or other special signals (e.g., EOF, Signal).
 ///
