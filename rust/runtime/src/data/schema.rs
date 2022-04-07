@@ -114,6 +114,20 @@ impl Schema {
                     Column::from_field("l_comment".to_string(), DataType::Text),
                 ],
             )),
+            "orders" => Ok(Schema::new(
+                String::from(table),
+                vec![
+                    Column::from_field("o_orderkey".to_string(), DataType::Integer),
+                    Column::from_field("o_custkey".to_string(), DataType::Integer),
+                    Column::from_field("o_orderstatus".to_string(), DataType::Text),
+                    Column::from_field("o_totalprice".to_string(), DataType::Float),
+                    Column::from_field("o_orderdate".to_string(), DataType::Text),
+                    Column::from_field("o_orderpriority".to_string(), DataType::Text),
+                    Column::from_field("o_clerk".to_string(), DataType::Text),
+                    Column::from_field("o_shippriority".to_string(), DataType::Integer),
+                    Column::from_field("o_comment".to_string(), DataType::Text),
+                ]
+            )),
             "test_arraydata" => Ok(Schema::new(
                 String::from(table),
                 vec![

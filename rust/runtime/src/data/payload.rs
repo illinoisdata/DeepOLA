@@ -135,11 +135,11 @@ impl<ArrayRow: std::fmt::Display> fmt::Display for DataBlock<ArrayRow> {
         .to_schema();
 
         for col in schema.columns.clone() {
-            write!(f, "{} | ", col.name);
+            write!(f, "{} | ", col.name).expect("Error displaying DataBlock");
         }
-        write!(f,"\n");
+        write!(f,"\n").expect("Error displaying DataBlock");
         for row in self.data() {
-            write!(f, "{}", row);
+            write!(f, "{}", row).expect("Error displaying DataBlock");
         }
         write!(f,"Table Output")
     }
