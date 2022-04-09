@@ -9,7 +9,7 @@ use crate::{
 
 // A builder for creating a join node.
 pub struct MergeJoinBuilder {
-    
+
     // The column index (of the left table) to join on.
     left_on_index: Option<Vec<usize>>,
 
@@ -317,7 +317,7 @@ impl SortedArraysJoiner {
             }
             joined_cols.push(ri.clone());
         }
-
+        log::debug!("Merge Join Output Schema: {}", joined_cols.iter().enumerate().map(|(i,v)| format!("{}: {}, ", i, v.name)).collect::<String>());
         Some(Schema::from(joined_cols))
     }
 

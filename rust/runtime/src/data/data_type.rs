@@ -92,6 +92,63 @@ impl DataCell {
         }
     }
 
+    pub fn min(cells: &[DataCell]) -> DataCell {
+        if cells.is_empty() {
+            return DataCell::Null();
+        }
+        match cells[0] {
+            DataCell::Integer(a) => {
+                let mut result = a;
+                for cell in cells.iter().skip(1) {
+                    let val = i32::from(cell);
+                    if val < result {
+                        result = val
+                    }
+                }
+                DataCell::Integer(result)
+            },
+            DataCell::Float(a) => {
+                let mut result = a;
+                for cell in cells.iter().skip(1) {
+                    if f64::from(cell) < result {
+                        result = f64::from(cell)
+                    }
+                }
+                DataCell::Float(result)
+            },
+            _ => panic!("MIN not implemented")
+        }
+    }
+
+    pub fn max(cells: &[DataCell]) -> DataCell {
+        if cells.is_empty() {
+            return DataCell::Null();
+        }
+        match cells[0] {
+            DataCell::Integer(a) => {
+                let mut result = a;
+                for cell in cells.iter().skip(1) {
+                    let val = i32::from(cell);
+                    if val > result {
+                        result = val;
+                    }
+                }
+                DataCell::Integer(result)
+            },
+            DataCell::Float(a) => {
+                let mut result = a;
+                for cell in cells.iter().skip(1) {
+                    let val = f64::from(cell);
+                    if val > result {
+                        result = val;
+                    }
+                }
+                DataCell::Float(result)
+            },
+            _ => panic!("MIN not implemented")
+        }
+    }
+
     pub fn count(cells: &[DataCell]) -> DataCell {
         let mut result = 0;
         for cell in cells {
@@ -253,6 +310,22 @@ impl From<&DataCell> for f64 {
         }
     }
 }
+
+impl From<&DataCell> for String {
+    fn from(value: &DataCell) -> Self {
+        match value {
+            DataCell::Text(a) => a.to_string(),
+            _ => panic!("Invalid Conversion: {:?}", value),
+        }
+    }
+}
+
+impl From<DataCell> for String {
+    fn from(value: DataCell) -> Self {
+        String::from(&value)
+    }
+}
+
 
 impl From<&str> for DataCell {
     fn from(value: &str) -> Self {

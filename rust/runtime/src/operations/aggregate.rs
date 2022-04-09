@@ -5,7 +5,11 @@ pub enum AggregationOperation {
     Sum,
     Avg,
     Count,
+    Min,
+    Max,
     CountDistinct,
+    SumDistinct,
+    AvgDistinct,
 }
 
 impl ToString for AggregationOperation {
@@ -14,7 +18,11 @@ impl ToString for AggregationOperation {
             AggregationOperation::Sum => "sum".to_string(),
             AggregationOperation::Avg => "avg".to_string(),
             AggregationOperation::Count => "count".to_string(),
+            AggregationOperation::Min => "min".to_string(),
+            AggregationOperation::Max => "max".to_string(),
             AggregationOperation::CountDistinct => "count_distinct".to_string(),
+            AggregationOperation::SumDistinct => "sum_distinct".to_string(),
+            AggregationOperation::AvgDistinct => "avg_distinct".to_string(),
         }
     }
 }
@@ -47,7 +55,11 @@ impl Aggregate {
             AggregationOperation::Sum => col_dtype,
             AggregationOperation::Avg => DataType::Float,
             AggregationOperation::Count => DataType::Integer,
+            AggregationOperation::Min => col_dtype,
+            AggregationOperation::Max => col_dtype,
             AggregationOperation::CountDistinct => DataType::Integer,
+            AggregationOperation::SumDistinct => col_dtype,
+            AggregationOperation::AvgDistinct => DataType::Float,
         }
     }
 
@@ -57,7 +69,9 @@ impl Aggregate {
             AggregationOperation::Sum => DataCell::sum(values),
             AggregationOperation::Count => DataCell::count(values),
             AggregationOperation::Avg => DataCell::from((DataCell::sum(values),DataCell::count(values))),
-            _ => panic!("Invalid Aggregation Operation"),
+            AggregationOperation::Min => DataCell::min(values),
+            AggregationOperation::Max => DataCell::max(values),
+            _ => panic!("Aggregation Operation Not Implemented"),
         }
     }
 
@@ -78,6 +92,20 @@ impl Aggregate {
                     _ => panic!("Invalid new_value DataCell for AVG operation")
                 },
                 _ => panic!("Invalid old_value DataCell for AVG operation")
+            },
+            AggregationOperation::Min => {
+                if old_value < *new_value {
+                    old_value
+                } else {
+                    new_value.clone()
+                }
+            },
+            AggregationOperation::Max => {
+                if old_value < *new_value {
+                    new_value.clone()
+                } else {
+                    old_value
+                }
             },
             _ => panic!("Invalid Aggregation Operation"),
         }

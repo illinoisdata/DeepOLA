@@ -132,7 +132,6 @@ impl SetProcessorV1<ArrayRow> for GroupByMapper {
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
-            log::debug!("GROUP BY NODE PROCESSING BLOCK");
             // Build output schema metadata
             let input_schema = input_set
                 .metadata()

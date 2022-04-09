@@ -1,4 +1,4 @@
-use crate::utils::TableInput;
+use crate::utils::*;
 
 extern crate runtime;
 use runtime::graph::*;
@@ -33,25 +33,8 @@ use std::cmp;
 // limit -1;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
-    // CSVReaderNode
-    // Get batch size and file names from tableinput tables;
-    let batch_size = tableinput.get(&"lineitem".to_string()).unwrap().batch_size.clone();
-    let input_files = tableinput.get(&"lineitem".to_string()).unwrap().input_files.clone();
-
-    let lineitem_csvreader_node = CSVReaderNode::new_with_params(batch_size, '|', false);
-    let mut file_names = vec![];
-    for input_file in input_files {
-        file_names.push(ArrayRow::from_vector(
-            vec![DataCell::from(input_file)]
-        ));
-    }
-    let lineitem_schema = Schema::from_example("lineitem").unwrap();
-    let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
-    );
-    let dblock = DataBlock::new(file_names, metadata);
-    lineitem_csvreader_node.write_to_self(0, DataMessage::from(dblock));
-    lineitem_csvreader_node.write_to_self(0, DataMessage::eof());
+    // CSVReaderNode would be created for this table.
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
 
     // WHERE Node
     fn predicate(record: &ArrayRow) -> bool {
@@ -128,11 +111,6 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let groupby_node = GroupByNode::node(groupby_cols, aggregates);
 
     // SELECT and ORDERBY Node
-    // let selected_cols = vec![
-    //     "l_returnflag".into(),"l_linestatus".into(),"sum_qty".into(),
-    //     "sum_base_price".into(),"sum_disc_price".into(), "sum_charge".into(),
-    //     "avg_qty".into(), "avg_price".into(),"avg_disc".into(),"count_order".into()
-    // ];
     let selected_cols = vec!["*".into()];
     let mut select_node_builder = SelectNodeBuilder::new(selected_cols);
     fn order_by_predicate(a: &ArrayRow, b: &ArrayRow) -> cmp::Ordering {
