@@ -46,5 +46,5 @@ jobs:
     - name: Checkout LFS objects
       run: git lfs checkout
     - name: Run tpch queries
-      run: cargo run --release --example tpch -- q1
+      run: RUST_LOG=info cargo run --release --example tpch -- q1
       working-directory: rust/runtime/

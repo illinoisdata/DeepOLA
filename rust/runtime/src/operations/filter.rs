@@ -36,7 +36,6 @@ impl SetProcessorV1<ArrayRow> for WhereMapper {
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
-            log::debug!("FILTER NODE PROCESSING BLOCK");
             // Build output schema metadata
             let metadata = input_set.metadata().clone();
 

@@ -68,7 +68,7 @@ fn main() {
     }
     query_service.join();
     let end_time = Instant::now();
-    println!("Query Result");
-    println!("{}", result);
-    println!("Query took {:.2?}", end_time - start_time);
+    log::info!("Query Result");
+    log::info!("{}", result);
+    log::info!("Query took {:.2?}", end_time - start_time);
 }

@@ -109,7 +109,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
             cmp::Ordering::Equal
         }
     }
-    select_node_builder.orderby(order_by_predicate).limit(20);
+    select_node_builder.orderby(order_by_predicate);
     let select_node = select_node_builder.build();
 
     // Connect nodes with subscription

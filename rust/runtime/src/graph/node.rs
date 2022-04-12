@@ -80,11 +80,11 @@ impl<T: Send + 'static> ExecutionNode<T> {
 
     /// Processes the data from input stream until we see EOF from all input channels.
     pub fn run(&self) {
-        println!("Running Node: {}",self.node_id);
+        log::debug!("Starting Node: {}",self.node_id);
         let input_reader = self.input_reader.borrow();
         let output_writer = self.output_writer.borrow();
         self.stream_processor().process(input_reader.clone(), output_writer.clone());
-        println!("Finished Node: {}",self.node_id);
+        log::debug!("Finished Node: {}",self.node_id);
     }
 
     pub fn input_reader(&self) -> MultiChannelReader<T> {
