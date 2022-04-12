@@ -74,7 +74,6 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
         // The output DataBlock that you send should have this schema?
         Gn::new_scoped(
             move |mut s| {
-                log::debug!("CSVREADER NODE PROCESSING BLOCK");
                 let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
                 let metadata = HashMap::from(
                     [(SCHEMA_META_NAME.into(), MetaCell::Schema(self._build_output_schema(input_schema)))]

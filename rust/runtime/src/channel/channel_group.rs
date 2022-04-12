@@ -36,7 +36,7 @@ impl<T: Send> MultiChannelReader<T> {
     pub fn read(&self, seq_no: usize) -> DataMessage<T> {
         let reader = self.reader(seq_no);
         let message = reader.read();
-        log::info!(
+        log::debug!(
             "Read from (channel: {}). {:?}.", reader.channel_id(), message
         );
         message
@@ -81,7 +81,7 @@ impl<T: Send> MultiChannelBroadcaster<T> {
     /// Broadcast a message to all writers.
     pub fn write(&self, message: DataMessage<T>) {
         for w in self.iter() {
-            log::info!(
+            log::debug!(
                 "Writes to (channel: {}). {:?}.", w.channel_id(), message);
             w.write(message.clone())
         }

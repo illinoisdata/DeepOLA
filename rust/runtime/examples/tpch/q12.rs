@@ -1,4 +1,4 @@
-use crate::utils::TableInput;
+use crate::utils::*;
 
 extern crate runtime;
 use runtime::graph::*;
@@ -38,41 +38,9 @@ use std::cmp;
 // 	l_shipmode;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
-    // Lineitem CSVReaderNode
-    let lineitem_batch_size = tableinput.get(&"lineitem".to_string()).unwrap().batch_size.clone();
-    let lineitem_input_files = tableinput.get(&"lineitem".to_string()).unwrap().input_files.clone();
-    let lineitem_csvreader_node = CSVReaderNode::new_with_params(lineitem_batch_size, '|', false);
-    let mut lineitem_file_names = vec![];
-    for input_file in lineitem_input_files {
-        lineitem_file_names.push(ArrayRow::from_vector(
-            vec![DataCell::from(input_file)]
-        ));
-    }
-    let lineitem_schema = Schema::from_example("lineitem").unwrap();
-    let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
-    );
-    let dblock = DataBlock::new(lineitem_file_names, metadata);
-    lineitem_csvreader_node.write_to_self(0, DataMessage::from(dblock));
-    lineitem_csvreader_node.write_to_self(0, DataMessage::eof());
-
-    // ORDERS CSVReaderNode
-    let orders_batch_size = tableinput.get(&"orders".to_string()).unwrap().batch_size.clone();
-    let orders_input_files = tableinput.get(&"orders".to_string()).unwrap().input_files.clone();
-    let orders_csvreader_node = CSVReaderNode::new_with_params(orders_batch_size, '|', false);
-    let mut orders_file_names = vec![];
-    for input_file in orders_input_files {
-        orders_file_names.push(ArrayRow::from_vector(
-            vec![DataCell::from(input_file)]
-        ));
-    }
-    let orders_schema = Schema::from_example("orders").unwrap();
-    let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(orders_schema.clone()))]
-    );
-    let dblock = DataBlock::new(orders_file_names, metadata);
-    orders_csvreader_node.write_to_self(0, DataMessage::from(dblock));
-    orders_csvreader_node.write_to_self(0, DataMessage::eof());
+    // CSVReaderNode
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
+    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput);
 
     // WHERE Node
     fn predicate(record: &ArrayRow) -> bool {

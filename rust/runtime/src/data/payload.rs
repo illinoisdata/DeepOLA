@@ -137,8 +137,14 @@ impl<ArrayRow: std::fmt::Display> fmt::Display for DataBlock<ArrayRow> {
             write!(f, "{} | ", col.name).expect("Error displaying DataBlock");
         }
         write!(f,"\n").expect("Error displaying DataBlock");
+        let mut ct = 0;
         for row in self.data() {
+            ct += 1;
             write!(f, "{}", row).expect("Error displaying DataBlock");
+            if ct >= 20 {
+                write!(f, "Displayed 20 rows out of {} rows\n", self.data().len()).expect("Error displaying DataBlock");
+                break;
+            }
         }
         write!(f,"Table Output")
     }
