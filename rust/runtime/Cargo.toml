@@ -19,6 +19,7 @@ quick-error = "2.0.1"
 rand = "0.8.5"
 rustc-hash = "1.1.0"
 rayon = "1.5.2"
+structopt = "0.3.26"
 
 [dev-dependencies]
 ctor = "0.1.21"

@@ -7,6 +7,7 @@ use std::collections::hash_map::Entry;
 use crate::data::ArrayRow;
 use crate::data::DataBlock;
 use crate::data::DataCell;
+use crate::data::Schema;
 use crate::data::SCHEMA_META_NAME;
 use crate::forecast::cell::ForecastSelector;
 use crate::forecast::row::RowForecast;
@@ -21,12 +22,8 @@ use crate::processor::SetProcessorV1;
 pub struct ForecastNode;
 
 impl ForecastNode {
-    pub fn node(
-        key_columns: Vec<String>,
-        values_columns: Vec<String>,
-        final_time: TimeType,
-    ) -> ExecutionNode<ArrayRow> {
-        let data_processor = TableForecast::new_boxed(key_columns, values_columns, final_time);
+    pub fn node(schema: &Schema, final_time: TimeType) -> ExecutionNode<ArrayRow> {
+        let data_processor = TableForecast::new_boxed(schema, final_time);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 }
@@ -41,10 +38,9 @@ pub struct TableForecast {
      * There are 3 column groups
      *   - Key: columns to group values together [TODO: what if keys are not unique]
      *   - Values: columns to be forecasted (numeric only)
-     *   - Other: columns that TableForecast ignores
      */
-    key_columns: Vec<String>,
-    values_columns: Vec<String>,
+    key_columns: Vec<String>,  // TODO: auto-detect this
+    values_columns: Vec<String>,  // TODO: auto-detect this
     final_time: TimeType,
 
     // State of the forecast estimator per row
@@ -53,11 +49,8 @@ pub struct TableForecast {
 }
 
 impl TableForecast {
-    pub fn new(
-        key_columns: Vec<String>,
-        values_columns: Vec<String>,
-        final_time: TimeType,
-    ) -> TableForecast {
+    pub fn new(schema: &Schema, final_time: TimeType) -> TableForecast {
+        let (key_columns, values_columns) = TableForecast::extract_schema(schema);
         TableForecast {
             key_columns,
             values_columns,
@@ -67,21 +60,25 @@ impl TableForecast {
         }
     }
 
-    pub fn new_boxed(
-        key_columns: Vec<String>,
-        values_columns: Vec<String>,
-        final_time: TimeType,
-    ) -> Box<dyn SetProcessorV1<ArrayRow>> {
-        Box::new(Self::new(key_columns, values_columns, final_time))
+    pub fn new_boxed(schema: &Schema, final_time: TimeType) -> Box<dyn SetProcessorV1<ArrayRow>> {
+        Box::new(Self::new(schema, final_time))
+    }
+
+    fn get_key_columns(&self) -> &[String] {
+        &self.key_columns
+    }
+
+    fn get_values_columns(&self) -> &[String] {
+        &self.values_columns
     }
 
     fn extract_key(&self, key_cells: Vec<DataCell>) -> ForecastKey {
-        assert_eq!(key_cells.len(), self.key_columns.len());  // TODO: unecessary?
+        assert_eq!(key_cells.len(), self.get_key_columns().len());
         DataCell::vector_hash(key_cells)  // TODO: is this unique?
     }
 
     fn extract_value(&self, value_cells: Vec<DataCell>) -> Vec<ValueType> {
-        assert_eq!(value_cells.len(), self.values_columns.len());  // TODO: unecessary?
+        assert_eq!(value_cells.len(), self.get_values_columns().len());
         value_cells.iter().map(ValueType::from).collect()
     }
 
@@ -101,6 +98,19 @@ impl TableForecast {
         row_forecast.push_estimator(ForecastSelector::make_with_default_candidates());
       }
       row_forecast
+    }
+
+    fn extract_schema(schema: &Schema) -> (Vec<String>, Vec<String>) {
+        let mut key_columns = Vec::new();
+        let mut values_columns = Vec::new();
+        for column in &schema.columns {
+            if column.key {
+                key_columns.push(column.name.clone());
+            } else {
+                values_columns.push(column.name.clone());
+            }
+        }
+        (key_columns, values_columns)
     }
 }
 
@@ -123,11 +133,11 @@ impl SetProcessorV1<ArrayRow> for TableForecast {
                 .get(SCHEMA_META_NAME)
                 .unwrap()
                 .to_schema();
-            let key_indexes: Vec<usize> = self.key_columns
+            let key_indexes: Vec<usize> = self.get_key_columns()
                 .iter()
                 .map(|column| input_schema.index(column))
                 .collect();
-            let value_indexes: Vec<usize> = self.values_columns
+            let value_indexes: Vec<usize> = self.get_values_columns()
                 .iter()
                 .map(|column| input_schema.index(column))
                 .collect();
@@ -170,16 +180,21 @@ mod tests {
     use crate::data::MetaCell;
     use crate::graph::NodeReader;
 
-
-    // generate message according to time scale t
-    fn example_arrow_message(t: TimeType) -> DataMessage<ArrayRow> {
-        let metadata = MetaCell::from(vec![
-            Column::from_field("country".into(), DataType::Text),
-            Column::from_field("state".into(), DataType::Text),
-            Column::from_field("city".into(), DataType::Text),
+    // arrow message schema
+    fn example_arrow_schema() -> Schema {
+        Schema::from(vec![
+            Column::from_key_field("country".into(), DataType::Text),
+            Column::from_key_field("state".into(), DataType::Text),
+            Column::from_key_field("city".into(), DataType::Text),
             Column::from_field("population".into(), DataType::Integer),
             Column::from_field("area".into(), DataType::Float),
         ])
+    }
+
+
+    // generate message according to time scale t
+    fn example_arrow_message(t: TimeType) -> DataMessage<ArrayRow> {
+        let metadata = MetaCell::from(example_arrow_schema())
         .into_meta_map();
 
         let input_rows = vec![
@@ -237,13 +252,7 @@ mod tests {
 
     // generate smaller message according to time scale t
     fn example_arrow_message_small(t: TimeType) -> DataMessage<ArrayRow> {
-        let metadata = MetaCell::from(vec![
-            Column::from_field("country".into(), DataType::Text),
-            Column::from_field("state".into(), DataType::Text),
-            Column::from_field("city".into(), DataType::Text),
-            Column::from_field("population".into(), DataType::Integer),
-            Column::from_field("area".into(), DataType::Float),
-        ])
+        let metadata = MetaCell::from(example_arrow_schema())
         .into_meta_map();
 
         let input_rows = vec![
@@ -275,23 +284,15 @@ mod tests {
         DataMessage::from(DataBlock::new(input_rows, metadata))
     }
 
-    fn make_arrow_forecast_node(final_time: TimeType) -> ExecutionNode<ArrayRow> {
-        let key_columns = vec![
-            "country".to_string(),
-            "state".to_string(),
-            "city".to_string(),
-        ];
-        let values_columns = vec![
-            "population".to_string(),
-            "area".to_string(),
-        ];
-        ForecastNode::node(key_columns, values_columns, final_time,)
+    fn make_arrow_forecast_node(schema: &Schema, final_time: TimeType) -> ExecutionNode<ArrayRow> {
+        ForecastNode::node(schema, final_time)
     }
 
     #[test]
     fn test_perfect_arrow_message() {
         let final_time = 10;
-        let forecast_node = make_arrow_forecast_node(final_time as TimeType);
+        let schema = example_arrow_schema();
+        let forecast_node = make_arrow_forecast_node(&schema, final_time as TimeType);
 
         // push partitions
         for t in 1 .. final_time {
@@ -323,7 +324,8 @@ mod tests {
         // suddenly rows with new keys show up after mid_time
         let mid_time = 12;
         let final_time = 20;
-        let forecast_node = make_arrow_forecast_node(final_time as TimeType);
+        let schema = example_arrow_schema();
+        let forecast_node = make_arrow_forecast_node(&schema, final_time as TimeType);
 
         // push partitions
         for t in 1 .. mid_time {
