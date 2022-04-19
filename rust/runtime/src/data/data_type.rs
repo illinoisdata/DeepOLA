@@ -272,7 +272,7 @@ impl fmt::Display for DataCell {
             DataCell::Integer(a) => a.to_string(),
             DataCell::Float(a) => a.to_string(),
             DataCell::Text(a) => a.to_string(),
-            DataCell::Tuple(a) => format!("({},{})",(*a).0.to_string(),(*a).1.to_string()),
+            DataCell::Tuple(a) => format!("({},{})",(*a).0,(*a).1),
             _ => panic!("Invalid DataCell"),
         };
         write!(f, "{}", result)

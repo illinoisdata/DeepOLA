@@ -10,8 +10,8 @@ pub struct HashJoinNode;
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
 /// perform Hash Join operation.
 impl HashJoinNode {
-    pub fn node(left_join_index: Vec<usize>, right_join_index: Vec<usize>, join_type: JoinType) -> ExecutionNode<ArrayRow> {
-        let data_processor = HashJoinProcessor::new_boxed(left_join_index, right_join_index, join_type);
+    pub fn node(left_join_cols: Vec<String>, right_join_cols: Vec<String>, join_type: JoinType) -> ExecutionNode<ArrayRow> {
+        let data_processor = HashJoinProcessor::new_boxed(left_join_cols, right_join_cols, join_type);
         let num_input = 2;
         ExecutionNode::<ArrayRow>::from_right_complete_processor(data_processor,num_input)
     }
@@ -19,8 +19,8 @@ impl HashJoinNode {
 
 /// A struct to represent the HashJoinProcessor.
 pub struct HashJoinProcessor {
-    left_join_index: Vec<usize>,
-    right_join_index: Vec<usize>,
+    left_join_cols: Vec<String>,
+    right_join_cols: Vec<String>,
     join_type: JoinType,
     hash_table: RefCell<FxHashMap<(u64,usize), Vec<ArrayRow>>>,
     hash_keys: RefCell<FxHashMap<u64, Vec<ArrayRow>>>,
@@ -28,13 +28,13 @@ pub struct HashJoinProcessor {
 }
 
 impl HashJoinProcessor {
-    pub fn new(left_join_index: Vec<usize>, right_join_index: Vec<usize>, join_type: JoinType) -> HashJoinProcessor {
+    pub fn new(left_join_cols: Vec<String>, right_join_cols: Vec<String>, join_type: JoinType) -> HashJoinProcessor {
         let hash_table = RefCell::new(FxHashMap::default());
         let right_schema = RefCell::new(None);
         let hash_keys = RefCell::new(FxHashMap::default());
         HashJoinProcessor {
-            left_join_index,
-            right_join_index,
+            left_join_cols,
+            right_join_cols,
             join_type,
             hash_table,
             hash_keys,
@@ -42,14 +42,14 @@ impl HashJoinProcessor {
         }
     }
 
-    pub fn new_boxed(left_join_index: Vec<usize>, right_join_index: Vec<usize>, join_type: JoinType) -> Box<dyn SetMultiProcessor<ArrayRow>> {
-        Box::new(Self::new(left_join_index, right_join_index, join_type))
+    pub fn new_boxed(left_join_cols: Vec<String>, right_join_cols: Vec<String>, join_type: JoinType) -> Box<dyn SetMultiProcessor<ArrayRow>> {
+        Box::new(Self::new(left_join_cols, right_join_cols, join_type))
     }
 
-    pub fn _build_output_schema(right_join_index: Vec<usize>, right_schema: Schema, left_schema: Schema) -> Schema {
+    pub fn _build_output_schema(right_join_cols: Vec<String>, right_schema: Schema, left_schema: Schema) -> Schema {
         let mut joined_cols = left_schema.columns;
-        for (rc, ri) in right_schema.columns.iter().enumerate() {
-            if right_join_index.contains(&rc) {
+        for (_rc, ri) in right_schema.columns.iter().enumerate() {
+            if right_join_cols.contains(&ri.name) {
                 continue;
             }
             joined_cols.push(ri.clone());
@@ -69,8 +69,10 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
         let mut hash_table = self.hash_table.borrow_mut();
         let mut hash_keys = self.hash_keys.borrow_mut();
 
+        let right_join_index = self.right_join_cols.iter().map(|a| right_schema.as_ref().unwrap().index(a.clone())).collect::<Vec<usize>>();
+
         for record in input_set.data().iter() {
-            let key = self.right_join_index
+            let key = right_join_index
                 .iter()
                 .map(|a| record[*a].clone())
                 .collect::<Vec<DataCell>>();
@@ -81,7 +83,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
             let non_key_cols = record.values
                 .iter()
                 .enumerate()
-                .filter(|(i,_)| !self.right_join_index.contains(i))
+                .filter(|(i,_)| !right_join_index.contains(i))
                 .map(|(_,x)| x.clone())
                 .collect::<Vec<DataCell>>();
             let val_row = ArrayRow::from(non_key_cols);
@@ -120,7 +122,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
             // HashMap to first group rows and collect by group by keys
             let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
             let metadata = MetaCell::Schema(Self::_build_output_schema(
-                self.right_join_index.clone(),
+                self.right_join_cols.clone(),
                 self.right_schema.borrow().clone().unwrap(),
                 input_schema.clone()
             )).into_meta_map();
@@ -128,9 +130,11 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
             let hash_table = self.hash_table.borrow();
             let hash_keys = self.hash_keys.borrow();
 
+            let left_join_index = self.left_join_cols.iter().map(|a| input_schema.index(a.clone())).collect::<Vec<usize>>();
+
             for record in input_set.data().iter() {
-                // Compute hash based on left_join_index.
-                let key = self.left_join_index
+                // Compute hash based on left_join_cols.
+                let key = left_join_index
                     .iter()
                     .map(|a| record[*a].clone())
                     .collect::<Vec<DataCell>>();
@@ -249,7 +253,7 @@ mod tests {
         );
 
         // Write the datablocks to left and right channels
-        let hashjoin = HashJoinNode::node(vec![1], vec![0], JoinType::Inner);
+        let hashjoin = HashJoinNode::node(vec!["col2".to_string()], vec!["col3".to_string()], JoinType::Inner);
 
         // Add block to left channel
         hashjoin.write_to_self(0, DataMessage::from(left_block));
@@ -304,7 +308,7 @@ mod tests {
         );
 
         // Write the datablocks to left and right channels
-        let hashjoin = HashJoinNode::node(vec![1,2], vec![0,1], JoinType::Inner);
+        let hashjoin = HashJoinNode::node(vec!["col2".into(),"col3".into()], vec!["col4".into(),"col5".into()], JoinType::Inner);
 
         // Add block to left channel
         hashjoin.write_to_self(0, DataMessage::from(left_block));

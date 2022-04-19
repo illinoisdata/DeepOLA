@@ -12,6 +12,12 @@ pub struct CSVReaderBuilder {
     has_headers: bool,
 }
 
+impl Default for CSVReaderBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CSVReaderBuilder {
     pub fn new() -> Self {
         CSVReaderBuilder {
@@ -81,7 +87,7 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
 
                 let mut records: Vec<ArrayRow> = vec![];
                 for r in input_set.data().iter() {
-                    let mut reader = 
+                    let mut reader =
                       csv::ReaderBuilder::new()
                           .delimiter(self.delimiter as u8)
                           .has_headers(self.has_headers as bool)

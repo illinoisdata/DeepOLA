@@ -20,6 +20,12 @@ pub struct MergeJoinBuilder {
     join_type: JoinType,
 }
 
+impl Default for MergeJoinBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MergeJoinBuilder {
     pub fn new() -> Self {
         MergeJoinBuilder {
@@ -175,7 +181,7 @@ impl SortedArraysJoiner {
                 current_right_block: JoinBlock::NeverSet,
                 current_right_idx_lb: 0,
                 current_right_idx: 0,
-                so_far_joined: vec![].into(),
+                so_far_joined: vec![],
             }),
             schema_of_joined: RefCell::new(None),
         }
@@ -304,7 +310,7 @@ impl SortedArraysJoiner {
     }
 
     fn construct_meta_of_join(
-        right_join_index: &Vec<usize>,
+        right_join_index: &[usize],
         left_schema: &Schema,
         right_schema: &Schema,
     ) -> Option<Schema> {

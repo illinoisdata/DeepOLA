@@ -14,7 +14,7 @@ pub struct SelectNodeBuilder {
 impl SelectNodeBuilder {
     pub fn new(cols: Vec<String>) -> Self {
         SelectNodeBuilder {
-            cols: cols,
+            cols,
             orderby: None,
             limit: None
         }
@@ -77,7 +77,7 @@ impl SelectMapper {
 
     pub fn new(cols: Vec<String>) -> SelectMapper {
         SelectMapper {
-            cols: cols,
+            cols,
             orderby: None,
             limit: None
         }
@@ -128,16 +128,10 @@ impl SetProcessorV1<ArrayRow> for SelectMapper {
             }
 
             // Apply ORDERBY
-            match self.orderby {
-                Some(sorting_function) => output_records.sort_unstable_by(sorting_function),
-                _ => {}
-            }
+            if let Some(sorting_function) = self.orderby { output_records.sort_unstable_by(sorting_function) }
 
             // Apply LIMIT
-            match self.limit {
-                Some(a) => output_records = output_records[0..cmp::min(a, output_records.len())].to_vec(),
-                _ => {}
-            }
+            if let Some(a) = self.limit { output_records = output_records[0..cmp::min(a, output_records.len())].to_vec() }
 
             let message = DataBlock::new(output_records, metadata);
             s.yield_(message);

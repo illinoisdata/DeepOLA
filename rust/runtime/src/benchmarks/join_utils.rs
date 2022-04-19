@@ -25,8 +25,7 @@ pub fn setup_left_block(row_count: usize, col_count: usize) -> DataBlock<ArrayRo
 pub fn setup_right_block(row_count: usize, col_count: usize) -> DataBlock<ArrayRow> {
     let mut rows = vec![];
     for r in 0..row_count {
-        let mut cols = vec![];
-        cols.push(DataCell::Integer(r.try_into().unwrap()));
+        let mut cols = vec![DataCell::Integer(r.try_into().unwrap())];
         for i in 0..(col_count - 1) {
             cols.push(DataCell::from(format!("col{}", i)));
         }

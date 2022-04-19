@@ -42,7 +42,7 @@ impl SetProcessorV1<ArrayRow> for WhereMapper {
             // Evaluate predicate on each record
             let mut output_records = vec![];
             for record in input_set.data().iter() {
-                let result = (self.predicate)(&record);
+                let result = (self.predicate)(record);
                 if result {
                     output_records.push(record.clone())
                 }

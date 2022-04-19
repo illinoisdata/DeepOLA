@@ -70,7 +70,7 @@ impl SetProcessorV1<ArrayRow> for ExpressionMapper {
                 let mut result = record.clone();
                 // Evaluate all the expressions on each record.
                 for expression in self.expressions.iter() {
-                    result.values.push((expression.predicate)(&record));
+                    result.values.push((expression.predicate)(record));
                 }
                 output_records.push(result.clone());
             }

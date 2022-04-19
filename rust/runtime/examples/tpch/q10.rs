@@ -55,13 +55,13 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
 
     // Hash Join node
     let hash_join_node_customer_nation = HashJoinNode::node(
-        vec![3], //left is customer
-        vec![0], //right is nation
+        vec!["c_nationkey".into()], //left is customer
+        vec!["n_nationkey".into()], //right is nation
         JoinType::Inner
     );
     let hash_join_node_order_customer = HashJoinNode::node(
-        vec![1], //left is order
-        vec![0], //right is joined_result
+        vec!["o_custkey".into()], //left is order
+        vec!["c_custkey".into()], //right is joined_result
         JoinType::Inner
     );
 

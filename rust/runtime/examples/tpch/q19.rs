@@ -49,8 +49,8 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput);
 
     let hash_join_node = HashJoinNode::node(
-        vec![1], // l_partkey on lineitem
-        vec![0], // p_partkey on part
+        vec!["l_partkey".into()], // l_partkey on lineitem
+        vec!["p_partkey".into()], // p_partkey on part
         JoinType::Inner
     );
 
