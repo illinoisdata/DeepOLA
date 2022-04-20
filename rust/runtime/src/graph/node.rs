@@ -83,6 +83,14 @@ impl<T: Send + 'static> ExecutionNode<T> {
         log::debug!("Starting Node: {}",self.node_id);
         let input_reader = self.input_reader.borrow();
         let output_writer = self.output_writer.borrow();
+        // Add log message here saying that which channels are linked to which nodes.
+        for channel in input_reader.readers.iter() {
+            log::debug!("Node: {}; Reads from: {}", self.node_id, channel.channel_id());
+        }
+        for channel in output_writer.iter() {
+            log::debug!("Node: {}; Writes to: {}", self.node_id, channel.channel_id());
+        }
+
         self.stream_processor().process(input_reader.clone(), output_writer.clone());
         log::debug!("Finished Node: {}",self.node_id);
     }

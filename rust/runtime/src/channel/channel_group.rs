@@ -7,7 +7,7 @@ use super::single_channel::*;
 /// A group of different input channels.
 #[derive(Debug)]
 pub struct MultiChannelReader<T: Send> {
-    readers: Vec<Rc<ChannelReader<T>>>,
+    pub readers: Vec<Rc<ChannelReader<T>>>,
 }
 
 impl<T: Send> Default for MultiChannelReader<T> {

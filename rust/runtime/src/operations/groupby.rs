@@ -145,7 +145,7 @@ impl SetProcessorV1<ArrayRow> for GroupByMapper {
                 ),
                 (
                     DATABLOCK_TYPE.into(),
-                    MetaCell::Text(DATABLOCK_TYPE_DM.into()),
+                    MetaCell::from(DATABLOCK_TYPE_DM),
                 ),
             ]);
 

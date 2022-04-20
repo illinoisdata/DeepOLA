@@ -8,6 +8,11 @@ use std::collections::HashMap;
 use std::time::Instant;
 use std::env;
 
+use log::LevelFilter;
+use log4rs::append::console::ConsoleAppender;
+use log4rs::config::{Appender, Root};
+use log4rs::Config;
+
 mod utils;
 mod q1;
 mod q3;
@@ -18,7 +23,14 @@ mod q14;
 mod q19;
 
 fn main() {
-    env_logger::init();
+    let stdout = ConsoleAppender::builder().build();
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
+        .unwrap();
+
+    let _handle = log4rs::init_config(config).unwrap();
     let tpch_tables = vec![
         "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier"
     ];

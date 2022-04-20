@@ -24,8 +24,30 @@ impl MetaCell {
     pub fn into_meta_map(&self) -> HashMap<String, MetaCell> {
         HashMap::from([
             (SCHEMA_META_NAME.into(), self.clone()),
-            (DATABLOCK_TYPE.into(), MetaCell::Text(DATABLOCK_TYPE_DA.into())),
+            (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DA)),
         ])
+    }
+
+    pub fn into_dm_meta_map(&self) -> HashMap<String, MetaCell> {
+        HashMap::from([
+            (SCHEMA_META_NAME.into(), self.clone()),
+            (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DM)),
+        ])
+    }
+}
+
+impl From<&str> for MetaCell {
+    fn from(value: &str) -> Self {
+        MetaCell::Text(value.to_string())
+    }
+}
+
+impl From<MetaCell> for String {
+    fn from(cell: MetaCell) -> Self {
+        match cell {
+            MetaCell::Text(a) => a,
+            _ => panic!("Invalid conversion from MetaCell")
+        }
     }
 }
 

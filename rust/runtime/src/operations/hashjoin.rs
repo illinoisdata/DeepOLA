@@ -54,7 +54,7 @@ impl HashJoinProcessor {
             }
             joined_cols.push(ri.clone());
         }
-        log::debug!("Hash Join Output Schema: {}", joined_cols.iter().enumerate().map(|(i,v)| format!("{}: {}, ", i, v.name)).collect::<String>());
+        log::info!("Hash Join Output Schema: {}", joined_cols.iter().enumerate().map(|(i,v)| format!("{}: {}, ", i, v.name)).collect::<String>());
         Schema::from(joined_cols)
     }
 }
