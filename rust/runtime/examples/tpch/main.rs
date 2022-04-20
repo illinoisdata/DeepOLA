@@ -18,7 +18,9 @@ mod q14;
 mod q19;
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+    .format_timestamp_micros()
+    .init();
     let tpch_tables = vec![
         "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier"
     ];
