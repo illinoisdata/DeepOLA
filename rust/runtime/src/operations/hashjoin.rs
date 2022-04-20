@@ -46,8 +46,10 @@ impl HashJoinProcessor {
         Box::new(Self::new(left_join_cols, right_join_cols, join_type))
     }
 
-    pub fn _build_output_schema(right_join_cols: Vec<String>, right_schema: Schema, left_schema: Schema) -> Schema {
-        let mut joined_cols = left_schema.columns;
+    pub fn _build_output_schema(&self, input_schema: Schema) -> Schema {
+        let right_join_cols = self.right_join_cols.clone();
+        let right_schema = self.right_schema.borrow().clone().unwrap();
+        let mut joined_cols = input_schema.columns;
         for (_rc, ri) in right_schema.columns.iter().enumerate() {
             if right_join_cols.contains(&ri.name) {
                 continue;
@@ -55,7 +57,7 @@ impl HashJoinProcessor {
             joined_cols.push(ri.clone());
         }
         log::info!("Hash Join Output Schema: {}", joined_cols.iter().enumerate().map(|(i,v)| format!("{}: {}, ", i, v.name)).collect::<String>());
-        Schema::from(joined_cols)
+        Schema::new(format!("hashjoin({},{})", input_schema.table, right_schema.table), joined_cols)
     }
 }
 
@@ -121,11 +123,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
         Gn::new_scoped(move |mut s| {
             // HashMap to first group rows and collect by group by keys
             let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-            let metadata = MetaCell::Schema(Self::_build_output_schema(
-                self.right_join_cols.clone(),
-                self.right_schema.borrow().clone().unwrap(),
-                input_schema.clone()
-            )).into_meta_map();
+            let metadata = MetaCell::Schema(self._build_output_schema(input_schema.clone())).into_meta_map();
             let mut output_records = vec![];
             let hash_table = self.hash_table.borrow();
             let hash_keys = self.hash_keys.borrow();

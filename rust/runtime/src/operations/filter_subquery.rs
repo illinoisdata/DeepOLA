@@ -51,7 +51,7 @@ impl WhereSubQueryProcessor {
     }
 
     pub fn _build_output_schema(left_schema: Schema) -> Schema {
-        left_schema
+        Schema::new(format!("where_sq({})",left_schema.table), left_schema.columns)
     }
 }
 

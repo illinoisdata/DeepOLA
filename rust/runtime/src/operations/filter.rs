@@ -28,6 +28,10 @@ impl WhereMapper {
     ) -> Box<dyn SetProcessorV1<ArrayRow>> {
         Box::new(Self::new(predicate))
     }
+
+    fn _build_output_schema(&self, input_schema: Schema) -> Schema {
+        Schema::new(format!("where({})",input_schema.table), input_schema.columns)
+    }
 }
 
 impl SetProcessorV1<ArrayRow> for WhereMapper {
@@ -37,7 +41,8 @@ impl SetProcessorV1<ArrayRow> for WhereMapper {
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
             // Build output schema metadata
-            let metadata = input_set.metadata().clone();
+            let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
+            let metadata = MetaCell::Schema(self._build_output_schema(input_schema.clone())).into_meta_map();
 
             // Evaluate predicate on each record
             let mut output_records = vec![];

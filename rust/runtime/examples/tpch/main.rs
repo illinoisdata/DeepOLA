@@ -23,14 +23,7 @@ mod q14;
 mod q19;
 
 fn main() {
-    let stdout = ConsoleAppender::builder().build();
-
-    let config = Config::builder()
-        .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
-        .unwrap();
-
-    let _handle = log4rs::init_config(config).unwrap();
+    env_logger::init();
     let tpch_tables = vec![
         "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier"
     ];
@@ -66,6 +59,7 @@ fn main() {
         panic!("Query not specified. Run like: cargo run --release --example tpch -- q1")
     }
 
+    println!("Running Query: {}", query[0]);
     // Display the Query Result and Time Taken to run the query.
     let start_time = Instant::now();
     query_service.run();
@@ -82,5 +76,5 @@ fn main() {
     let end_time = Instant::now();
     log::info!("Query Result");
     log::info!("{}", result);
-    log::info!("Query took {:.2?}", end_time - start_time);
+    println!("Query Took: {:.2?}", end_time - start_time);
 }

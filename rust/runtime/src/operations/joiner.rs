@@ -324,7 +324,7 @@ impl SortedArraysJoiner {
             joined_cols.push(ri.clone());
         }
         log::debug!("Merge Join Output Schema: {}", joined_cols.iter().enumerate().map(|(i,v)| format!("{}: {}, ", i, v.name)).collect::<String>());
-        Some(Schema::from(joined_cols))
+        Some(Schema::new(format!("mergejoin({},{})",left_schema.table, right_schema.table),joined_cols))
     }
 
     /// This is a convenience method only used for testing.

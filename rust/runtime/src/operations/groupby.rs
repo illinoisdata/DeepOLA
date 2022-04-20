@@ -53,7 +53,7 @@ impl GroupByMapper {
                 aggregate.dtype(input_schema.dtype(aggregate.column.clone())),
             ));
         }
-        Schema::new("unnamed".to_string(), output_columns)
+        Schema::new(format!("groupby({})",input_schema.table), output_columns)
     }
 
     pub fn new(groupby_cols: Vec<String>, aggregates: Vec<Aggregate>) -> GroupByMapper {

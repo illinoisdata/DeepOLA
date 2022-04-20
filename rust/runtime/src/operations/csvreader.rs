@@ -1,7 +1,6 @@
 use crate::{graph::ExecutionNode, processor::SetProcessorV1};
 use crate::data::*;
 use crate::graph::*;
-use std::{collections::HashMap};
 
 use itertools::izip;
 use generator::{Generator, Gn};
@@ -81,9 +80,7 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
         Gn::new_scoped(
             move |mut s| {
                 let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-                let metadata = HashMap::from(
-                    [(SCHEMA_META_NAME.into(), MetaCell::Schema(self._build_output_schema(input_schema)))]
-                );
+                let metadata = MetaCell::Schema(self._build_output_schema(input_schema)).into_meta_map();
 
                 let mut records: Vec<ArrayRow> = vec![];
                 for r in input_set.data().iter() {
@@ -149,9 +146,7 @@ pub fn get_example_arrayrow_messages() -> Vec<DataMessage<ArrayRow>> {
     ];
     // Metadata for DataBlock
     let lineitem_schema = Schema::from_example("lineitem").unwrap();
-    let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema))]
-    );
+    let metadata = MetaCell::Schema(lineitem_schema).into_meta_map();
     let dblock = DataBlock::new(input_vec, metadata);
     csvreader.write_to_self(0, DataMessage::from(dblock));
     csvreader.write_to_self(0, DataMessage::eof());
