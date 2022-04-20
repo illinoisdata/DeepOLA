@@ -241,7 +241,7 @@ mod tests {
         let groupby_mapper = GroupByMapper::new(groupby_cols.clone(), aggregates.clone());
         let output_schema = groupby_mapper.build_output_schema(input_schema.clone());
 
-        let tgt_output_schema = Schema::from(vec![
+        let tgt_output_schema = Schema::new("groupby(lineitem)".into(), vec![
             Column::from_key_field("l_orderkey".into(), input_schema.dtype("l_orderkey".into())),
             Column::from_key_field("l_partkey".into(), input_schema.dtype("l_partkey".into())),
             Column::from_field("sum_l_quantity".into(), DataType::Integer),
@@ -261,7 +261,7 @@ mod tests {
         let groupby_mapper = GroupByMapper::new(groupby_cols.clone(), aggregates.clone());
         let output_schema = groupby_mapper.build_output_schema(input_schema.clone());
 
-        let tgt_output_schema = Schema::from(vec![
+        let tgt_output_schema = Schema::new("groupby(lineitem)".into(), vec![
             Column::from_key_field("l_orderkey".into(), input_schema.dtype("l_orderkey".into())),
             Column::from_key_field("l_partkey".into(), input_schema.dtype("l_partkey".into())),
             Column::from_field("custom_sum_l_quantity".into(), DataType::Integer),

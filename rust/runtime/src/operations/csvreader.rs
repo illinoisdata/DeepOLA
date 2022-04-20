@@ -168,6 +168,7 @@ mod tests {
     use super::*;
     use crate::data::DataMessage;
     use crate::graph::NodeReader;
+    use std::collections::HashMap;
 
     #[test]
     fn test_csv_reader_node() {

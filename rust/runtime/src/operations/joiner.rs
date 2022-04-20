@@ -433,7 +433,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        data::{ArrayRow, Column, DataBlock, DataType, MetaCell, DataMessage},
+        data::{ArrayRow, Column, DataBlock, DataType, MetaCell, DataMessage, Schema},
         operations::JoinType, graph::NodeReader,
     };
 
@@ -481,11 +481,11 @@ mod tests {
     }
 
     fn join_meta() -> HashMap<String, MetaCell> {
-        MetaCell::from(vec![
+        MetaCell::from(Schema::new( "mergejoin(unnamed,unnamed)".into(), vec![
             Column::from_field("col1".into(), DataType::Text),
             Column::from_field("col2".into(), DataType::Text),
             Column::from_field("col4".into(), DataType::Text),
-        ])
+        ]))
         .into_meta_map()
     }
 
@@ -657,7 +657,7 @@ mod tests {
         let joined = joiner.join_blocks(&left_block, &right_block);
         assert_eq!(
             joined,
-            DataBlock::new(vec![].into(), MetaCell::from(vec![]).into_meta_map())
+            DataBlock::new(vec![].into(), MetaCell::from(Schema::new("mergejoin(unnamed,unnamed)".into(), vec![])).into_meta_map())
         );
     }
 

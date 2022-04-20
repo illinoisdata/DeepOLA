@@ -16,7 +16,7 @@ pub fn bench_hash_join(c: &mut Criterion) {
     group.sample_size(10);
     group.bench_function("hash_join", |b| {
         let hashjoin = HashJoinNode::node(
-            vec![col_count - 1], vec![0], JoinType::Inner
+            vec![format!("col{}",col_count - 1).into()], vec!["col0".into()], JoinType::Inner
         );
 
         // Add block to right channel and process hashing.
@@ -24,7 +24,6 @@ pub fn bench_hash_join(c: &mut Criterion) {
         hashjoin.write_to_self(1, DataMessage::eof());
         hashjoin.write_to_self(0, DataMessage::eof());
         hashjoin.run();
-        println!("FINISHED PRE-PROCESSING PART");
 
         b.iter(|| {
             // Add block to left channel and process records.

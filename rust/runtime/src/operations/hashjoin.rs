@@ -193,11 +193,11 @@ mod tests {
     }
 
     fn join_meta() -> HashMap<String, MetaCell> {
-        MetaCell::from(vec![
+        MetaCell::from(Schema::new("hashjoin(unnamed,unnamed)".into(), vec![
             Column::from_field("col1".into(), DataType::Text),
             Column::from_field("col2".into(), DataType::Text),
             Column::from_field("col4".into(), DataType::Text),
-        ])
+        ]))
         .into_meta_map()
     }
 
@@ -220,12 +220,12 @@ mod tests {
     }
 
     fn join_meta_collision() -> HashMap<String, MetaCell> {
-        MetaCell::from(vec![
+        MetaCell::from(Schema::new("hashjoin(unnamed,unnamed)".into(), vec![
             Column::from_field("col1".into(), DataType::Text),
             Column::from_field("col2".into(), DataType::Text),
             Column::from_field("col3".into(), DataType::Text),
             Column::from_field("col6".into(), DataType::Text)
-        ])
+        ]))
         .into_meta_map()
     }
 

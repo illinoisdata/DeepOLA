@@ -8,11 +8,6 @@ use std::collections::HashMap;
 use std::time::Instant;
 use std::env;
 
-use log::LevelFilter;
-use log4rs::append::console::ConsoleAppender;
-use log4rs::config::{Appender, Root};
-use log4rs::Config;
-
 mod utils;
 mod q1;
 mod q3;
