@@ -93,9 +93,15 @@ impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
             let message = input_stream.read(channel_seq);
             match message.payload() {
                 Payload::Some(dblock) => {
-                    let input_schema = dblock.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-                    let input_cardinality = f64::from(dblock.metadata().get(DATABLOCK_CARDINALITY).unwrap());
-                    log::debug!("Channel: {} read Schema Name: {} with Cardinality: {:.2}", channel_id, input_schema.table, input_cardinality);
+                    let input_schema_table = match dblock.metadata().get(SCHEMA_META_NAME) {
+                        Some(schema) => schema.to_schema().table.clone(),
+                        None => "unnamed".to_string()
+                    };
+                    let input_cardinality = match dblock.metadata().get(DATABLOCK_CARDINALITY) {
+                        Some(value) => f64::from(value),
+                        None => 0.0,
+                    };
+                    log::debug!("Channel: {} read Schema Name: {} with Cardinality: {:.2}", channel_id, input_schema_table, input_cardinality);
                     let generator = self.set_processor.process_v1(&dblock);
                     for dblock in generator {
                         output_stream.write(DataMessage::<T>::from(dblock));
