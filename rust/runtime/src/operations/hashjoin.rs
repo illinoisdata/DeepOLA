@@ -45,11 +45,13 @@ impl HashJoinProcessor {
     pub fn new_boxed(left_join_cols: Vec<String>, right_join_cols: Vec<String>, join_type: JoinType) -> Box<dyn SetMultiProcessor<ArrayRow>> {
         Box::new(Self::new(left_join_cols, right_join_cols, join_type))
     }
+}
 
-    pub fn _build_output_schema(&self, input_schema: Schema) -> Schema {
+impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
         let right_join_cols = self.right_join_cols.clone();
         let right_schema = self.right_schema.borrow().clone().unwrap();
-        let mut joined_cols = input_schema.columns;
+        let mut joined_cols = input_schema.columns.clone();
         for (_rc, ri) in right_schema.columns.iter().enumerate() {
             if right_join_cols.contains(&ri.name) {
                 continue;
@@ -58,18 +60,14 @@ impl HashJoinProcessor {
         }
         Schema::new(format!("hashjoin({},{})", input_schema.table, right_schema.table), joined_cols)
     }
-}
 
-impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
     /// Updates the input node's hash_table based on records in the right data block.
     fn pre_process(&self, input_set: &DataBlock<ArrayRow>) {
         let mut right_schema = self.right_schema.borrow_mut();
-        *right_schema = Some(
-                input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema().clone()
-        );
+        *right_schema = Some(self._get_input_schema(input_set.metadata()));
+
         let mut hash_table = self.hash_table.borrow_mut();
         let mut hash_keys = self.hash_keys.borrow_mut();
-
         let right_join_index = self.right_join_cols.iter().map(|a| right_schema.as_ref().unwrap().index(a.clone())).collect::<Vec<usize>>();
 
         for record in input_set.data().iter() {
@@ -121,8 +119,8 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
             // HashMap to first group rows and collect by group by keys
-            let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-            let metadata = MetaCell::Schema(self._build_output_schema(input_schema.clone())).into_meta_map();
+            let input_schema = self._get_input_schema(input_set.metadata());
+            let metadata = self._build_output_metadata(input_set.metadata());
             let mut output_records = vec![];
             let hash_table = self.hash_table.borrow();
             let hash_keys = self.hash_keys.borrow();

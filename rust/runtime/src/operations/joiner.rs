@@ -207,6 +207,7 @@ impl SortedArraysJoiner {
         }
     }
 
+    // TODO: Add _build_output_metadata() that takes into account the cardinality of left and right block.
     fn create_joined_result(
         joined_rows: &mut Vec<ArrayRow>,
         schema: Option<Schema>,

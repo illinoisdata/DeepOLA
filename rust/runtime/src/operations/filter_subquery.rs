@@ -49,13 +49,13 @@ impl WhereSubQueryProcessor {
     pub fn new_boxed(left_col: String, operation: String) -> Box<dyn SetMultiProcessor<ArrayRow>> {
         Box::new(Self::new(left_col, operation))
     }
-
-    pub fn _build_output_schema(left_schema: Schema) -> Schema {
-        Schema::new(format!("where_sq({})",left_schema.table), left_schema.columns)
-    }
 }
 
 impl SetMultiProcessor<ArrayRow> for WhereSubQueryProcessor {
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
+        Schema::new(format!("where_sq({})",input_schema.table), input_schema.columns.clone())
+    }
+
     fn pre_process(&self, input_set: &DataBlock<ArrayRow>) {
         let right_datablock_type = input_set.metadata().get(DATABLOCK_TYPE).unwrap();
         let mut right_result = self.right_result.borrow_mut();
@@ -78,9 +78,7 @@ impl SetMultiProcessor<ArrayRow> for WhereSubQueryProcessor {
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
             let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-            let metadata = MetaCell::Schema(Self::_build_output_schema(
-                input_schema.clone()
-            )).into_meta_map();
+            let metadata = self._build_output_metadata(input_set.metadata());
 
             let left_col_index = input_schema.index(self.left_col.clone());
             let right_values = self.right_result.borrow();

@@ -18,13 +18,18 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
     ) {
         let left_channel_seq = 0;
         let right_channel_seq = 1;
+        let mut channel_id;
         loop {
             // Call pre_process on right_channel_seq
             // Keep calling that till it reads an EOF
             let message = input_stream.read(right_channel_seq);
+            channel_id = input_stream.reader(right_channel_seq).channel_id().clone();
             match message.payload() {
                 Payload::Some(dblock) => {
                     // This datablock can update the node state.
+                    let input_schema = dblock.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
+                    let input_cardinality = f64::from(dblock.metadata().get(DATABLOCK_CARDINALITY).unwrap());
+                    log::debug!("Channel: {} read Schema Name: {} with Cardinality: {:.2}", channel_id, input_schema.table, input_cardinality);
                     self.set_processor.pre_process(&dblock);
                 }
                 Payload::EOF => {
@@ -33,11 +38,15 @@ impl<T: Send> StreamProcessor<T> for RightCompleteProcessor<T> {
                 Payload::Signal(_) => break,
             }
         }
+        log::debug!("Channel: {} Pre-Process Completed", channel_id);
         // Stream the left channel
         loop {
             let message = input_stream.read(left_channel_seq);
+            let channel_id = input_stream.reader(left_channel_seq).channel_id().clone();
             match message.payload() {
                 Payload::Some(dblock) => {
+                    let input_schema = dblock.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
+                    log::debug!("Channel: {} read Schema Name: {}", channel_id, input_schema.table);
                     let generator = self.set_processor.process(&dblock);
                     for dblock in generator {
                         output_stream.write(DataMessage::<T>::from(dblock));

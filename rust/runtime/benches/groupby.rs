@@ -84,11 +84,8 @@ fn groupby_node(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(num_groups), num_groups, |b, &num_groups| {
             let groupby_node = get_groupby_node(NUM_GROUP_KEYS, NUM_VAL_COLS);
             let arrayrow_records = generate_groupby_arrayrow(num_groups, NUM_GROUP_KEYS, NUM_VAL_COLS);
-            let metadata = HashMap::from([
-                (SCHEMA_META_NAME.into(),MetaCell::Schema(get_schema(NUM_GROUP_KEYS, NUM_VAL_COLS))),
-                (DATABLOCK_TYPE.into(),MetaCell::Text(DATABLOCK_TYPE_DM.into())),
-            ]);
-            let dblock = 
+            let metadata = MetaCell::Schema(get_schema(NUM_GROUP_KEYS, NUM_VAL_COLS)).into_dm_meta_map();
+            let dblock =
                 DataBlock::new(
                     arrayrow_records,
                     metadata

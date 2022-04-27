@@ -79,10 +79,12 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
         // The output DataBlock that you send should have this schema?
         Gn::new_scoped(
             move |mut s| {
-                let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-                let metadata = MetaCell::Schema(self._build_output_schema(input_schema)).into_meta_map();
+                let input_schema = self._get_input_schema(input_set.metadata());
+                let mut metadata = self._build_output_metadata(input_set.metadata());
+                let input_total_records = f64::from(input_set.metadata().get(DATABLOCK_TOTAL_RECORDS).unwrap());
 
                 let mut records: Vec<ArrayRow> = vec![];
+                let mut total_records = 0;
                 for r in input_set.data().iter() {
                     let mut reader =
                       csv::ReaderBuilder::new()
@@ -91,10 +93,10 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                           .from_path(r.values[0].to_string())
                           .unwrap();
                     // With Byte records, UTF-8 validation is not performed.
-                    let mut record = csv::ByteRecord::new();
                     let record_length = input_schema.columns.len();
-                    while reader.read_byte_record(&mut record).unwrap() {
-                        // Create vector with pre-defined capacity
+                    let iter = reader.byte_records();
+                    for result in iter {
+                        let record = result.unwrap();
                         let mut data_cells = Vec::with_capacity(record_length);
                         for (value,column) in izip!(&record,&input_schema.columns) {
                             data_cells.push(
@@ -102,8 +104,9 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                                 value, &column.dtype).unwrap());
                         }
                         records.push(ArrayRow::from_vector(data_cells));
-
                         if records.len() == self.batch_size {
+                            total_records += records.len();
+                            *metadata.get_mut(&DATABLOCK_CARDINALITY.to_string()).unwrap() = MetaCell::from((total_records as f64)/input_total_records);
                             let message = DataBlock::new(records, metadata.clone());
                             records = vec![];
                             s.yield_(message);
@@ -111,6 +114,8 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                     }
                 }
                 if !records.is_empty() {
+                    total_records += records.len();
+                    *metadata.get_mut(&DATABLOCK_CARDINALITY.to_string()).unwrap() = MetaCell::from((total_records as f64)/input_total_records);
                     let message = DataBlock::new(records, metadata);
                     s.yield_(message);
                 }
@@ -123,10 +128,6 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
 /// A factory method for creating the custom SetProcessor<ArrayRow> type for
 /// reading csv files
 impl CSVReader {
-    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
-        input_schema.clone()
-    }
-
     pub fn new_boxed(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
         Box::new(CSVReader {batch_size, delimiter: ',', has_headers: true})
     }
@@ -168,7 +169,6 @@ mod tests {
     use super::*;
     use crate::data::DataMessage;
     use crate::graph::NodeReader;
-    use std::collections::HashMap;
 
     #[test]
     fn test_csv_reader_node() {
@@ -183,9 +183,9 @@ mod tests {
         ];
         // Metadata for DataBlock
         let lineitem_schema = Schema::from_example("lineitem").unwrap();
-        let metadata = HashMap::from(
-            [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
-        );
+        let mut metadata =  MetaCell::Schema(lineitem_schema.clone()).into_meta_map();
+        *metadata.entry(DATABLOCK_TOTAL_RECORDS.to_string()).or_insert(MetaCell::Float(0.0)) = MetaCell::Float(200.0);
+
         let dblock = DataBlock::new(input_vec, metadata);
         csvreader.write_to_self(0, DataMessage::from(dblock));
         csvreader.write_to_self(0, DataMessage::eof());

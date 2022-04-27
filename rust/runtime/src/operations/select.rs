@@ -59,22 +59,6 @@ pub struct SelectMapper {
 }
 
 impl SelectMapper {
-    // Builds the output schema based on the input schema
-    pub fn build_output_schema(&self, input_schema: Schema) -> Schema {
-        let mut output_columns = Vec::new();
-        for col in &self.cols {
-            if col == "*" {
-                // Push all the schema columns in the output column
-                for schema_col in input_schema.columns.clone() {
-                    output_columns.push(schema_col);
-                }
-            } else {
-                output_columns.push(input_schema.get_column(col.to_string()));
-            }
-        }
-        Schema::new(format!("select({})",input_schema.table), output_columns)
-    }
-
     pub fn new(cols: Vec<String>) -> SelectMapper {
         SelectMapper {
             cols,
@@ -91,15 +75,31 @@ impl SelectMapper {
 }
 
 impl SetProcessorV1<ArrayRow> for SelectMapper {
+    // Builds the output schema based on the input schema
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
+        let mut output_columns = Vec::new();
+        for col in &self.cols {
+            if col == "*" {
+                // Push all the schema columns in the output column
+                for schema_col in input_schema.columns.clone() {
+                    output_columns.push(schema_col);
+                }
+            } else {
+                output_columns.push(input_schema.get_column(col.to_string()));
+            }
+        }
+        Schema::new(format!("select({})",input_schema.table), output_columns)
+    }
+
     fn process_v1<'a>(
         &'a self,
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
             // Build output schema metadata
-            let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
-            let output_schema = self.build_output_schema(input_schema.clone());
-            let metadata = MetaCell::Schema(output_schema.clone()).into_meta_map();
+            let input_schema = self._get_input_schema(input_set.metadata());
+            let output_schema = self._build_output_schema(&input_schema);
+            let metadata = self._build_output_metadata(input_set.metadata());
 
             let col_indexes = output_schema.columns.iter().map(|x| input_schema.index(x.name.clone())).collect::<Vec<usize>>();
             let mut output_records = Vec::new();
