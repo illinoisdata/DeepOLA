@@ -22,7 +22,18 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
       working-directory: rust/runtime/
+  tpch:
+    needs: test
+    name: tpch-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build TPCH examples
+      run: cargo build --examples
+      working-directory: rust/runtime/
   benchmark:
+    needs: tpch
     name: benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -32,12 +43,4 @@ jobs:
       run: git lfs checkout
     - name: Run Benchmarks
       run: cargo bench
-      working-directory: rust/runtime/
-  tpch:
-    name: tpch-test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-    - name: Build TPCH examples
-      run: cargo build --examples
       working-directory: rust/runtime/
