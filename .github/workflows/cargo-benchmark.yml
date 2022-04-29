@@ -11,9 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true'
+    - uses: nschloe/action-cached-lfs-checkout@v1
     - name: Checkout LFS objects
       run: git lfs checkout
     - name: Run Benchmarks
