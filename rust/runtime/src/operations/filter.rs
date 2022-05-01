@@ -2,6 +2,7 @@ use crate::data::*;
 use crate::graph::*;
 use crate::processor::*;
 use generator::{Generator, Gn};
+use rayon::prelude::*;
 
 pub struct WhereNode;
 
@@ -44,13 +45,7 @@ impl SetProcessorV1<ArrayRow> for WhereMapper {
             let metadata = self._build_output_metadata(input_set.metadata());
 
             // Evaluate predicate on each record
-            let mut output_records = vec![];
-            for record in input_set.data().iter() {
-                let result = (self.predicate)(record);
-                if result {
-                    output_records.push(record.clone())
-                }
-            }
+            let output_records: Vec<ArrayRow> = input_set.data().into_par_iter().filter(|record| (self.predicate)(record)).map(|record| record.clone()).collect();
             let message = DataBlock::new(output_records, metadata);
             s.yield_(message);
             done!();
