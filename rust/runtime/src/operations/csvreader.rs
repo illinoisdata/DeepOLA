@@ -1,7 +1,7 @@
 use crate::{graph::ExecutionNode, processor::SetProcessorV1};
 use crate::data::*;
 use crate::graph::*;
-
+use rayon::prelude::*;
 use itertools::izip;
 use generator::{Generator, Gn};
 
@@ -83,8 +83,10 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                 let mut metadata = self._build_output_metadata(input_set.metadata());
                 let input_total_records = f64::from(input_set.metadata().get(DATABLOCK_TOTAL_RECORDS).unwrap());
 
-                let mut records: Vec<ArrayRow> = vec![];
+                let mut byte_records: Vec<csv::ByteRecord> = vec![];
                 let mut total_records = 0;
+                let record_length = input_schema.columns.len();
+                let mut records: Vec<ArrayRow> = Vec::with_capacity(self.batch_size);
                 for r in input_set.data().iter() {
                     let mut reader =
                       csv::ReaderBuilder::new()
@@ -92,28 +94,45 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                           .has_headers(self.has_headers as bool)
                           .from_path(r.values[0].to_string())
                           .unwrap();
+
                     // With Byte records, UTF-8 validation is not performed.
-                    let record_length = input_schema.columns.len();
                     let iter = reader.byte_records();
                     for result in iter {
                         let record = result.unwrap();
-                        let mut data_cells = Vec::with_capacity(record_length);
-                        for (value,column) in izip!(&record,&input_schema.columns) {
-                            data_cells.push(
-                              DataCell::create_data_cell_from_bytes(
-                                value, &column.dtype).unwrap());
-                        }
-                        records.push(ArrayRow::from_vector(data_cells));
-                        if records.len() == self.batch_size {
+                        byte_records.push(record);
+                        if byte_records.len() == self.batch_size {
+                            byte_records.par_iter().map(|byte_record| {
+                                    let mut data_cells = Vec::with_capacity(record_length);
+                                    for (value,column) in izip!(byte_record,&input_schema.columns) {
+                                        data_cells.push(
+                                            DataCell::create_data_cell_from_bytes(
+                                                value, &column.dtype).unwrap()
+                                            );
+                                    }
+                                    ArrayRow::from_vector(data_cells)
+                                }
+                            ).collect_into_vec(&mut records);
                             total_records += records.len();
                             *metadata.get_mut(&DATABLOCK_CARDINALITY.to_string()).unwrap() = MetaCell::from((total_records as f64)/input_total_records);
                             let message = DataBlock::new(records, metadata.clone());
-                            records = vec![];
                             s.yield_(message);
+                            byte_records.clear(); // Empty the byte_records.
+                            records = Vec::with_capacity(self.batch_size);  // Empty the records.
                         }
                     }
                 }
-                if !records.is_empty() {
+                if !byte_records.is_empty() {
+                    byte_records.par_iter().map(|byte_record| {
+                            let mut data_cells = Vec::with_capacity(record_length);
+                            for (value,column) in izip!(byte_record,&input_schema.columns) {
+                                data_cells.push(
+                                    DataCell::create_data_cell_from_bytes(
+                                        value, &column.dtype).unwrap()
+                                    );
+                            }
+                            ArrayRow::from_vector(data_cells)
+                        }
+                    ).collect_into_vec(&mut records);
                     total_records += records.len();
                     *metadata.get_mut(&DATABLOCK_CARDINALITY.to_string()).unwrap() = MetaCell::from((total_records as f64)/input_total_records);
                     let message = DataBlock::new(records, metadata);
