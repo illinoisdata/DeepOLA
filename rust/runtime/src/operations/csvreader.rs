@@ -9,6 +9,7 @@ pub struct CSVReaderBuilder {
     batch_size: usize,
     delimiter: char,
     has_headers: bool,
+    filtered_cols: Vec<String>
 }
 
 impl Default for CSVReaderBuilder {
@@ -23,6 +24,7 @@ impl CSVReaderBuilder {
             batch_size: 100_000,
             delimiter: ',',
             has_headers: false,
+            filtered_cols: vec![],
         }
     }
 
@@ -41,8 +43,13 @@ impl CSVReaderBuilder {
         self
     }
 
+    pub fn filtered_cols(&mut self, filtered_cols: Vec<String>) -> &mut Self {
+        self.filtered_cols = filtered_cols;
+        self
+    }
+
     pub fn build(&self) -> ExecutionNode<ArrayRow> {
-        CSVReaderNode::new_with_params(self.batch_size, self.delimiter, self.has_headers)
+        CSVReaderNode::new_with_params(self.batch_size, self.delimiter, self.has_headers, self.filtered_cols.clone())
     }
 }
 
@@ -52,12 +59,12 @@ pub struct CSVReaderNode;
 /// read csv files.
 impl CSVReaderNode {
     pub fn node(batch_size: usize) -> ExecutionNode<ArrayRow> {
-        let data_processor = CSVReader::new_boxed(batch_size);
+        let data_processor = CSVReader::new_with_params(batch_size, '|', false, vec![]);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 
-    pub fn new_with_params(batch_size: usize, delimiter: char, has_headers: bool) -> ExecutionNode<ArrayRow> {
-        let data_processor = CSVReader::new_with_params(batch_size, delimiter, has_headers);
+    pub fn new_with_params(batch_size: usize, delimiter: char, has_headers: bool, filtered_cols: Vec<String>) -> ExecutionNode<ArrayRow> {
+        let data_processor = CSVReader::new_with_params(batch_size, delimiter, has_headers, filtered_cols);
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 
@@ -68,9 +75,26 @@ struct CSVReader {
     batch_size: usize,
     delimiter: char,
     has_headers: bool,
+    filtered_cols: Vec<String>,
 }
 
 impl SetProcessorV1<ArrayRow> for CSVReader {
+    // Default implementation duplicates the schema.
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
+        if self.filtered_cols.is_empty() {
+            let output_columns = input_schema.columns.clone();
+            Schema::new(format!("csvreader({})",input_schema.table), output_columns)
+        } else {
+            let mut output_columns = Vec::new();
+            for col in &input_schema.columns {
+                if self.filtered_cols.contains(&col.name) {
+                    output_columns.push(col.clone());
+                }
+            }
+            Schema::new(format!("csvreader({})",input_schema.table), output_columns)
+        }
+    }
+
     /// This function receives a series of csv filenames, then read individual rows from those files
     /// and return those records (in a batch). These returned records will be sent to output channels.
     fn process_v1<'a>(&'a self, input_set: &'a DataBlock<ArrayRow>) -> Generator<'a, (), DataBlock<ArrayRow>> {
@@ -81,12 +105,20 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
             move |mut s| {
                 let input_schema = self._get_input_schema(input_set.metadata());
                 let mut metadata = self._build_output_metadata(input_set.metadata());
+                let record_length = input_schema.columns.len();
                 let input_total_records = f64::from(input_set.metadata().get(DATABLOCK_TOTAL_RECORDS).unwrap());
+
+                // If filtered_cols is empty, take all columns.
+                let take_column: Vec<bool> = if self.filtered_cols.is_empty() {
+                    vec![true; record_length]
+                } else {
+                    input_schema.columns.iter().map(|x| self.filtered_cols.contains(&x.name)).collect()
+                };
 
                 let mut byte_records: Vec<csv::ByteRecord> = vec![];
                 let mut total_records = 0;
-                let record_length = input_schema.columns.len();
                 let mut records: Vec<ArrayRow> = Vec::with_capacity(self.batch_size);
+
                 for r in input_set.data().iter() {
                     let mut reader =
                       csv::ReaderBuilder::new()
@@ -103,11 +135,14 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                         if byte_records.len() == self.batch_size {
                             byte_records.par_iter().map(|byte_record| {
                                     let mut data_cells = Vec::with_capacity(record_length);
-                                    for (value,column) in izip!(byte_record,&input_schema.columns) {
-                                        data_cells.push(
-                                            DataCell::create_data_cell_from_bytes(
-                                                value, &column.dtype).unwrap()
+                                    for (index,value,column) in izip!(0..record_length,byte_record,&input_schema.columns) {
+                                        // If the index is in filtered_col_index, then only use it.
+                                        if take_column[index] {
+                                            data_cells.push(
+                                                DataCell::create_data_cell_from_bytes(
+                                                    value, &column.dtype).unwrap()
                                             );
+                                        }
                                     }
                                     ArrayRow::from_vector(data_cells)
                                 }
@@ -124,11 +159,14 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
                 if !byte_records.is_empty() {
                     byte_records.par_iter().map(|byte_record| {
                             let mut data_cells = Vec::with_capacity(record_length);
-                            for (value,column) in izip!(byte_record,&input_schema.columns) {
-                                data_cells.push(
-                                    DataCell::create_data_cell_from_bytes(
-                                        value, &column.dtype).unwrap()
+                            for (index,value,column) in izip!(0..record_length,byte_record,&input_schema.columns) {
+                                // If the index is in filtered_col_index, then only use it.
+                                if take_column[index] {
+                                    data_cells.push(
+                                        DataCell::create_data_cell_from_bytes(
+                                            value, &column.dtype).unwrap()
                                     );
+                                }
                             }
                             ArrayRow::from_vector(data_cells)
                         }
@@ -147,18 +185,14 @@ impl SetProcessorV1<ArrayRow> for CSVReader {
 /// A factory method for creating the custom SetProcessor<ArrayRow> type for
 /// reading csv files
 impl CSVReader {
-    pub fn new_boxed(batch_size: usize) -> Box<dyn SetProcessorV1<ArrayRow>> {
-        Box::new(CSVReader {batch_size, delimiter: ',', has_headers: true})
-    }
-
-    pub fn new_with_params(batch_size: usize, delimiter: char, has_headers: bool) -> Box<dyn SetProcessorV1<ArrayRow>> {
-        Box::new(CSVReader {batch_size, delimiter, has_headers})
+    pub fn new_with_params(batch_size: usize, delimiter: char, has_headers: bool, filtered_cols: Vec<String>) -> Box<dyn SetProcessorV1<ArrayRow>> {
+        Box::new(CSVReader {batch_size, delimiter, has_headers, filtered_cols})
     }
 }
 
 pub fn get_example_arrayrow_messages() -> Vec<DataMessage<ArrayRow>> {
     let batch_size = 50;
-    let csvreader = CSVReaderNode::node(batch_size);
+    let csvreader = CSVReaderNode::new_with_params(batch_size, ',', true, vec![]);
     // The CSV files that we want to be read by this node => data for DataBlock.
     let input_vec = vec![
         ArrayRow::from_vector(vec![DataCell::from("src/resources/lineitem-100.csv")]),
@@ -193,7 +227,7 @@ mod tests {
     fn test_csv_reader_node() {
         // Create a CSV Reader Node with lineitem Schema.
         let batch_size = 50;
-        let csvreader = CSVReaderNode::node(batch_size);
+        let csvreader = CSVReaderNode::new_with_params(batch_size, ',', true, vec![]);
 
         // The CSV files that we want to be read by this node => data for DataBlock.
         let input_vec = vec![
@@ -227,8 +261,8 @@ mod tests {
             assert!(message_len <= batch_size);
             total_output_len += message_len;
             assert_eq!(
-                dblock.metadata().get(SCHEMA_META_NAME).unwrap(),
-                &MetaCell::Schema(lineitem_schema.clone())
+                dblock.metadata().get(SCHEMA_META_NAME).unwrap().to_schema().columns,
+                lineitem_schema.columns
             );
         }
         // Assert total record length.

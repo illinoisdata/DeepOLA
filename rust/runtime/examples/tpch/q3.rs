@@ -32,15 +32,21 @@ use std::cmp;
 // 	o_orderdate;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+    let table_columns = HashMap::from([
+        ("lineitem".into(), vec!["l_orderkey","l_extendedprice","l_discount","l_shipdate"]),
+        ("orders".into(), vec!["o_orderkey","o_custkey","o_orderdate","o_shippriority",]),
+        ("customer".into(), vec!["c_custkey","c_mktsegment"]),
+    ]);
+
     // CSV Reader node
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput);
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput);
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
 
     // WHERE node
-    fn lineitem_predicate(record: &ArrayRow) -> bool { String::from(&record.values[10]) > "1995-03-15".to_string() }
-    fn orders_predicate(record: &ArrayRow) -> bool { String::from(&record.values[4]) < "1995-03-15".to_string() }
-    fn customer_predicate(record: &ArrayRow) -> bool { String::from(&record.values[6]) == "BUILDING".to_string() }
+    fn lineitem_predicate(record: &ArrayRow) -> bool { String::from(&record.values[3]) > "1995-03-15".to_string() }
+    fn orders_predicate(record: &ArrayRow) -> bool { String::from(&record.values[2]) < "1995-03-15".to_string() }
+    fn customer_predicate(record: &ArrayRow) -> bool { String::from(&record.values[1]) == "BUILDING".to_string() }
     let lineitem_where_node = WhereNode::node(lineitem_predicate);
     let orders_where_node = WhereNode::node(orders_predicate);
     let customer_where_node = WhereNode::node(customer_predicate);
@@ -60,7 +66,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
 
     // EXPRESSION node
     fn revenue_expression(record: &ArrayRow) -> DataCell {
-        DataCell::Float(f64::from(&record.values[5]) * (1.0 - f64::from(&record.values[6])))
+        DataCell::Float(f64::from(&record.values[1]) * (1.0 - f64::from(&record.values[2])))
     }
     let expressions = vec![
         Expression {
