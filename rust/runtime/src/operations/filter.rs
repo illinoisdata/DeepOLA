@@ -31,18 +31,22 @@ impl WhereMapper {
 }
 
 impl SetProcessorV1<ArrayRow> for WhereMapper {
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
+        Schema::new(format!("where({})",input_schema.table), input_schema.columns.clone())
+    }
+
     fn process_v1<'a>(
         &'a self,
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
             // Build output schema metadata
-            let metadata = input_set.metadata().clone();
+            let metadata = self._build_output_metadata(input_set.metadata());
 
             // Evaluate predicate on each record
             let mut output_records = vec![];
             for record in input_set.data().iter() {
-                let result = (self.predicate)(&record);
+                let result = (self.predicate)(record);
                 if result {
                     output_records.push(record.clone())
                 }

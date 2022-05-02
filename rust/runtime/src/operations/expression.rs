@@ -33,11 +33,13 @@ impl ExpressionMapper {
     ) -> Box<dyn SetProcessorV1<ArrayRow>> {
         Box::new(Self::new(expressions))
     }
+}
 
+impl SetProcessorV1<ArrayRow> for ExpressionMapper {
     // Builds the output schema based on the input schema, aliases and output data type.
-    pub fn build_output_schema(&self, input_schema: Schema) -> Schema {
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
         let mut output_columns = Vec::new();
-        for col in input_schema.columns {
+        for col in input_schema.columns.clone() {
             output_columns.push(col);
         }
 
@@ -47,30 +49,22 @@ impl ExpressionMapper {
                 expression.dtype.clone(),
             ));
         }
-        Schema::new("unnamed".to_string(), output_columns)
+        Schema::new(format!("expression({})",input_schema.table), output_columns)
     }
-}
 
-impl SetProcessorV1<ArrayRow> for ExpressionMapper {
     fn process_v1<'a>(
         &'a self,
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
-            let input_schema = input_set
-                .metadata()
-                .get(SCHEMA_META_NAME)
-                .unwrap()
-                .to_schema();
-            let metadata =
-                MetaCell::Schema(self.build_output_schema(input_schema.clone())).into_meta_map();
+            let metadata = self._build_output_metadata(input_set.metadata());
 
             let mut output_records = vec![];
             for record in input_set.data().iter() {
                 let mut result = record.clone();
                 // Evaluate all the expressions on each record.
                 for expression in self.expressions.iter() {
-                    result.values.push((expression.predicate)(&record));
+                    result.values.push((expression.predicate)(record));
                 }
                 output_records.push(result.clone());
             }

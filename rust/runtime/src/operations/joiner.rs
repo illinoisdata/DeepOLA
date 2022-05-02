@@ -20,6 +20,12 @@ pub struct MergeJoinBuilder {
     join_type: JoinType,
 }
 
+impl Default for MergeJoinBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MergeJoinBuilder {
     pub fn new() -> Self {
         MergeJoinBuilder {
@@ -175,7 +181,7 @@ impl SortedArraysJoiner {
                 current_right_block: JoinBlock::NeverSet,
                 current_right_idx_lb: 0,
                 current_right_idx: 0,
-                so_far_joined: vec![].into(),
+                so_far_joined: vec![],
             }),
             schema_of_joined: RefCell::new(None),
         }
@@ -201,6 +207,7 @@ impl SortedArraysJoiner {
         }
     }
 
+    // TODO: Add _build_output_metadata() that takes into account the cardinality of left and right block.
     fn create_joined_result(
         joined_rows: &mut Vec<ArrayRow>,
         schema: Option<Schema>,
@@ -304,7 +311,7 @@ impl SortedArraysJoiner {
     }
 
     fn construct_meta_of_join(
-        right_join_index: &Vec<usize>,
+        right_join_index: &[usize],
         left_schema: &Schema,
         right_schema: &Schema,
     ) -> Option<Schema> {
@@ -318,7 +325,7 @@ impl SortedArraysJoiner {
             joined_cols.push(ri.clone());
         }
         log::debug!("Merge Join Output Schema: {}", joined_cols.iter().enumerate().map(|(i,v)| format!("{}: {}, ", i, v.name)).collect::<String>());
-        Some(Schema::from(joined_cols))
+        Some(Schema::new(format!("mergejoin({},{})",left_schema.table, right_schema.table),joined_cols))
     }
 
     /// This is a convenience method only used for testing.
@@ -427,7 +434,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        data::{ArrayRow, Column, DataBlock, DataType, MetaCell, DataMessage},
+        data::{ArrayRow, Column, DataBlock, DataType, MetaCell, DataMessage, Schema},
         operations::JoinType, graph::NodeReader,
     };
 
@@ -475,11 +482,11 @@ mod tests {
     }
 
     fn join_meta() -> HashMap<String, MetaCell> {
-        MetaCell::from(vec![
+        MetaCell::from(Schema::new( "mergejoin(unnamed,unnamed)".into(), vec![
             Column::from_field("col1".into(), DataType::Text),
             Column::from_field("col2".into(), DataType::Text),
             Column::from_field("col4".into(), DataType::Text),
-        ])
+        ]))
         .into_meta_map()
     }
 
@@ -651,7 +658,7 @@ mod tests {
         let joined = joiner.join_blocks(&left_block, &right_block);
         assert_eq!(
             joined,
-            DataBlock::new(vec![].into(), MetaCell::from(vec![]).into_meta_map())
+            DataBlock::new(vec![].into(), MetaCell::from(Schema::new("mergejoin(unnamed,unnamed)".into(), vec![])).into_meta_map())
         );
     }
 

@@ -36,7 +36,7 @@ pub struct GroupByMapper {
 
 impl GroupByMapper {
     // Builds the output schema based on the input schema, group by cols and aggregates
-    pub fn build_output_schema(&self, input_schema: Schema) -> Schema {
+    pub fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
         let mut output_columns = Vec::new();
         // Add the groupby_cols as key columns in the output schema
         for groupby_col in &self.groupby_cols {
@@ -53,7 +53,7 @@ impl GroupByMapper {
                 aggregate.dtype(input_schema.dtype(aggregate.column.clone())),
             ));
         }
-        Schema::new("unnamed".to_string(), output_columns)
+        Schema::new(format!("groupby({})",input_schema.table), output_columns)
     }
 
     pub fn new(groupby_cols: Vec<String>, aggregates: Vec<Aggregate>) -> GroupByMapper {
@@ -127,27 +127,25 @@ impl GroupByMapper {
 }
 
 impl SetProcessorV1<ArrayRow> for GroupByMapper {
+    // Default implementation carries over the data.
+    fn _build_output_metadata(&self, input_metadata: &HashMap<String,MetaCell>) -> HashMap<String,MetaCell> {
+        let input_schema = input_metadata.get(SCHEMA_META_NAME).unwrap().to_schema();
+        let output_schema = self._build_output_schema(input_schema);
+        let output_metadata = HashMap::from([
+            (SCHEMA_META_NAME.into(), MetaCell::from(output_schema)),
+            (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DM)),
+            (DATABLOCK_CARDINALITY.into(), input_metadata.get(DATABLOCK_CARDINALITY).unwrap().clone())
+        ]);
+        output_metadata
+    }
+
     fn process_v1<'a>(
         &'a self,
         input_set: &'a DataBlock<ArrayRow>,
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
-            // Build output schema metadata
-            let input_schema = input_set
-                .metadata()
-                .get(SCHEMA_META_NAME)
-                .unwrap()
-                .to_schema();
-            let metadata = HashMap::from([
-                (
-                    SCHEMA_META_NAME.into(),
-                    MetaCell::Schema(self.build_output_schema(input_schema.clone())),
-                ),
-                (
-                    DATABLOCK_TYPE.into(),
-                    MetaCell::Text(DATABLOCK_TYPE_DM.into()),
-                ),
-            ]);
+            let input_schema = self._get_input_schema(input_set.metadata());
+            let metadata = self._build_output_metadata(input_set.metadata());
 
             // key_indexes: Indexes corresponding to group by cols.
             // val_indexes: Indexes corresponding to aggregate cols.
@@ -239,9 +237,9 @@ mod tests {
             alias: None,
         }];
         let groupby_mapper = GroupByMapper::new(groupby_cols.clone(), aggregates.clone());
-        let output_schema = groupby_mapper.build_output_schema(input_schema.clone());
+        let output_schema = groupby_mapper._build_output_schema(&input_schema);
 
-        let tgt_output_schema = Schema::from(vec![
+        let tgt_output_schema = Schema::new("groupby(lineitem)".into(), vec![
             Column::from_key_field("l_orderkey".into(), input_schema.dtype("l_orderkey".into())),
             Column::from_key_field("l_partkey".into(), input_schema.dtype("l_partkey".into())),
             Column::from_field("sum_l_quantity".into(), DataType::Integer),
@@ -259,9 +257,9 @@ mod tests {
             alias: Some("custom_sum_l_quantity".to_string()),
         }];
         let groupby_mapper = GroupByMapper::new(groupby_cols.clone(), aggregates.clone());
-        let output_schema = groupby_mapper.build_output_schema(input_schema.clone());
+        let output_schema = groupby_mapper._build_output_schema(&input_schema);
 
-        let tgt_output_schema = Schema::from(vec![
+        let tgt_output_schema = Schema::new("groupby(lineitem)".into(), vec![
             Column::from_key_field("l_orderkey".into(), input_schema.dtype("l_orderkey".into())),
             Column::from_key_field("l_partkey".into(), input_schema.dtype("l_partkey".into())),
             Column::from_field("custom_sum_l_quantity".into(), DataType::Integer),

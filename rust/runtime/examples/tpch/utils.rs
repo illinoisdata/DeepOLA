@@ -8,13 +8,29 @@ use std::error::Error;
 
 pub struct TableInput {
     pub batch_size: usize,
-    pub input_files: Vec<String>
+    pub input_files: Vec<String>,
+    pub scale: usize
+}
+
+pub fn total_number_of_records(table: &str, scale: usize) -> usize {
+    match table {
+        "lineitem" => 6_000_000 * scale,
+        "orders" => 1_500_000 * scale,
+        "part" => 200_000 * scale,
+        "partsupp" => 800_000 * scale,
+        "customer" => 150_000 * scale,
+        "supplier" => 10_000 * scale,
+        "nation" => 25,
+        "region" => 5,
+        _ => 0,
+    }
 }
 
 pub fn build_csv_reader_node(table: String, tableinput: &HashMap<String, TableInput>) -> ExecutionNode<ArrayRow> {
     // Get batch size and file names from tableinput tables;
     let batch_size = tableinput.get(&table as &str).unwrap().batch_size.clone();
     let input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
+    let scale = tableinput.get(&table as &str).unwrap().scale.clone();
 
     let csvreader_node = CSVReaderNode::new_with_params(batch_size, '|', false);
     let mut file_names = vec![];
@@ -24,9 +40,9 @@ pub fn build_csv_reader_node(table: String, tableinput: &HashMap<String, TableIn
         ));
     }
     let schema = tpch_schema(&table).unwrap();
-    let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(schema.clone()))]
-    );
+    let mut metadata = MetaCell::Schema(schema.clone()).into_meta_map();
+    *metadata.entry(DATABLOCK_TOTAL_RECORDS.to_string()).or_insert(MetaCell::Float(0.0)) = MetaCell::Float(total_number_of_records(&table, scale) as f64);
+
     let dblock = DataBlock::new(file_names, metadata);
     csvreader_node.write_to_self(0, DataMessage::from(dblock));
     csvreader_node.write_to_self(0, DataMessage::eof());

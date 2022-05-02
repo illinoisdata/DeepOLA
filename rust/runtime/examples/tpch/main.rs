@@ -11,6 +11,7 @@ use std::env;
 mod utils;
 mod q1;
 mod q3;
+mod q5;
 mod q6;
 mod q10;
 mod q12;
@@ -18,7 +19,9 @@ mod q14;
 mod q19;
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+    .format_timestamp_micros()
+    .init();
     let tpch_tables = vec![
         "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier"
     ];
@@ -29,7 +32,8 @@ fn main() {
                 batch_size: 100_000,
                 input_files: vec![
                     format!("src/resources/tpc-h/scale=1/partition=1/{}.tbl",tpch_table)
-                ]
+                ],
+                scale: 1,
             }
         );
     }
@@ -43,6 +47,7 @@ fn main() {
         match query[0].as_str() {
             "q1" => { query_service = q1::query(table_input,&mut output_reader); },
             "q3" => { query_service = q3::query(table_input,&mut output_reader); },
+            "q5" => { query_service = q5::query(table_input,&mut output_reader); },
             "q6" => { query_service = q6::query(table_input,&mut output_reader); },
             "q10" => { query_service = q10::query(table_input,&mut output_reader); },
             "q12" => { query_service = q12::query(table_input,&mut output_reader); },
@@ -54,6 +59,7 @@ fn main() {
         panic!("Query not specified. Run like: cargo run --release --example tpch -- q1")
     }
 
+    println!("Running Query: {}", query[0]);
     // Display the Query Result and Time Taken to run the query.
     let start_time = Instant::now();
     query_service.run();
@@ -70,5 +76,5 @@ fn main() {
     let end_time = Instant::now();
     log::info!("Query Result");
     log::info!("{}", result);
-    log::info!("Query took {:.2?}", end_time - start_time);
+    println!("Query Took: {:.2?}", end_time - start_time);
 }

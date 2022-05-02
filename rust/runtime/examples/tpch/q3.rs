@@ -53,8 +53,8 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
 
     // Hash Join node
     let hash_join_node = HashJoinNode::node(
-        vec![16], //left is joined result of lineitem and orders
-        vec![0], //right is customer
+        vec!["o_custkey".into()], //left is joined result of lineitem and orders
+        vec!["c_custkey".into()], //right is customer
         JoinType::Inner
     );
 

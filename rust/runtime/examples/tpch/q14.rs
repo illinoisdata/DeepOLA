@@ -33,8 +33,8 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let lineitem_where_node = WhereNode::node(where_predicate);
 
     let hash_join_node = HashJoinNode::node(
-        vec![1], // l_partkey on lineitem
-        vec![0], // p_partkey on part
+        vec!["l_partkey".into()], // l_partkey on lineitem
+        vec!["p_partkey".into()], // p_partkey on part
         JoinType::Inner
     );
 

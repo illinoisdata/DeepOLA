@@ -76,7 +76,7 @@ impl fmt::Display for ArrayRow {
         for cell in &self.values {
             write!(f,"{} | ",cell).expect("Error displaying ArrayRow");
         }
-        write!(f,"\n")
+        writeln!(f)
     }
 }
 

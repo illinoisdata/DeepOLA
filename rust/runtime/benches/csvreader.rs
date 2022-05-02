@@ -21,9 +21,8 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
         ];
         // Metadata for DataBlock
         let lineitem_schema = Schema::from_example("lineitem").unwrap();
-        let metadata = HashMap::from(
-            [(SCHEMA_META_NAME.into(), MetaCell::Schema(lineitem_schema.clone()))]
-        );
+        let mut metadata = MetaCell::Schema(lineitem_schema.clone()).into_meta_map();
+        *metadata.entry(DATABLOCK_TOTAL_RECORDS.to_string()).or_insert(MetaCell::Float(0.0)) = MetaCell::Float(1_000_000.0);
         let dblock = DataBlock::new(input_vec, metadata);
 
         group.bench_function("deepola_csvreader", |b| {
@@ -52,7 +51,7 @@ fn raw_csvreader_lineitem(c: &mut Criterion) {
         group.sample_size(10);
         group.bench_function("default csv reader", |b| {
             b.iter(|| {
-                let mut rdr = 
+                let mut rdr =
                   csv::ReaderBuilder::new()
                       .delimiter(b'|')
                       .has_headers(false)
