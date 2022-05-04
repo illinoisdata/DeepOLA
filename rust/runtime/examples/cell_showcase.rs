@@ -5,29 +5,12 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::time::Instant;
 
-use runtime::forecast::cell::AverageTrendAffineEstimator;
 use runtime::forecast::cell::CellEstimator;
 use runtime::forecast::cell::ForecastSelector;
-use runtime::forecast::cell::LeastSquareAffineEstimator;
-use runtime::forecast::cell::MeanEstimator;
-use runtime::forecast::cell::SimpleExponentSmoothEstimator;
-use runtime::forecast::cell::TailEstimator;
 use runtime::forecast::Series;
 use runtime::forecast::TimeType;
 use runtime::forecast::ValueType;
 
-
-fn make_est_candidate() -> Box<dyn CellEstimator> {
-    let mut selector = ForecastSelector::default();
-    selector.include(Box::new(TailEstimator::default()));
-    selector.include(Box::new(MeanEstimator::default()));
-    selector.include(Box::new(SimpleExponentSmoothEstimator::with_base(0.5)));
-    selector.include(Box::new(LeastSquareAffineEstimator::default()));
-    selector.include(Box::new(AverageTrendAffineEstimator::with_tail()));
-    selector.include(Box::new(AverageTrendAffineEstimator::with_mean()));
-    selector.include(Box::new(AverageTrendAffineEstimator::with_ses(0.5)));
-    Box::new(selector)
-}
 
 struct Dataset {
     pub times: Vec<TimeType>,
@@ -177,7 +160,7 @@ fn do_test(dataset: &Dataset, mut est: Box<dyn CellEstimator>) {
 fn test_sum() {
     log::info!("Generating on sum dataset");
     let dataset = make_sum_data();
-    let est = make_est_candidate();
+    let est = ForecastSelector::make_with_default_candidates();
     let start_time = Instant::now();
     do_test(&dataset, est);
     log::info!("Forecasting took {:?}", start_time.elapsed());
@@ -186,7 +169,7 @@ fn test_sum() {
 fn test_avg() {
     log::info!("Generating on avg dataset");
     let dataset = make_avg_data();
-    let est = make_est_candidate();
+    let est = ForecastSelector::make_with_default_candidates();
     let start_time = Instant::now();
     do_test(&dataset, est);
     log::info!("Forecasting took {:?}", start_time.elapsed());
@@ -195,7 +178,7 @@ fn test_avg() {
 fn test_count_distinct() {
     log::info!("Generating on count-distinct dataset");
     let dataset = make_count_distinct_data();
-    let est = make_est_candidate();
+    let est = ForecastSelector::make_with_default_candidates();
     let start_time = Instant::now();
     do_test(&dataset, est);
     log::info!("Forecasting took {:?}", start_time.elapsed());
@@ -207,7 +190,7 @@ fn test_q1() {
     let datasets = read_q1_data();
     for (idx, dataset) in datasets.iter().enumerate() {
         log::info!("Testing q1: series {} / {}", idx + 1, datasets.len());
-        let est = make_est_candidate();
+        let est = ForecastSelector::make_with_default_candidates();
         let start_time = Instant::now();
         do_test(dataset, est);   
         log::info!("Forecasting took {:?}", start_time.elapsed());

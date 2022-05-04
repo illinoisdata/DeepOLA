@@ -337,14 +337,16 @@ impl CellEstimator for AverageTrendAffineEstimator {
 #[derive(Debug)]
 struct RollingMAECellEstimator {
     estimator: Box<dyn CellEstimator>,
-    rolling_err: MeanEstimator,  // use Box<dyn Averager> instead?
+    // rolling_err: MeanEstimator,  // use Box<dyn Averager> instead?
+    rolling_err: SimpleExponentSmoothEstimator,  // use Box<dyn Averager> instead?
 }
 
 impl RollingMAECellEstimator {
     fn new(estimator: Box<dyn CellEstimator>) -> RollingMAECellEstimator {
         RollingMAECellEstimator {
             estimator,
-            rolling_err: MeanEstimator::default(),
+            // rolling_err: MeanEstimator::default(),
+            rolling_err: SimpleExponentSmoothEstimator::with_base(0.75),
         }
     }
 
@@ -352,7 +354,8 @@ impl RollingMAECellEstimator {
         // train on train_tv, eval on eval_tv
         self.estimator.consume(train_tv);
         let pred_v = self.estimator.produce().predict(eval_tv.t);
-        let abs_err = (eval_tv.v - pred_v).abs();
+        // let abs_err = (eval_tv.v - pred_v).abs();
+        let abs_err = (eval_tv.v - pred_v).powi(2);
         self.rolling_err.consume(&TimeValue { t: train_tv.t, v: abs_err });
     }
 
@@ -384,7 +387,7 @@ impl ForecastSelector {
         let mut selector = ForecastSelector::default();
         selector.include(Box::new(TailEstimator::default()));
         selector.include(Box::new(MeanEstimator::default()));
-        selector.include(Box::new(SimpleExponentSmoothEstimator::with_base(0.5)));
+        selector.include(Box::new(SimpleExponentSmoothEstimator::with_base(0.75)));
         selector.include(Box::new(LeastSquareAffineEstimator::default()));
         selector.include(Box::new(AverageTrendAffineEstimator::with_tail()));
         selector.include(Box::new(AverageTrendAffineEstimator::with_mean()));

@@ -5,31 +5,11 @@ use criterion::criterion_main;
 use criterion::Throughput;
 use rand::Rng;
 
-use runtime::forecast::cell::AverageTrendAffineEstimator;
-use runtime::forecast::cell::CellEstimator;
+
 use runtime::forecast::cell::ForecastSelector;
-use runtime::forecast::cell::LeastSquareAffineEstimator;
-use runtime::forecast::cell::MeanEstimator;
-use runtime::forecast::cell::SimpleExponentSmoothEstimator;
-use runtime::forecast::cell::TailEstimator;
 use runtime::forecast::Series;
 use runtime::forecast::TimeType;
 use runtime::forecast::ValueType;
-
-
-/* Default cell estimator */
-
-fn make_est_candidate() -> Box<dyn CellEstimator> {
-    let mut selector = ForecastSelector::default();
-    selector.include(Box::new(TailEstimator::default()));
-    selector.include(Box::new(MeanEstimator::default()));
-    selector.include(Box::new(SimpleExponentSmoothEstimator::with_base(0.5)));
-    selector.include(Box::new(LeastSquareAffineEstimator::default()));
-    selector.include(Box::new(AverageTrendAffineEstimator::with_tail()));
-    selector.include(Box::new(AverageTrendAffineEstimator::with_mean()));
-    selector.include(Box::new(AverageTrendAffineEstimator::with_ses(0.5)));
-    Box::new(selector)
-}
 
 
 /* Dataset generation */
@@ -85,7 +65,7 @@ fn forecast_cell_all_steps(c: &mut Criterion) {
         group.sample_size(10);
         group.bench_with_input(BenchmarkId::from_parameter(num_batch), &dataset, |b, dataset| {
             b.iter(|| {
-                let mut est = make_est_candidate();
+                let mut est = ForecastSelector::make_with_default_candidates();
                 for tv in Series::new(&dataset.times, &dataset.values).iter() {
                     est.consume(&tv);
                     let f = est.produce();
@@ -105,7 +85,7 @@ fn forecast_cell_consume(c: &mut Criterion) {
         group.sample_size(10);
         group.bench_with_input(BenchmarkId::from_parameter(num_batch), &dataset, |b, dataset| {
             b.iter(|| {
-                let mut est = make_est_candidate();
+                let mut est = ForecastSelector::make_with_default_candidates();
                 for tv in Series::new(&dataset.times, &dataset.values).iter() {
                     est.consume(&tv);
                 }
