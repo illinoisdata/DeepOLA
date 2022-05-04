@@ -75,7 +75,7 @@ fn read_csv(args: &Cli) -> (ExecutionNode<ArrayRow>, Metadata) {
     log::info!("Metadata: {:?}", metadata);
     for idx in 1 .. args.series_n + 1 {
         let series_path = format!("{}/{}.csv", args.series_dir, idx);
-        log::info!("Reading {}", series_path);
+        log::debug!("Reading {}", series_path);
         let input_vec = vec![
             ArrayRow::from_vector(vec![DataCell::from(series_path)])
         ];
