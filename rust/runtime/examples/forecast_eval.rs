@@ -10,6 +10,10 @@ use runtime::data::DataMessage;
 use runtime::data::DataType;
 use runtime::data::MetaCell;
 use runtime::data::Schema;
+use runtime::data::DATABLOCK_CARDINALITY;
+use runtime::data::DATABLOCK_TOTAL_RECORDS;
+use runtime::data::DATABLOCK_TYPE;
+use runtime::data::DATABLOCK_TYPE_DM;
 use runtime::data::SCHEMA_META_NAME;
 use runtime::forecast::table::ForecastNode;
 use runtime::graph::ExecutionNode;
@@ -64,13 +68,17 @@ type Metadata = HashMap<String, MetaCell>;
 
 fn read_csv(args: &Cli) -> (ExecutionNode<ArrayRow>, Metadata) {
     let schema = select_schema(&args.schema_name);
-    let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(schema))]
-    );
+    let mut metadata = HashMap::from([
+        (SCHEMA_META_NAME.into(), MetaCell::Schema(schema)),
+        (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DM)),
+        (DATABLOCK_CARDINALITY.into(), MetaCell::from(0.0)),
+        (DATABLOCK_TOTAL_RECORDS.into(), MetaCell::from(1_000_000.0)),  // TODO: how to find this?
+    ]);
     let csvreader = CSVReaderNode::new_with_params(
         1_000_000,  // anything larger
         ',',
         false  /* has_headers */,
+        vec![]  /* filtered_cols */,
     );
     log::info!("Metadata: {:?}", metadata);
     for idx in 1 .. args.series_n + 1 {
@@ -79,6 +87,10 @@ fn read_csv(args: &Cli) -> (ExecutionNode<ArrayRow>, Metadata) {
         let input_vec = vec![
             ArrayRow::from_vector(vec![DataCell::from(series_path)])
         ];
+        metadata.insert(
+            DATABLOCK_CARDINALITY.into(),
+            MetaCell::from(idx as f64 / args.series_n as f64)  // update cardinality
+        );
         let dblock = DataBlock::new(input_vec, metadata.clone());
         let dmsg = DataMessage::from(dblock);
         csvreader.write_to_self(0, dmsg);
@@ -93,13 +105,17 @@ fn read_answer(args: &Cli) -> DataBlock<ArrayRow> {
 
     // read via CSVReader
     let schema = select_schema(&args.schema_name);
-    let metadata = HashMap::from(
-        [(SCHEMA_META_NAME.into(), MetaCell::Schema(schema))]
-    );
+    let metadata = HashMap::from([
+        (SCHEMA_META_NAME.into(), MetaCell::Schema(schema)),
+        (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DM)),
+        (DATABLOCK_CARDINALITY.into(), MetaCell::from(1.0)),
+        (DATABLOCK_TOTAL_RECORDS.into(), MetaCell::from(1_000_000.0)),  // TODO: how to find this?
+    ]);
     let csvreader = CSVReaderNode::new_with_params(
         1_000_000,  // anything larger
         ',',
         false  /* has_headers */,
+        vec![]  /* filtered_cols */,
     );
     let input_vec = vec![
         ArrayRow::from_vector(vec![DataCell::from(answer_path)])

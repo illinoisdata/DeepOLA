@@ -80,7 +80,7 @@ impl SetMultiProcessor<ArrayRow> for WhereSubQueryProcessor {
             let input_schema = input_set.metadata().get(SCHEMA_META_NAME).unwrap().to_schema();
             let metadata = self._build_output_metadata(input_set.metadata());
 
-            let left_col_index = input_schema.index(self.left_col.clone());
+            let left_col_index = input_schema.index(&self.left_col);
             let right_values = self.right_result.borrow();
 
             let mut output_records = vec![];

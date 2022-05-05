@@ -34,7 +34,7 @@ pub fn build_csv_reader_node(table: String, tableinput: &HashMap<String, TableIn
     let schema = tpch_schema(&table).unwrap();
 
     let filtered_cols = match table_columns.get(&table) {
-        Some(columns) => columns.iter().map(|x| schema.get_column(x.to_string()).name).collect(),
+        Some(columns) => columns.iter().map(|x| schema.get_column(x).name).collect(),
         None => vec![] // No columns specified means taking all columns.
     };
 

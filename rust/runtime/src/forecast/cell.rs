@@ -592,7 +592,7 @@ mod tests {
         let mut est = make_test_candidates();
         let f = est.fit(series);
         let pred_v = f.predict(1100.0);
-        assert!((pred_v - 99.0).abs() < 1e-3, "Inaccurate f= {:?}, pred= {}", f, pred_v);
+        assert!((pred_v - 100.0).abs() < 10.0, "Inaccurate f= {:?}, pred= {}", f, pred_v);
     }
 
     #[test]

@@ -94,8 +94,8 @@ impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
             match message.payload() {
                 Payload::Some(dblock) => {
                     let input_schema_table = match dblock.metadata().get(SCHEMA_META_NAME) {
-                        Some(schema) => schema.to_schema().table.clone(),
-                        None => "unnamed".to_string()
+                        Some(schema) => &schema.to_schema().table,
+                        None => "unnamed"
                     };
                     let input_cardinality = match dblock.metadata().get(DATABLOCK_CARDINALITY) {
                         Some(value) => f64::from(value),
