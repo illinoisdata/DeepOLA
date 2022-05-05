@@ -69,7 +69,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
 
         let mut hash_table = self.hash_table.borrow_mut();
         let mut hash_keys = self.hash_keys.borrow_mut();
-        let right_join_index = self.right_join_cols.iter().map(|a| right_schema.as_ref().unwrap().index(a.clone())).collect::<Vec<usize>>();
+        let right_join_index = self.right_join_cols.iter().map(|a| right_schema.as_ref().unwrap().index(a)).collect::<Vec<usize>>();
 
         for record in input_set.data().iter() {
             let key = right_join_index
@@ -89,9 +89,9 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
             let val_row = ArrayRow::from(non_key_cols);
 
             // Check if the key_hash exists in the hash_table or not
-            if !hash_keys.contains_key(&key_hash) {
+            if let std::collections::hash_map::Entry::Vacant(e) = hash_keys.entry(key_hash) {
                 // hash_keys doesn't contain this hash.
-                hash_keys.insert(key_hash, vec![key_row]);
+                e.insert(vec![key_row]);
                 hash_table.insert((key_hash,0), vec![val_row]);
             } else {
                 // Match with the keys in hash_keys.
@@ -126,7 +126,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
             let hash_table = self.hash_table.borrow();
             let hash_keys = self.hash_keys.borrow();
 
-            let left_join_index = self.left_join_cols.iter().map(|a| input_schema.index(a.clone())).collect::<Vec<usize>>();
+            let left_join_index = self.left_join_cols.iter().map(|a| input_schema.index(a)).collect::<Vec<usize>>();
 
             for record in input_set.data().iter() {
                 // Compute hash based on left_join_cols.

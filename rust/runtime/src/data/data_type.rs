@@ -110,8 +110,9 @@ impl DataCell {
             DataCell::Float(a) => {
                 let mut result = a;
                 for cell in cells.iter().skip(1) {
-                    if f64::from(cell) < result {
-                        result = f64::from(cell)
+                    let val = f64::from(cell);
+                    if val < result {
+                        result = val
                     }
                 }
                 DataCell::Float(result)
