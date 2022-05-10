@@ -1,4 +1,5 @@
-use std::{cell::RefCell, cmp, collections::HashSet, mem};
+use std::{cell::RefCell, cmp, collections::HashSet, collections:: HashMap, mem};
+use crate::data::*;
 
 use crate::{
     channel::{MultiChannelBroadcaster, MultiChannelReader},
@@ -86,6 +87,7 @@ pub struct SortedArraysJoiner {
     // These are internal fields used for tracking the current state of join operations.
     join_in_progress: RefCell<JoinInProgress>,
     schema_of_joined: RefCell<Option<Schema>>,
+    cardinality: RefCell<(f64,f64)>,
 }
 
 /// Internal struct for tracking join progress.
@@ -184,16 +186,25 @@ impl SortedArraysJoiner {
                 so_far_joined: vec![],
             }),
             schema_of_joined: RefCell::new(None),
+            cardinality: RefCell::new((0.0,0.0))
         }
     }
 
     fn offer_left_block(&self, data_block: JoinBlock<ArrayRow>) {
+        match &data_block {
+            JoinBlock::Block(dblock) => { self.update_cardinality(&dblock, 0); },
+            _ => {}
+        }
         let mut join_data = self.join_in_progress.borrow_mut();
         join_data.current_left_block = data_block;
         join_data.current_left_idx = 0;
     }
 
     fn offer_right_block(&self, data_block: JoinBlock<ArrayRow>) {
+        match &data_block {
+            JoinBlock::Block(dblock) => { self.update_cardinality(&dblock, 1); },
+            _ => {}
+        }
         let mut join_data = self.join_in_progress.borrow_mut();
         join_data.current_right_block = data_block;
         join_data.current_right_idx_lb = 0;
@@ -207,18 +218,39 @@ impl SortedArraysJoiner {
         }
     }
 
+    fn update_cardinality(&self, data_block: &DataBlock<ArrayRow>, block: usize) {
+        // Cardinality is minimum of the two cardinality?
+        let block_cardinality = f64::from(data_block.metadata().get(DATABLOCK_CARDINALITY).unwrap());
+        let cardinality = if block == 0 {
+            (block_cardinality, self.cardinality.borrow().1)
+        } else {
+            (self.cardinality.borrow().0, block_cardinality)
+        };
+        *self.cardinality.borrow_mut() = cardinality;
+    }
+
+    fn _build_output_metadata(&self, output_schema: Schema) -> HashMap<String,MetaCell> {
+        let output_metadata = HashMap::from([
+            (SCHEMA_META_NAME.into(), MetaCell::from(output_schema)),
+            (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DA)),
+            (DATABLOCK_CARDINALITY.into(), MetaCell::from(f64::min(self.cardinality.borrow().0, self.cardinality.borrow().1)))
+        ]);
+        output_metadata
+    }
+
     // TODO: Add _build_output_metadata() that takes into account the cardinality of left and right block.
     fn create_joined_result(
+        &self,
         joined_rows: &mut Vec<ArrayRow>,
-        schema: Option<Schema>,
     ) -> JoinResult<ArrayRow> {
+        let schema = self.schema_of_joined.borrow().clone().unwrap();
         let mut joined = vec![];
         mem::swap(joined_rows, &mut joined);
 
         JoinResult::<ArrayRow> {
             data_block: Some(DataBlock::new(
                 joined,
-                MetaCell::from(schema.unwrap()).into_meta_map(),
+                self._build_output_metadata(schema)
             )),
             status: MergeJoinStatus::LeftConsumed,
         }
@@ -236,9 +268,8 @@ impl SortedArraysJoiner {
         let right_block = match &join_data.current_right_block {
             JoinBlock::NeverSet => return self.create_status_result(MergeJoinStatus::NoRightBlock),
             JoinBlock::NoMore => {
-                return Self::create_joined_result(
+                return self.create_joined_result(
                     &mut join_data.so_far_joined,
-                    self.schema_of_joined.borrow().clone(),
                 );
             }
             JoinBlock::Block(dblock) => dblock.clone()
@@ -307,7 +338,7 @@ impl SortedArraysJoiner {
             }
         }
 
-        Self::create_joined_result(joined_rows, self.schema_of_joined.borrow().clone())
+        self.create_joined_result(joined_rows)
     }
 
     fn construct_meta_of_join(
