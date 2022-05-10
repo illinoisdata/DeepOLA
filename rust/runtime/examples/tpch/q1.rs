@@ -33,22 +33,31 @@ use std::cmp;
 // limit -1;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+    // Create a HashMap that stores table name and the columns in that query.
+    let table_columns = HashMap::from([
+        (
+            "lineitem".into(),
+            vec!["l_quantity","l_extendedprice","l_discount","l_tax",
+            "l_returnflag", "l_linestatus","l_shipdate"]
+        ),
+    ]);
+
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
 
     // WHERE Node
     fn predicate(record: &ArrayRow) -> bool {
         // 10th index is l_shipdate
-        record.values[10] <= DataCell::from("1998-09-01")
+        record.values[6] <= DataCell::from("1998-09-01")
     }
     let where_node = WhereNode::node(predicate);
 
     // EXPRESSION Node
     fn disc_price_predicate(record: &ArrayRow) -> DataCell {
-        DataCell::from(record.values[5].clone() * (DataCell::from(1) - record.values[6].clone()))
+        DataCell::from(record.values[1].clone() * (DataCell::from(1) - record.values[2].clone()))
     }
     fn charge_predicate(record: &ArrayRow) -> DataCell {
-        DataCell::from(record.values[5].clone() * (DataCell::from(1) - record.values[6].clone()) * (DataCell::from(1) + record.values[7].clone()))
+        DataCell::from(record.values[1].clone() * (DataCell::from(1) - record.values[2].clone()) * (DataCell::from(1) + record.values[3].clone()))
     }
     let expressions = vec![
         Expression {

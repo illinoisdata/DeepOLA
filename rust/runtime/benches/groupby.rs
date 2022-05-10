@@ -5,7 +5,6 @@ use criterion::Criterion;
 use runtime::data::*;
 use runtime::operations::{GroupByNode, Aggregate, AggregationOperation};
 use runtime::graph::ExecutionNode;
-use std::collections::HashMap;
 
 static RECORD_SIZE: usize = 1000000;
 static NUM_GROUP_KEYS: usize = 5;

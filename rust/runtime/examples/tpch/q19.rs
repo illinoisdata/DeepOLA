@@ -35,18 +35,23 @@ use std::collections::HashMap;
 // 	or
 // 	(
 // 		p_partkey = l_partkey
-// 		and p_brand = 'Brand#34'
+// 		and p_brand = 'Brand#31'
 // 		and p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')
-// 		and l_quantity >= 20 and l_quantity <= 20 + 10
+// 		and l_quantity >= 7 and l_quantity <= 7 + 10
 // 		and p_size between 1 and 15
 // 		and l_shipmode in ('AIR', 'AIR REG')
 // 		and l_shipinstruct = 'DELIVER IN PERSON'
 // 	);
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+    let table_columns = HashMap::from([
+        ("lineitem".into(), vec!["l_partkey","l_quantity","l_extendedprice","l_discount","l_shipmode","l_shipinstruct"]),
+        ("part".into(), vec!["p_partkey","p_brand","p_size","p_container"]),
+    ]);
+
     // CSV Reader node
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
-    let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput);
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
 
     let hash_join_node = HashJoinNode::node(
         vec!["l_partkey".into()], // l_partkey on lineitem
@@ -57,40 +62,40 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     fn where_predicate(record: &ArrayRow) -> bool {
         // Large predicate based on lineitem and part
         (
-            String::from(&record.values[18]) == "Brand#12" &&
-            vec!["SM CASE".into(), "SM BOX".into(), "SM PACK".into(), "SM PKG".into()].contains(&String::from(&record.values[21])) &&
-            i32::from(&record.values[4]) >= 1 &&
-            i32::from(&record.values[4]) <= 1 + 10 &&
-            i32::from(&record.values[20]) > 1 &&
-            i32::from(&record.values[20]) < 5 &&
-            vec!["AIR".into(), "AIR REG".into()].contains(&String::from(&record.values[14])) &&
-            String::from(&record.values[13]) == "DELIVER IN PERSON"
+            String::from(&record.values[6]) == "Brand#12" &&
+            vec!["SM CASE".into(), "SM BOX".into(), "SM PACK".into(), "SM PKG".into()].contains(&String::from(&record.values[8])) &&
+            i32::from(&record.values[1]) >= 1 &&
+            i32::from(&record.values[1]) <= 1 + 10 &&
+            i32::from(&record.values[7]) > 1 &&
+            i32::from(&record.values[7]) < 5 &&
+            vec!["AIR".into(), "AIR REG".into()].contains(&String::from(&record.values[4])) &&
+            String::from(&record.values[5]) == "DELIVER IN PERSON"
         ) ||
         (
-            String::from(&record.values[18]) == "Brand#23" &&
-            vec!["MED BAG".into(), "MED BOX".into(), "MED PKG".into(), "MED PACK".into()].contains(&String::from(&record.values[21])) &&
-            i32::from(&record.values[4]) >= 10 &&
-            i32::from(&record.values[4]) <= 10 + 10 &&
-            i32::from(&record.values[20]) > 1 &&
-            i32::from(&record.values[20]) < 10 &&
-            vec!["AIR".into(), "AIR REG".into()].contains(&String::from(&record.values[14])) &&
-            String::from(&record.values[13]) == "DELIVER IN PERSON"
+            String::from(&record.values[6]) == "Brand#23" &&
+            vec!["MED BAG".into(), "MED BOX".into(), "MED PKG".into(), "MED PACK".into()].contains(&String::from(&record.values[8])) &&
+            i32::from(&record.values[1]) >= 10 &&
+            i32::from(&record.values[1]) <= 10 + 10 &&
+            i32::from(&record.values[7]) > 1 &&
+            i32::from(&record.values[7]) < 10 &&
+            vec!["AIR".into(), "AIR REG".into()].contains(&String::from(&record.values[4])) &&
+            String::from(&record.values[5]) == "DELIVER IN PERSON"
         ) ||
         (
-            String::from(&record.values[18]) == "Brand#34" &&
-            vec!["LG CASE".into(), "LG BOX".into(), "LG PACK".into(), "LG PKG".into()].contains(&String::from(&record.values[21])) &&
-            i32::from(&record.values[4]) >= 20 &&
-            i32::from(&record.values[4]) <= 20 + 10 &&
-            i32::from(&record.values[20]) > 1 &&
-            i32::from(&record.values[20]) < 15 &&
-            vec!["AIR".into(), "AIR REG".into()].contains(&String::from(&record.values[14])) &&
-            String::from(&record.values[13]) == "DELIVER IN PERSON"
+            String::from(&record.values[6]) == "Brand#31" &&
+            vec!["LG CASE".into(), "LG BOX".into(), "LG PACK".into(), "LG PKG".into()].contains(&String::from(&record.values[8])) &&
+            i32::from(&record.values[1]) >= 7 &&
+            i32::from(&record.values[1]) <= 7 + 10 &&
+            i32::from(&record.values[7]) > 1 &&
+            i32::from(&record.values[7]) < 15 &&
+            vec!["AIR".into(), "AIR REG".into()].contains(&String::from(&record.values[4])) &&
+            String::from(&record.values[5]) == "DELIVER IN PERSON"
         )
     }
     let where_node = WhereNode::node(where_predicate);
 
     fn revenue_expression(record: &ArrayRow) -> DataCell {
-        DataCell::Float(f64::from(&record.values[5]) * (1.0 - f64::from(&record.values[6])))
+        DataCell::Float(f64::from(&record.values[2]) * (1.0 - f64::from(&record.values[3])))
     }
     let expressions = vec![
         Expression {

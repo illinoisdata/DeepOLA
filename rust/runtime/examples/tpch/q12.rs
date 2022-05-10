@@ -38,17 +38,22 @@ use std::cmp;
 // 	l_shipmode;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+    let table_columns = HashMap::from([
+        ("lineitem".into(), vec!["l_orderkey","l_shipdate","l_commitdate","l_receiptdate","l_shipmode"]),
+        ("orders".into(), vec!["o_orderkey","o_orderpriority"]),
+    ]);
+
     // CSVReaderNode
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput);
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
 
     // WHERE Node
     fn predicate(record: &ArrayRow) -> bool {
-        (record.values[14] == "MAIL" || record.values[14] == "SHIP") &&
-        (record.values[11] < record.values[12]) &&
-        (record.values[10] < record.values[11]) &&
-        (record.values[12] >= DataCell::from("1994-01-01")) &&
-        (record.values[12] < DataCell::from("1995-01-01"))
+        (record.values[4] == "MAIL" || record.values[4] == "SHIP") &&
+        (record.values[2] < record.values[3]) &&
+        (record.values[1] < record.values[2]) &&
+        (record.values[3] >= DataCell::from("1994-01-01")) &&
+        (record.values[3] < DataCell::from("1995-01-01"))
     }
     let where_node = WhereNode::node(predicate);
 
@@ -60,14 +65,14 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
 
     // EXPRESSION Node
     fn high_line_count(record: &ArrayRow) -> DataCell {
-        if record.values[20] == "1-URGENT" || record.values[20] == "2-HIGH" {
+        if record.values[5] == "1-URGENT" || record.values[5] == "2-HIGH" {
             DataCell::Integer(1)
         } else {
             DataCell::Integer(0)
         }
     }
     fn low_line_count(record: &ArrayRow) -> DataCell {
-        if record.values[20] != "1-URGENT" && record.values[20] != "2-HIGH" {
+        if record.values[5] != "1-URGENT" && record.values[5] != "2-HIGH" {
             DataCell::Integer(1)
         } else {
             DataCell::Integer(0)

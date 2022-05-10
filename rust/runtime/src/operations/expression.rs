@@ -2,6 +2,7 @@ use crate::data::*;
 use crate::graph::*;
 use crate::processor::*;
 use generator::{Generator, Gn};
+use rayon::prelude::*;
 
 pub struct ExpressionNode;
 
@@ -58,16 +59,14 @@ impl SetProcessorV1<ArrayRow> for ExpressionMapper {
     ) -> Generator<'a, (), DataBlock<ArrayRow>> {
         Gn::new_scoped(move |mut s| {
             let metadata = self._build_output_metadata(input_set.metadata());
-
-            let mut output_records = vec![];
-            for record in input_set.data().iter() {
-                let mut result = record.clone();
+            let output_records: Vec<ArrayRow> = input_set.data().into_par_iter().map(|record| {
                 // Evaluate all the expressions on each record.
+                let mut result = record.clone();
                 for expression in self.expressions.iter() {
                     result.values.push((expression.predicate)(record));
                 }
-                output_records.push(result.clone());
-            }
+                result
+            }).collect();
             let message = DataBlock::new(output_records, metadata);
             s.yield_(message);
             done!();

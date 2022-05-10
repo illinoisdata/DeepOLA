@@ -22,13 +22,18 @@ use std::collections::HashMap;
 // 	and l_shipdate < date '1995-09-01' + interval '1' month;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+    let table_columns = HashMap::from([
+        ("lineitem".into(), vec!["l_partkey","l_extendedprice","l_discount","l_shipdate"]),
+        ("part".into(), vec!["p_partkey","p_type"]),
+    ]);
+
     // CSV Reader node
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
-    let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput);
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
 
     fn where_predicate(record: &ArrayRow) -> bool {
-        (String::from(&record.values[10]) >= "1995-09-01".to_string()) &&
-        (String::from(&record.values[10]) < "1995-10-01".to_string())
+        (String::from(&record.values[3]) >= "1995-09-01".to_string()) &&
+        (String::from(&record.values[3]) < "1995-10-01".to_string())
     }
     let lineitem_where_node = WhereNode::node(where_predicate);
 
@@ -39,14 +44,14 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     );
 
     fn revenue_numerator(record: &ArrayRow) -> DataCell {
-        if String::from(&record.values[19])[..5] == "PROMO".to_string() {
-            DataCell::Float(f64::from(&record.values[5]) * (1.0 - f64::from(&record.values[6])))
+        if String::from(&record.values[4])[..5] == "PROMO".to_string() {
+            DataCell::Float(f64::from(&record.values[1]) * (1.0 - f64::from(&record.values[2])))
         } else {
             DataCell::Float(0.0)
         }
     }
     fn revenue_denominator(record: &ArrayRow) -> DataCell {
-        DataCell::Float(f64::from(&record.values[5]) * (1.0 - f64::from(&record.values[6])))
+        DataCell::Float(f64::from(&record.values[1]) * (1.0 - f64::from(&record.values[2])))
     }
     let expressions = vec![
         Expression {
