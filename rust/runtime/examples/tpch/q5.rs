@@ -34,13 +34,22 @@ use std::cmp;
 // 	revenue desc;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+    let table_columns = HashMap::from([
+        ("lineitem".into(), vec!["l_orderkey","l_suppkey","l_extendedprice","l_discount"]),
+        ("orders".into(), vec!["o_orderkey","o_custkey","o_orderdate"]),
+        ("customer".into(), vec!["c_custkey","c_nationkey"]),
+        ("supplier".into(), vec!["s_suppkey","s_nationkey"]),
+        ("nation".into(), vec!["n_nationkey","n_name","n_regionkey"]),
+        ("region".into(), vec!["r_regionkey","r_name"]),
+    ]);
+
     // CSV Reader node
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput);
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput);
-    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput);
-    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput);
-    let region_csvreader_node = build_csv_reader_node("region".into(), &tableinput);
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
+    let region_csvreader_node = build_csv_reader_node("region".into(), &tableinput, &table_columns);
 
     fn region_predicate(record: &ArrayRow) -> bool {
         // r_name == "ASIA"
@@ -50,8 +59,8 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     fn order_predicate(record: &ArrayRow) -> bool {
         // 	and o_orderdate >= date '1994-01-01'
         // 	and o_orderdate < date '1994-01-01' + interval '1' year
-        String::from(&record.values[4]) >= "1994-01-01".to_string() &&
-        String::from(&record.values[4]) < "1995-01-01".to_string()
+        String::from(&record.values[2]) >= "1994-01-01".to_string() &&
+        String::from(&record.values[2]) < "1995-01-01".to_string()
     }
     let order_predicate_node = WhereNode::node(order_predicate);
 
@@ -104,7 +113,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
 
     // EXPRESSION node
     fn revenue_expression(record: &ArrayRow) -> DataCell {
-        DataCell::Float(f64::from(&record.values[5]) * (1.0 - f64::from(&record.values[6])))
+        DataCell::Float(f64::from(&record.values[2]) * (1.0 - f64::from(&record.values[3])))
     }
     let expressions = vec![
         Expression {

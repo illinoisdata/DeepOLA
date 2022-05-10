@@ -19,6 +19,7 @@ nanoid = "0.4.0"
 itertools = "0.10"
 generator = "0.6"
 rustc-hash = "1.1.0"
+rayon = "1.5.2"
 
 [dev-dependencies]
 ctor = "0.1.21"

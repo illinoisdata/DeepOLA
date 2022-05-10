@@ -58,6 +58,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
             }
             joined_cols.push(ri.clone());
         }
+        log::debug!("HashJoin Output Schema: {}", joined_cols.iter().enumerate().map(|(i,v)| format!("{}: {}, ", i, v.name)).collect::<String>());
         Schema::new(format!("hashjoin({},{})", input_schema.table, right_schema.table), joined_cols)
     }
 

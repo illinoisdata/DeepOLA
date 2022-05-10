@@ -2,7 +2,6 @@ use criterion::{criterion_group, criterion_main};
 use runtime::data::DataCell;
 use criterion::{Criterion, Throughput};
 use std::path::Path;
-use std::collections::HashMap;
 use std::str;
 use runtime::data::*;
 use runtime::operations::*;
@@ -27,7 +26,7 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
 
         group.bench_function("deepola_csvreader", |b| {
             b.iter(|| {
-                let csvreader = CSVReaderNode::new_with_params(batch_size, '|', false);
+                let csvreader = CSVReaderNode::new_with_params(batch_size, '|', false, vec![]);
                 csvreader.write_to_self(0, DataMessage::from(dblock.clone()));
                 csvreader.write_to_self(0, DataMessage::eof());
                 csvreader.run();

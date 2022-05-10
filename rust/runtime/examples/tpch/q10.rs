@@ -41,16 +41,24 @@ use std::cmp;
 // 	revenue desc;
 
 pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+    let table_columns = HashMap::from([
+        ("lineitem".into(), vec!["l_orderkey","l_extendedprice","l_discount","l_returnflag"]),
+        ("orders".into(), vec!["o_orderkey","o_custkey","o_orderdate"]),
+        ("customer".into(), vec!["c_custkey","c_name","c_address","c_nationkey","c_phone","c_acctbal","c_comment"]),
+        ("nation".into(),vec!["n_nationkey","n_name"])
+    ]);
+
     // CSV Reader node
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput);
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput);
-    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput);
+    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
 
     // WHERE node
-    fn lineitem_predicate(record: &ArrayRow) -> bool { String::from(&record.values[10]) > "1995-03-15".to_string() }
-    fn orders_predicate(record: &ArrayRow) -> bool { String::from(&record.values[4]) < "1995-03-15".to_string() }
-    let lineitem_where_node = WhereNode::node(lineitem_predicate);
+    fn orders_predicate(record: &ArrayRow) -> bool {
+        String::from(&record.values[2]) < "1994-01-01".to_string() &&
+        String::from(&record.values[2]) >= "1993-10-01".to_string()
+    }
     let orders_where_node = WhereNode::node(orders_predicate);
 
     // Hash Join node
@@ -73,7 +81,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
 
     // EXPRESSION node
     fn revenue_expression(record: &ArrayRow) -> DataCell {
-        DataCell::Float(f64::from(&record.values[5]) * (1.0 - f64::from(&record.values[6])))
+        DataCell::Float(f64::from(&record.values[1]) * (1.0 - f64::from(&record.values[2])))
     }
     let expressions = vec![
         Expression {
@@ -113,13 +121,12 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let select_node = select_node_builder.build();
 
     // Connect nodes with subscription
-    lineitem_where_node.subscribe_to_node(&lineitem_csvreader_node,0);
     orders_where_node.subscribe_to_node(&orders_csvreader_node, 0);
     hash_join_node_customer_nation.subscribe_to_node(&customer_csvreader_node, 0);
     hash_join_node_customer_nation.subscribe_to_node(&nation_csvreader_node, 1);
     hash_join_node_order_customer.subscribe_to_node(&orders_where_node, 0);
     hash_join_node_order_customer.subscribe_to_node(&hash_join_node_customer_nation, 1);
-    merge_join_node.subscribe_to_node(&lineitem_where_node, 0);
+    merge_join_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     merge_join_node.subscribe_to_node(&hash_join_node_order_customer, 1);
     expression_node.subscribe_to_node(&merge_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
@@ -138,7 +145,6 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     service.add(hash_join_node_order_customer);
     service.add(hash_join_node_customer_nation);
     service.add(orders_where_node);
-    service.add(lineitem_where_node);
     service.add(customer_csvreader_node);
     service.add(nation_csvreader_node);
     service.add(orders_csvreader_node);
