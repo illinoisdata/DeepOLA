@@ -22,6 +22,11 @@ rustc-hash = "1.1.0"
 simple-error = "0.2.3"
 structopt = "0.3.26"
 uuid = { version = "0.8", features = ["v4"] }
+jemallocator = "0.3.2"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
 
 [dev-dependencies]
 ctor = "0.1.21"
