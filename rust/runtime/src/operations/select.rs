@@ -85,7 +85,7 @@ impl SetProcessorV1<ArrayRow> for SelectMapper {
                     output_columns.push(schema_col);
                 }
             } else {
-                output_columns.push(input_schema.get_column(col.to_string()));
+                output_columns.push(input_schema.get_column(col));
             }
         }
         Schema::new(format!("select({})",input_schema.table), output_columns)
@@ -101,7 +101,7 @@ impl SetProcessorV1<ArrayRow> for SelectMapper {
             let output_schema = self._build_output_schema(&input_schema);
             let metadata = self._build_output_metadata(input_set.metadata());
 
-            let col_indexes = output_schema.columns.iter().map(|x| input_schema.index(x.name.clone())).collect::<Vec<usize>>();
+            let col_indexes = output_schema.columns.iter().map(|x| input_schema.index(&x.name)).collect::<Vec<usize>>();
             let mut output_records = Vec::new();
 
             let mut select_all_cols = false;

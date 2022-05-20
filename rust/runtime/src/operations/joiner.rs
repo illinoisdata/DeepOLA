@@ -191,20 +191,14 @@ impl SortedArraysJoiner {
     }
 
     fn offer_left_block(&self, data_block: JoinBlock<ArrayRow>) {
-        match &data_block {
-            JoinBlock::Block(dblock) => { self.update_cardinality(&dblock, 0); },
-            _ => {}
-        }
+        if let JoinBlock::Block(dblock) = &data_block { self.update_cardinality(dblock, 0); }
         let mut join_data = self.join_in_progress.borrow_mut();
         join_data.current_left_block = data_block;
         join_data.current_left_idx = 0;
     }
 
     fn offer_right_block(&self, data_block: JoinBlock<ArrayRow>) {
-        match &data_block {
-            JoinBlock::Block(dblock) => { self.update_cardinality(&dblock, 1); },
-            _ => {}
-        }
+        if let JoinBlock::Block(dblock) = &data_block { self.update_cardinality(dblock, 1); }
         let mut join_data = self.join_in_progress.borrow_mut();
         join_data.current_right_block = data_block;
         join_data.current_right_idx_lb = 0;
