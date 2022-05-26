@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate generator;
+extern crate csv;
 
 pub mod channel;
 pub mod data;

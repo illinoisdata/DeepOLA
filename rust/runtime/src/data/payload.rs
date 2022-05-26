@@ -1,6 +1,7 @@
 use getset::Getters;
 use std::{sync::Arc, collections::HashMap, fmt::Debug, ops::Index};
 use std::fmt;
+use csv::Writer;
 
 use super::{SCHEMA_META_NAME, Schema, MetaCell};
 
@@ -151,6 +152,17 @@ impl<ArrayRow: std::fmt::Display> fmt::Display for DataBlock<ArrayRow> {
             }
         }
         write!(f,"Table Output")
+    }
+}
+
+impl<ArrayRow: std::fmt::Display> DataBlock<ArrayRow> {
+    pub fn to_csv(&self, path: String) {
+        // Writes the data block in a CSV to the file specified by path.
+        let mut wtr = Writer::from_path(path).unwrap();
+        for row in self.data().iter() {
+            wtr.write_record(&(format!("{}",row).trim().split('|').collect::<Vec<&str>>())).unwrap();
+        }
+        wtr.flush().unwrap();
     }
 }
 

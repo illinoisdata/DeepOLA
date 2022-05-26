@@ -67,6 +67,7 @@ fn main() {
     let start_time = Instant::now();
     query_service.run();
     let mut result = DataBlock::from(vec![]);
+    let mut first_result = true;
     loop {
         let message = output_reader.read();
         if message.is_eof() {
@@ -74,10 +75,15 @@ fn main() {
         }
         let data = message.datablock();
         result = data.clone();
+        if first_result {
+            let first_result_time = Instant::now();
+            println!("First Result Took: {:.2?}", first_result_time - start_time);
+            result.to_csv(format!("outputs/{}.csv",query[0]));
+            first_result = false;
+        }
     }
     query_service.join();
     let end_time = Instant::now();
-    log::info!("Query Result");
-    log::info!("{}", result);
     println!("Query Took: {:.2?}", end_time - start_time);
+    result.to_csv(format!("outputs/{}.final.csv",query[0]));
 }

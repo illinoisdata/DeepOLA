@@ -1,4 +1,4 @@
-use crate::data::data_type::DataType;
+use crate::data::DataType;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;

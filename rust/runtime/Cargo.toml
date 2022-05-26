@@ -23,6 +23,10 @@ simple-error = "0.2.3"
 structopt = "0.3.26"
 uuid = { version = "0.8", features = ["v4"] }
 jemallocator = "0.3.2"
+polars-lazy = "0.21.1"
+polars-core = "0.21.1"
+polars-io = "0.21.1"
+polars = "0.21.1"
 
 [profile.release]
 lto = "fat"
