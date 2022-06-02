@@ -1,4 +1,5 @@
 use std::{cell::RefCell, cmp, collections::HashSet, collections:: HashMap, mem};
+use std::borrow::Cow;
 use crate::data::*;
 
 use crate::{
@@ -448,7 +449,7 @@ impl SingleArrayJoiner {
             if self.right_index_set.contains(&i) {
                 continue;
             }
-            joined.push(right_row[i].clone());
+            joined.push(Cow::Owned(right_row[i].clone()));
         }
         ArrayRow::from(joined)
     }

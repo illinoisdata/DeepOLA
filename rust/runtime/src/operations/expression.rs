@@ -3,6 +3,7 @@ use crate::graph::*;
 use crate::processor::*;
 use generator::{Generator, Gn};
 use rayon::prelude::*;
+use std::borrow::Cow;
 
 pub struct ExpressionNode;
 
@@ -63,7 +64,7 @@ impl SetProcessorV1<ArrayRow> for ExpressionMapper {
                 // Evaluate all the expressions on each record.
                 let mut result = record.clone();
                 for expression in self.expressions.iter() {
-                    result.values.push((expression.predicate)(record));
+                    result.values.push(Cow::Owned((expression.predicate)(record)));
                 }
                 result
             }).collect();
@@ -81,11 +82,12 @@ mod tests {
         graph::NodeReader,
         operations::{utils, Expression, ExpressionNode},
     };
+    use std::borrow::Cow;
 
     #[test]
     fn test_expression_node() {
         fn is_big_city(record: &ArrayRow) -> DataCell {
-            if record.values[3] >= DataCell::Integer(500) {
+            if record.values[3] >= Cow::Borrowed(&DataCell::Integer(500)) {
                 DataCell::from(1)
             } else {
                 DataCell::from(0)

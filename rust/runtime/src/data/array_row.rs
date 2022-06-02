@@ -1,19 +1,25 @@
 use std::ops::{Index, IndexMut};
 use std::fmt;
+use std::borrow::Cow;
 
 use crate::data::data_type::DataCell;
 use getset::Getters;
 
 #[derive(Getters, Debug, Clone, PartialEq)]
 pub struct ArrayRow {
-    pub values: Vec<DataCell>,
+    pub values: Vec<Cow<'static,DataCell>>,
 }
 
 unsafe impl Send for ArrayRow {}
 
 impl ArrayRow {
-    pub fn from_vector(values: Vec<DataCell>) -> ArrayRow {
+    pub fn from_vector_cow(values: Vec<Cow<'static,DataCell>>) -> ArrayRow {
         ArrayRow { values }
+    }
+
+    pub fn from_vector(values: Vec<DataCell>) -> ArrayRow {
+        let vector_cow = values.iter().map(|x| Cow::Owned(x.clone())).collect::<Vec<Cow<DataCell>>>();
+        ArrayRow::from_vector_cow(vector_cow)
     }
 
     pub fn len(&self) -> usize {
@@ -31,30 +37,32 @@ impl ArrayRow {
 
 impl From<Vec<DataCell>> for ArrayRow {
     fn from(values: Vec<DataCell>) -> Self {
-        ArrayRow { values }
+        ArrayRow::from_vector(values)
     }
 }
 
 // Clone values from a vector of DataCell references
 impl From<Vec<&DataCell>> for ArrayRow {
     fn from(values: Vec<&DataCell>) -> Self {
-        ArrayRow { values: values.into_iter().cloned().collect() }
+        ArrayRow::from_vector(values.into_iter().cloned().collect())
     }
 }
 
 impl From<&[DataCell]> for ArrayRow {
     fn from(array: &[DataCell]) -> Self {
-        ArrayRow {
-            values: Vec::<DataCell>::from(array),
-        }
+        ArrayRow::from_vector(Vec::<DataCell>::from(array))
+    }
+}
+
+impl From<Vec<Cow<'static,DataCell>>> for ArrayRow {
+    fn from(values: Vec<Cow<'static,DataCell>>) -> Self {
+        ArrayRow::from_vector_cow(values)
     }
 }
 
 impl<const N: usize> From<[DataCell; N]> for ArrayRow {
     fn from(array: [DataCell; N]) -> Self {
-        ArrayRow {
-            values: Vec::from(array),
-        }
+        ArrayRow::from_vector(Vec::from(array))
     }
 }
 
@@ -94,7 +102,7 @@ impl Index<usize> for ArrayRow {
 
 impl IndexMut<usize> for ArrayRow {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.values[index]
+        self.values[index].to_mut()
     }
 }
 

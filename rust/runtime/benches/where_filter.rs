@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use runtime::operations::WhereNode;
 use runtime::data::{ArrayRow,DataCell,DataMessage};
 use runtime::benchmarks::join_utils::setup_left_block;
+use std::ops::Deref;
 
 pub fn bench_where_filter(c: &mut Criterion) {
     let mut group = c.benchmark_group("where_filter");
@@ -10,8 +11,8 @@ pub fn bench_where_filter(c: &mut Criterion) {
     let block = setup_left_block(row_count, col_count);
 
     fn predicate(record: &ArrayRow) -> bool {
-        (record.values[9] <= DataCell::from(1_000)) ||
-        (record.values[9] >= DataCell::from(100_000))
+        (record.values[9].deref() <= &DataCell::from(1_000 as i32)) ||
+        (record.values[9].deref() >= &DataCell::from(100_000 as i32))
     }
     let where_node = WhereNode::node(predicate);
     group.sample_size(10);

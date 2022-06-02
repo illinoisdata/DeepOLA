@@ -6,6 +6,8 @@ use runtime::data::*;
 use runtime::operations::*;
 
 use std::collections::HashMap;
+use std::ops::Deref;
+use std::borrow::Borrow;
 use std::cmp;
 
 /// This node implements the following SQL query
@@ -48,16 +50,16 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     // WHERE Node
     fn predicate(record: &ArrayRow) -> bool {
         // 10th index is l_shipdate
-        record.values[6] <= DataCell::from("1998-09-01")
+        record.values[6].deref() <= &DataCell::from("1998-09-01")
     }
     let where_node = WhereNode::node(predicate);
 
     // EXPRESSION Node
     fn disc_price_predicate(record: &ArrayRow) -> DataCell {
-        DataCell::from(record.values[1].clone() * (DataCell::from(1) - record.values[2].clone()))
+        DataCell::from(record.values[1].deref().clone() * (DataCell::from(1 as f64) - record.values[2].deref()))
     }
     fn charge_predicate(record: &ArrayRow) -> DataCell {
-        DataCell::from(record.values[1].clone() * (DataCell::from(1) - record.values[2].clone()) * (DataCell::from(1) + record.values[3].clone()))
+        DataCell::from(record.values[1].deref().clone() * (DataCell::from(1 as f64) - record.values[2].deref()) * (DataCell::from(1 as f64) + record.values[3].deref()))
     }
     let expressions = vec![
         Expression {

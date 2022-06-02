@@ -5,6 +5,8 @@ use generator::{Generator, Gn};
 use std::cell::{RefCell};
 use rustc_hash::FxHashMap;
 use crate::operations::JoinType;
+use std::borrow::Cow;
+use std::ops::Deref;
 pub struct HashJoinNode;
 
 /// A factory method for creating `ExecutionNode<ArrayRow>` that can
@@ -85,7 +87,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
                 .enumerate()
                 .filter(|(i,_)| !right_join_index.contains(i))
                 .map(|(_,x)| x.clone())
-                .collect::<Vec<DataCell>>();
+                .collect::<Vec<Cow<DataCell>>>();
             let val_row = ArrayRow::from(non_key_cols);
 
             // Check if the key_hash exists in the hash_table or not
@@ -153,8 +155,7 @@ impl SetMultiProcessor<ArrayRow> for HashJoinProcessor {
                             }
                             if key_found {
                                 for right_record in hash_table.get(&(key_hash,key_index)).unwrap().iter() {
-                                    let output_array_row = record.values.iter().chain(right_record.values.iter()).collect::<Vec<&DataCell>>();
-                                    // Clone happens when creating the array row here.
+                                    let output_array_row = record.values.iter().chain(right_record.values.iter()).map(|x| x.clone()).collect::<Vec<Cow<DataCell>>>();
                                     output_records.push(ArrayRow::from(output_array_row));
                                 }
                             }

@@ -13,13 +13,13 @@ use std::env;
 
 mod utils;
 mod q1;
-mod q3;
-mod q5;
-mod q6;
-mod q10;
-mod q12;
-mod q14;
-mod q19;
+// mod q3;
+// mod q5;
+// mod q6;
+// mod q10;
+// mod q12;
+// mod q14;
+// mod q19;
 
 fn main() {
     env_logger::Builder::from_default_env()
@@ -34,7 +34,7 @@ fn main() {
             TableInput {
                 batch_size: 100_000,
                 input_files: vec![
-                    format!("src/resources/tpc-h/scale=1/partition=1/{}.tbl",tpch_table)
+                    format!("src/resources/tpc-h/scale=10/partition=1/{}.tbl",tpch_table)
                 ],
                 scale: 1,
             }
@@ -49,13 +49,13 @@ fn main() {
     if query.len() != 0 {
         match query[0].as_str() {
             "q1" => { query_service = q1::query(table_input,&mut output_reader); },
-            "q3" => { query_service = q3::query(table_input,&mut output_reader); },
-            "q5" => { query_service = q5::query(table_input,&mut output_reader); },
-            "q6" => { query_service = q6::query(table_input,&mut output_reader); },
-            "q10" => { query_service = q10::query(table_input,&mut output_reader); },
-            "q12" => { query_service = q12::query(table_input,&mut output_reader); },
-            "q14" => { query_service = q14::query(table_input,&mut output_reader); },
-            "q19" => { query_service = q19::query(table_input,&mut output_reader); },
+            // "q3" => { query_service = q3::query(table_input,&mut output_reader); },
+            // "q5" => { query_service = q5::query(table_input,&mut output_reader); },
+            // "q6" => { query_service = q6::query(table_input,&mut output_reader); },
+            // "q10" => { query_service = q10::query(table_input,&mut output_reader); },
+            // "q12" => { query_service = q12::query(table_input,&mut output_reader); },
+            // "q14" => { query_service = q14::query(table_input,&mut output_reader); },
+            // "q19" => { query_service = q19::query(table_input,&mut output_reader); },
             _ => panic!("Invalid Query Parameter")
         }
     } else {

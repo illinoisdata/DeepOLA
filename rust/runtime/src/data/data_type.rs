@@ -5,6 +5,8 @@ use std::fmt;
 use std::hash::Hasher;
 use std::str::FromStr;
 use std::str;
+use std::borrow::Cow;
+use std::ops::Deref;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
@@ -327,6 +329,11 @@ impl From<DataCell> for String {
     }
 }
 
+impl From<DataCell> for Cow<'static,DataCell> {
+    fn from(value: DataCell) -> Self {
+        Cow::Owned(value)
+    }
+}
 
 impl From<&str> for DataCell {
     fn from(value: &str) -> Self {

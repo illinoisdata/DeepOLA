@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(fc_data.len(), 6);
         assert_eq!(fc_data[0].len(), 5);
 
-        // expecting perfect prediction on later rows 
+        // expecting perfect prediction on later rows
         let expected_message = example_arrow_message(final_time as TimeType);
         let expected_data = expected_message.datablock().data();
         for _t in 2 .. final_time {
@@ -346,7 +346,7 @@ mod tests {
         assert_eq!(fc_data.len(), 3);
         assert_eq!(fc_data[0].len(), 5);
 
-        // expecting perfect prediction on later rows 
+        // expecting perfect prediction on later rows
         let expected_message = example_arrow_message_small(final_time as TimeType);
         let expected_data = expected_message.datablock().data();
         for _t in 2 .. mid_time {
@@ -361,7 +361,7 @@ mod tests {
         assert_eq!(fc_data.len(), 6);
         assert_eq!(fc_data[0].len(), 5);
 
-        // expecting perfect prediction on later rows 
+        // expecting perfect prediction on later rows
         let expected_message = example_arrow_message(final_time as TimeType);
         let expected_data = expected_message.datablock().data();
         for _t in mid_time + 1 .. final_time {
