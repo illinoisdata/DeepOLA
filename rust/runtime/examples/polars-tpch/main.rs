@@ -10,6 +10,7 @@ use std::env;
 
 mod utils;
 mod q1;
+mod q5;
 
 fn main() {
     env_logger::Builder::from_default_env()
@@ -37,6 +38,7 @@ fn main() {
     if query.len() != 0 {
         match query[0].as_str() {
             "q1" => { q1::query(table_input) },
+            "q5" => { q5::query(table_input) },
             // "q3" => { query_service = q3::query(table_input) },
             // "q5" => { query_service = q5::query(table_input) },
             // "q6" => { query_service = q6::query(table_input) },
