@@ -4,7 +4,7 @@ extern crate generator;
 pub mod channel;
 pub mod data;
 pub mod graph;
-pub mod operations;
+pub mod polars_operations;
 pub mod processor;
 pub mod benchmarks;
 pub mod forecast;
