@@ -9,6 +9,7 @@ use crate::data::DataBlock;
 use crate::data::DataCell;
 use crate::data::Schema;
 use crate::data::SCHEMA_META_NAME;
+use crate::forecast::cell::CellEstimator;
 use crate::forecast::cell::ForecastSelector;
 use crate::forecast::row::RowForecast;
 use crate::forecast::TimeType;
@@ -23,7 +24,18 @@ pub struct ForecastNode;
 
 impl ForecastNode {
     pub fn node(schema: &Schema, final_time: TimeType) -> ExecutionNode<ArrayRow> {
-        let data_processor = TableForecast::new_boxed(schema, final_time);
+        let data_processor = TableForecast::new(schema, final_time).boxed();
+        ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
+    }
+
+    pub fn with_estimator(
+        schema: &Schema,
+        final_time: TimeType,
+        make_estimator: EstimatorProducer,
+    ) -> ExecutionNode<ArrayRow> {
+        let data_processor = TableForecast::new(schema, final_time)
+            .with_estimator(make_estimator)
+            .boxed();
         ExecutionNode::<ArrayRow>::from_set_processor(data_processor)
     }
 }
@@ -32,6 +44,7 @@ impl ForecastNode {
 /* Table forecast mapper as set processor */
 
 pub type ForecastKey = u64;  // TODO: what's appropriate type?
+pub type EstimatorProducer = Box<dyn Fn() -> Box<dyn CellEstimator> + Send>;
 
 pub struct TableForecast {
     /*
@@ -42,6 +55,9 @@ pub struct TableForecast {
     key_columns: Vec<String>,  // TODO: auto-detect this
     values_columns: Vec<String>,  // TODO: auto-detect this
     final_time: TimeType,
+
+    // estimator
+    make_estimator: EstimatorProducer,
 
     // State of the forecast estimator per row
     row_states: RefCell<HashMap<ForecastKey, RowForecast>>,
@@ -55,13 +71,19 @@ impl TableForecast {
             key_columns,
             values_columns,
             final_time,
+            make_estimator: Box::new(ForecastSelector::make_with_default_candidates),
             row_states: RefCell::new(HashMap::new()),
             time_counter: RefCell::new(0.0),
         }
     }
 
-    pub fn new_boxed(schema: &Schema, final_time: TimeType) -> Box<dyn SetProcessorV1<ArrayRow>> {
-        Box::new(Self::new(schema, final_time))
+    pub fn with_estimator(mut self, make_estimator: EstimatorProducer) -> Self {
+        self.make_estimator = make_estimator;
+        self
+    }
+
+    pub fn boxed(self) -> Box<dyn SetProcessorV1<ArrayRow>> {
+        Box::new(self)
     }
 
     fn get_key_columns(&self) -> &[String] {
@@ -95,7 +117,7 @@ impl TableForecast {
       // TODO: should this be configurable?
       let mut row_forecast = RowForecast::default();
       for _forecast_column in &self.values_columns {
-        row_forecast.push_estimator(ForecastSelector::make_with_default_candidates());
+        row_forecast.push_estimator((self.make_estimator)());
       }
       row_forecast
     }

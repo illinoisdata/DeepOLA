@@ -226,6 +226,39 @@ impl CellForecast for AffineForecast {
 }
 
 
+/* Linear scaler */
+// Draw line from (0, 0) through last point and project to future
+
+#[derive(Default, Debug)]
+pub struct TailLinearEstimator {
+    last_t: TimeType,
+    last_v: ValueType,
+}
+
+impl TailLinearEstimator {
+    fn make_affine(&self) -> AffineForecast {
+        if self.last_v == 0.0 {
+            AffineForecast::new(0.0, 0.0)
+        } else {
+            AffineForecast::new(self.last_v / self.last_t, 0.0)
+        }
+    }
+}
+
+impl CellConsumer for TailLinearEstimator {
+    fn consume(&mut self, next_tv: &TimeValue) {
+        self.last_t = next_tv.t;
+        self.last_v = next_tv.v;
+    }
+}
+
+impl CellEstimator for TailLinearEstimator {
+    fn produce(&self) -> Box<dyn CellForecast> {
+        Box::new(self.make_affine())
+    }
+}
+
+
 /* Least-square affine estimator */
 // keep track of statistics to compute covariances and means
 // from https://stats.stackexchange.com/questions/23481
@@ -388,11 +421,24 @@ impl ForecastSelector {
         selector.include(Box::new(TailEstimator::default()));
         selector.include(Box::new(MeanEstimator::default()));
         selector.include(Box::new(SimpleExponentSmoothEstimator::with_base(0.75)));
+        selector.include(Box::new(TailLinearEstimator::default()));
         selector.include(Box::new(LeastSquareAffineEstimator::default()));
         selector.include(Box::new(AverageTrendAffineEstimator::with_tail()));
         selector.include(Box::new(AverageTrendAffineEstimator::with_mean()));
         selector.include(Box::new(AverageTrendAffineEstimator::with_ses(0.5)));
         Box::new(selector)
+    }
+
+    pub fn make_tail() -> Box<dyn CellEstimator> {
+        Box::new(TailEstimator::default())
+    }
+
+    pub fn make_linear_scale() -> Box<dyn CellEstimator> {
+        Box::new(TailLinearEstimator::default())
+    }
+
+    pub fn make_least_square() -> Box<dyn CellEstimator> {
+        Box::new(LeastSquareAffineEstimator::default())
     }
 }
 

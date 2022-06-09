@@ -15,6 +15,7 @@ use runtime::data::DATABLOCK_TOTAL_RECORDS;
 use runtime::data::DATABLOCK_TYPE;
 use runtime::data::DATABLOCK_TYPE_DM;
 use runtime::data::SCHEMA_META_NAME;
+use runtime::forecast::cell::ForecastSelector;
 use runtime::forecast::table::ForecastNode;
 use runtime::graph::ExecutionNode;
 use runtime::graph::ExecutionService;
@@ -39,6 +40,10 @@ pub struct Cli {
     /// path to final answer
     #[structopt(long)]
     final_answer_path: String,
+
+    /// forecaster method name
+    #[structopt(long)]
+    forecast_by: String,
 }
 
 fn select_schema(schema_name: &str) -> Schema {
@@ -136,12 +141,31 @@ fn attach_forecast(
     dataset_node: &ExecutionNode<ArrayRow>,
     metadata: Metadata,
     final_time: usize,
+    forecast_by: &str,
 ) -> ExecutionNode<ArrayRow> {
     let input_schema = metadata
         .get(SCHEMA_META_NAME)
         .unwrap()
         .to_schema();
-    let forecast_node = ForecastNode::node(input_schema, final_time as f64);
+    let forecast_node = match forecast_by {
+        "default" | "" => ForecastNode::node(input_schema, final_time as f64),
+        "tail" => ForecastNode::with_estimator(
+            input_schema,
+            final_time as f64,
+            Box::new(ForecastSelector::make_tail),
+        ),
+        "linear_scale" => ForecastNode::with_estimator(
+            input_schema,
+            final_time as f64,
+            Box::new(ForecastSelector::make_linear_scale),
+        ),
+        "least_square" => ForecastNode::with_estimator(
+            input_schema,
+            final_time as f64,
+            Box::new(ForecastSelector::make_least_square),
+        ),
+        _ => panic!("Invalid forecast_by= {}", forecast_by),
+    };
     forecast_node.subscribe_to_node(dataset_node, 0);
     forecast_node
 }
@@ -230,7 +254,7 @@ fn do_test(args: &Cli) {
     // setup executation nodes
     let mut service = ExecutionService::<ArrayRow>::create();
     let (dataset_node, metadata) = read_csv(args);
-    let forecast_node = attach_forecast(&dataset_node, metadata, args.series_n);
+    let forecast_node = attach_forecast(&dataset_node, metadata, args.series_n, &args.forecast_by);
     let reader_node = NodeReader::new(&forecast_node);
     service.add(dataset_node);
     service.add(forecast_node);
