@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
 
-    use std::sync::{mpsc::channel, Arc};
+    use std::sync::mpsc::channel;
     use std::thread;
 
     use polars::prelude::{NamedFrom, Series};
