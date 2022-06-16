@@ -4,7 +4,8 @@ use criterion::{Criterion, Throughput};
 use std::path::Path;
 use std::str;
 use runtime::data::*;
-use runtime::operations::*;
+use runtime::polars_operations::*;
+use polars::prelude::*;
 
 fn deepola_csvreader_lineitem(c: &mut Criterion) {
     let mut group = c.benchmark_group("CSVReaderNode Throughput (LineItem; 1 million rows)");
@@ -14,19 +15,19 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(path.metadata().unwrap().len() as u64));
         group.sample_size(10);
         // Create a CSV Node with this scale
-        let batch_size = 100_000;
         let input_vec = vec![
-            ArrayRow::from_vector(vec![DataCell::from(filename.clone())])
+            polars::prelude::Series::new("input_files",&[filename]),
         ];
+
         // Metadata for DataBlock
-        let lineitem_schema = Schema::from_example("lineitem").unwrap();
+        let lineitem_schema = runtime::data::Schema::from_example("lineitem").unwrap();
         let mut metadata = MetaCell::Schema(lineitem_schema.clone()).into_meta_map();
         *metadata.entry(DATABLOCK_TOTAL_RECORDS.to_string()).or_insert(MetaCell::Float(0.0)) = MetaCell::Float(1_000_000.0);
         let dblock = DataBlock::new(input_vec, metadata);
 
         group.bench_function("deepola_csvreader", |b| {
             b.iter(|| {
-                let csvreader = CSVReaderNode::new_with_params(batch_size, '|', false, vec![]);
+                let csvreader = CSVReaderNode::new_with_params('|', false, vec![]);
                 csvreader.write_to_self(0, DataMessage::from(dblock.clone()));
                 csvreader.write_to_self(0, DataMessage::eof());
                 csvreader.run();

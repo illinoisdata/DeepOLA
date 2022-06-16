@@ -26,18 +26,10 @@ uuid = { version = "0.8", features = ["v4"] }
 jemallocator = "0.3.2"
 polars = "0.22.0"
 
-[profile.release]
-lto = "fat"
-codegen-units = 1
-
 [dev-dependencies]
 ctor = "0.1.21"
 env_logger = "0.9.0"
 criterion = "0.3.5"
-
-[[bench]]
-name = "inner_join"
-harness = false
 
 [[bench]]
 name = "arithmetic"
@@ -46,20 +38,3 @@ harness = false
 [[bench]]
 name = "csvreader"
 harness = false
-
-[[bench]]
-name = "groupby"
-harness = false
-
-[[bench]]
-name = "hash_join"
-harness = false
-
-[[bench]]
-name = "where_filter"
-harness = false
-
-[[bench]]
-name = "forecast_cell"
-harness = false
-

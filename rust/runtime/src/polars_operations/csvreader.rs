@@ -150,7 +150,7 @@ mod tests {
 
         // The CSV files that we want to be read by this node => data for DataBlock.
         let input_vec = vec![
-            Series::new("input_files",&["src/resources/lineitem-100.csv","src/resources/lineitem-100.csv"]),
+            polars::prelude::Series::new("input_files",&["src/resources/lineitem-100.csv","src/resources/lineitem-100.csv"]),
         ];
 
         // Metadata for DataBlock
