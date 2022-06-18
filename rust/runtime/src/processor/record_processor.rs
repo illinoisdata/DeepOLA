@@ -1,8 +1,6 @@
-use generator::{Generator, Gn};
-
 use crate::data::DataBlock;
 
-use super::set_processor::SetProcessorV1;
+use super::set_processor::SetProcessorV2;
 
 /// Processes a set of dataset in a stateless manner.
 pub struct SimpleMapper<T> {
@@ -23,19 +21,29 @@ where
 
 unsafe impl<T> Send for SimpleMapper<T> {}
 
-impl<T: Send> SetProcessorV1<T> for SimpleMapper<T> {
-    fn process_v1<'a>(&'a self, input_set: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>> {
-        Gn::new_scoped(move |mut s| {
-            let mut records: Vec<T> = vec![];
-            for r in input_set.data().iter() {
-                if let Some(a) = (*self.record_map)(r) { records.push(a) }
-            }
-            let message = DataBlock::from(records);
-            s.yield_(message);
-            done!();
-        })
+impl<T: Send> SetProcessorV2<T> for SimpleMapper<T> {
+    fn process_v1(&self, input_set: &DataBlock<T>) -> DataBlock<T> {
+        let mut records: Vec<T> = vec![];
+        for r in input_set.data().iter() {
+            if let Some(a) = (*self.record_map)(r) { records.push(a) }
+        }
+        DataBlock::from(records)
     }
 }
+
+// impl<T: Send> SetProcessorV1<T> for SimpleMapper<T> {
+//     fn process_v1<'a>(&'a self, input_set: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>> {
+//         Gn::new_scoped(move |mut s| {
+//             let mut records: Vec<T> = vec![];
+//             for r in input_set.data().iter() {
+//                 if let Some(a) = (*self.record_map)(r) { records.push(a) }
+//             }
+//             let message = DataBlock::from(records);
+//             s.yield_(message);
+//             done!();
+//         })
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -56,16 +64,11 @@ mod tests {
             ))
         });
         let in_dblock = DataBlock::from(kv_set);
-        let out_dblocks = mapper.process_v1(&in_dblock);
-        let mut checked = false;
-        for out_dblock in out_dblocks {
-            let result = out_dblock.data();
-            checked = true;
-            assert_eq!(result.len(), 1);
-            assert_eq!(result[0].key(), &"mykey".to_string());
-            assert_eq!(result[0].value(), &"hello illinois".to_string());
-        }
-        assert_eq!(checked, true);
+        let out_dblock = mapper.process_v1(&in_dblock);
+        let result = out_dblock.data();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].key(), &"mykey".to_string());
+        assert_eq!(result[0].value(), &"hello illinois".to_string());
     }
 
     #[test]
@@ -78,7 +81,7 @@ mod tests {
 
     #[test]
     fn can_send() {
-        let set_processor: Box<dyn SetProcessorV1<String>> =
+        let set_processor: Box<dyn SetProcessorV2<String>> =
             Box::new(SimpleMapper::<String>::from(|r: &String| Some(r.clone())));
         thread::spawn(move || {
             // having `drop` prevents warning.
