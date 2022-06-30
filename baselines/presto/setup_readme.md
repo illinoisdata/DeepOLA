@@ -1,10 +1,36 @@
-<p>Before using Presto make sure to start up Hive Metastore with the following command:</p>
+<h2>This guide assumes you have already got presto working with metastore. If not, please do that first</h2>
+
+<h2>Before using Presto make sure to start up Hive Metastore with the following command:</h2>
 
 ```
 hive --service metastore &
 ```
 
-To create the data do the following:
+
+<h2> Add the following two properties into hive-site.xml (Not sure if this makes a difference): </h2>
+
+```
+<property>
+        <name>hive.cache.enabled</name>
+        <value>false</value>
+</property>
+<property>
+        <name>hive.query.results.cache.enabled</name>
+        <value>false</value>
+</property>
+```
+
+<h2>When setting up presto make sure to change the following things in order to have enough memory to run the queries:</h2>
+- in `config.properties` replace the current 2 properties with 
+
+```
+query.max-memory=60GB
+query.max-memory-per-node=10GB
+```
+
+- in `jvm.config` replace the Xmx propery with  `-Xmx60G`
+
+<h2>To create the data do the following:</h2>
 - Download dbgen by running `git clone https://github.com/electrum/tpch-dbgen.git` in the terminal
 - edit the makefile.suite with the following values:
 
@@ -19,8 +45,7 @@ WORKLOAD=TPCH
 - Go to the directory you want to make the data in and copy the `dbgen` and `dists.dss` file into this directory
 - Run `./dbgen -s NUMBER` where NUMBER is just the size of the dataset. For example, for 10gb run `./dbgen -s 10`
 
-
-<p>First create a directory in HDFS called tpch_data. To load the data into HDFS run the following commands in the terminal</p>
+<h2>First create a directory in HDFS called tpch_data. To load the data into HDFS run the following commands in the terminal</h2>
 
 ```
 hdfs dfs -put customer.tbl /tpch_data
@@ -33,7 +58,7 @@ hdfs dfs -put region.tbl /tpch_data
 hdfs dfs -put supplier.tbl /tpch_data
 ```
 
-<p>To set up the Database on HDFS, I used the following DDL Commands to create the tables in Hive </p>
+<h2>Switch into your database in hive and use the following DDL Commands to create the tables </h2>
 
 ```
 CREATE EXTERNAL TABLE CUSTOMER (
@@ -155,7 +180,7 @@ l_comment     VARCHAR(44),
 l_dummy       VARCHAR(10))
 ROW FORMAT DELIMITED FIELDS TERMINATED BY '|';
 ```
-<p> Then to load the tables with the data in HDFS, run the following commands </p>
+<h2> Then to load the tables with the data in HDFS, run the following commands </h2>
 
 ```
 LOAD DATA INPATH '/tpch_data/customer.tbl' INTO TABLE CUSTOMER;
@@ -167,3 +192,4 @@ LOAD DATA INPATH '/tpch_data/partsupp.tbl' INTO TABLE partsupp;
 LOAD DATA INPATH '/tpch_data/orders.tbl' INTO TABLE orders;
 LOAD DATA INPATH '/tpch_data/lineitem.tbl' INTO TABLE lineitem;
 ```
+<h2> Now run the runPrestoQuery.sh script and it should run all 22 queries 10 times and put the resulting runtimes into a file called timeFile </h2>
