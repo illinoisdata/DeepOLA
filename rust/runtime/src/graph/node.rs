@@ -57,7 +57,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
         (&self.self_writers[seq_no]).clone()
     }
 
-    pub fn set_data_processor(&mut self, processor: Box<dyn SetProcessorV1<T>>) {
+    pub fn set_data_processor(&mut self, processor: Box<dyn SetProcessorV2<T>>) {
         let stream_processor = SimpleStreamProcessor::<T>::from(processor);
         self.stream_processor = Box::new(stream_processor);
     }
@@ -117,7 +117,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
     ///
     /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs
     /// a possibly empty set of T (which is again `Vec<T>`).
-    pub fn from_set_processor(data_processor: Box<dyn SetProcessorV1<T>>) -> Self {
+    pub fn from_set_processor(data_processor: Box<dyn SetProcessorV2<T>>) -> Self {
         let stream_processor = SimpleStreamProcessor::<T>::from(data_processor);
         Self::new(Box::new(stream_processor), 1)
     }

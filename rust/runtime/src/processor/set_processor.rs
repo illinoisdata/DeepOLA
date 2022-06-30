@@ -42,6 +42,32 @@ pub trait SetProcessorV1<T: Send>: Send {
     }
 }
 
+pub trait SetProcessorV2<T: Send>: Send {
+    fn process_v1(&self, dblock: &DataBlock<T>) -> DataBlock<T>;
+
+    // Default implementation duplicates the schema.
+    fn _build_output_schema(&self, input_schema: &Schema) -> Schema {
+        input_schema.clone()
+    }
+
+    // Get input schema.
+    fn _get_input_schema(&self, input_metadata: &HashMap<String,MetaCell>) -> Schema {
+        input_metadata.get(SCHEMA_META_NAME).unwrap().to_schema().clone()
+    }
+
+    // Default implementation copies the data for the standard fields.
+    fn _build_output_metadata(&self, input_metadata: &HashMap<String,MetaCell>) -> HashMap<String,MetaCell> {
+        let input_schema = input_metadata.get(SCHEMA_META_NAME).unwrap().to_schema();
+        let output_schema = self._build_output_schema(input_schema);
+        let output_metadata = HashMap::from([
+            (SCHEMA_META_NAME.into(), MetaCell::from(output_schema)),
+            (DATABLOCK_TYPE.into(), input_metadata.get(DATABLOCK_TYPE).unwrap().clone()),
+            (DATABLOCK_CARDINALITY.into(), input_metadata.get(DATABLOCK_CARDINALITY).unwrap().clone())
+        ]);
+        output_metadata
+    }
+}
+
 /// SetMultiProcessor is an interface for ExecutionNode
 /// where you have to perform node pre-computation on specific input streams
 /// before streaming from another channel.
@@ -75,10 +101,10 @@ pub trait SetMultiProcessor<T: Send>: Send {
 }
 
 
-/// A wrapper for SetProcessorV1 to support StreamProcessor.
+/// A wrapper for SetProcessorV2 to support StreamProcessor.
 /// Hnadles a single input channel.
 pub struct SimpleStreamProcessor<T: Send> {
-    set_processor: Box<dyn SetProcessorV1<T>>,
+    set_processor: Box<dyn SetProcessorV2<T>>,
 }
 
 impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
@@ -102,10 +128,8 @@ impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
                         None => 0.0,
                     };
                     log::debug!("Channel: {} read Schema Name: {} with Cardinality: {:.2}", channel_id, input_schema_table, input_cardinality);
-                    let generator = self.set_processor.process_v1(&dblock);
-                    for dblock in generator {
-                        output_stream.write(DataMessage::<T>::from(dblock));
-                    }
+                    let output_dblock = self.set_processor.process_v1(&dblock);
+                    output_stream.write(DataMessage::<T>::from(output_dblock));
                 }
                 Payload::EOF => {
                     output_stream.write(message);
@@ -117,8 +141,8 @@ impl<T: Send> StreamProcessor<T> for SimpleStreamProcessor<T> {
     }
 }
 
-impl<T: Send> From<Box<dyn SetProcessorV1<T>>> for SimpleStreamProcessor<T> {
-    fn from(set_processor: Box<dyn SetProcessorV1<T>>) -> Self {
+impl<T: Send> From<Box<dyn SetProcessorV2<T>>> for SimpleStreamProcessor<T> {
+    fn from(set_processor: Box<dyn SetProcessorV2<T>>) -> Self {
         SimpleStreamProcessor { set_processor }
     }
 }

@@ -1,5 +1,3 @@
-use generator::Generator;
-use generator::Gn;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -14,7 +12,7 @@ use crate::forecast::row::RowForecast;
 use crate::forecast::TimeType;
 use crate::forecast::ValueType;
 use crate::graph::ExecutionNode;
-use crate::processor::SetProcessorV1;
+use crate::processor::SetProcessorV2;
 
 
 /* Execution node */
@@ -60,7 +58,7 @@ impl TableForecast {
         }
     }
 
-    pub fn new_boxed(schema: &Schema, final_time: TimeType) -> Box<dyn SetProcessorV1<ArrayRow>> {
+    pub fn new_boxed(schema: &Schema, final_time: TimeType) -> Box<dyn SetProcessorV2<ArrayRow>> {
         Box::new(Self::new(schema, final_time))
     }
 
@@ -114,59 +112,53 @@ impl TableForecast {
     }
 }
 
-impl SetProcessorV1<ArrayRow> for TableForecast {
-    fn process_v1<'a>(
-        &'a self,
-        input_set: &'a DataBlock<ArrayRow>,
-    ) -> Generator<'a, (), DataBlock<ArrayRow>> {
-        Gn::new_scoped(move |mut s| {
-            // HACK: step time forward
-            {
-                // TODO: feed this from data block
-                let mut t = self.time_counter.borrow_mut();
-                *t += 1.0;
-            }
+impl SetProcessorV2<ArrayRow> for TableForecast {
+    fn process_v1(
+        &self,
+        input_set: &DataBlock<ArrayRow>,
+    ) -> DataBlock<ArrayRow> {
+        // HACK: step time forward
+        // TODO: feed this from data block
+        let mut t = self.time_counter.borrow_mut();
+        *t += 1.0;
 
-            // Build output schema metadata
-            let input_schema = input_set
-                .metadata()
-                .get(SCHEMA_META_NAME)
-                .unwrap()
-                .to_schema();
-            let key_indexes: Vec<usize> = self.get_key_columns()
-                .iter()
-                .map(|column| input_schema.index(column))
-                .collect();
-            let value_indexes: Vec<usize> = self.get_values_columns()
-                .iter()
-                .map(|column| input_schema.index(column))
-                .collect();
+        // Build output schema metadata
+        let input_schema = input_set
+            .metadata()
+            .get(SCHEMA_META_NAME)
+            .unwrap()
+            .to_schema();
+        let key_indexes: Vec<usize> = self.get_key_columns()
+            .iter()
+            .map(|column| input_schema.index(column))
+            .collect();
+        let value_indexes: Vec<usize> = self.get_values_columns()
+            .iter()
+            .map(|column| input_schema.index(column))
+            .collect();
 
-            // run through and forecast each target cell
-            let output_records = input_set.data().iter()
-                .map(|record| {
-                    // extract keys (to select row state) and values (to train and predict)
-                    let record_key = self.extract_key(record.slice_indices(&key_indexes));
-                    let record_values = self.extract_value(
-                        record.slice_indices(&value_indexes));
+        // run through and forecast each target cell
+        let output_records = input_set.data().iter()
+            .map(|record| {
+                // extract keys (to select row state) and values (to train and predict)
+                let record_key = self.extract_key(record.slice_indices(&key_indexes));
+                let record_values = self.extract_value(
+                    record.slice_indices(&value_indexes));
 
-                    // train and predict on corresponding row state
-                    let forecast_values = self.fit_transform(record_key, record_values);
+                // train and predict on corresponding row state
+                let forecast_values = self.fit_transform(record_key, record_values);
 
-                    // copy forecast values
-                    let mut new_record = record.clone();
-                    for (forecast_idx, value_idx) in value_indexes.iter().enumerate() {
-                        new_record[*value_idx] = DataCell::from(forecast_values[forecast_idx]);
-                    }
-                    new_record
-                })
-                .collect();
+                // copy forecast values
+                let mut new_record = record.clone();
+                for (forecast_idx, value_idx) in value_indexes.iter().enumerate() {
+                    new_record[*value_idx] = DataCell::from(forecast_values[forecast_idx]);
+                }
+                new_record
+            })
+            .collect();
 
-            // compose message and yield
-            let message = DataBlock::new(output_records, input_set.metadata().clone());
-            s.yield_(message);
-            done!();
-        })
+        // compose message and yield
+        DataBlock::new(output_records, input_set.metadata().clone())
     }
 }
 
@@ -309,7 +301,7 @@ mod tests {
         assert_eq!(fc_data.len(), 6);
         assert_eq!(fc_data[0].len(), 5);
 
-        // expecting perfect prediction on later rows 
+        // expecting perfect prediction on later rows
         let expected_message = example_arrow_message(final_time as TimeType);
         let expected_data = expected_message.datablock().data();
         for _t in 2 .. final_time {
@@ -346,7 +338,7 @@ mod tests {
         assert_eq!(fc_data.len(), 3);
         assert_eq!(fc_data[0].len(), 5);
 
-        // expecting perfect prediction on later rows 
+        // expecting perfect prediction on later rows
         let expected_message = example_arrow_message_small(final_time as TimeType);
         let expected_data = expected_message.datablock().data();
         for _t in 2 .. mid_time {
@@ -361,7 +353,7 @@ mod tests {
         assert_eq!(fc_data.len(), 6);
         assert_eq!(fc_data[0].len(), 5);
 
-        // expecting perfect prediction on later rows 
+        // expecting perfect prediction on later rows
         let expected_message = example_arrow_message(final_time as TimeType);
         let expected_data = expected_message.datablock().data();
         for _t in mid_time + 1 .. final_time {
