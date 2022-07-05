@@ -1,4 +1,5 @@
-<h2>This guide assumes you have already got presto working with metastore. If not, please do that first</h2>
+<h2>This guide assumes you have already got presto working with metastore. If not, please do that first using the following link </h2>
+<h3>https://github.com/illinoisdata/labwiki/wiki/Setting-up-a-Presto-cluster </h3>
 
 <h2>Before using Presto make sure to start up Hive Metastore with the following command:</h2>
 
