@@ -1,7 +1,6 @@
 #Update accordingly
 MY_DIR='/home/aravmc2/hadoop'
 QUERY_FILE='/home/aravmc2/DeepOLA/baselines/presto/queries'
-queryNum=1
 
 for FILE in $QUERY_FILE/*; 
 do
@@ -20,5 +19,4 @@ do
 
         unset TIMEFORMAT;
     done
-    let queryNum=queryNum+1;
 done
