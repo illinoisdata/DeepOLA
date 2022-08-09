@@ -1,6 +1,5 @@
 use getset::Getters;
-use std::{sync::Arc, collections::HashMap, fmt::Debug, ops::Index};
-use std::fmt;
+use std::{sync::Arc, collections::HashMap, fmt::Debug};
 
 use super::{SCHEMA_META_NAME, Schema, MetaCell};
 
@@ -69,7 +68,7 @@ impl Clone for Signal {
 /// since the `data` field contains `Arc`.
 #[derive(Getters, PartialEq)]
 pub struct DataBlock<T> {
-    data: Arc<Vec<T>>,
+    data: Arc<T>,
 
     #[getset(get = "pub")]
     metadata: HashMap<String, MetaCell>,
@@ -83,74 +82,28 @@ impl<T> Clone for DataBlock<T> {
 
 impl<T> DataBlock<T> {
     /// Public constructor.
-    pub fn new(data: Vec<T>, metadata: HashMap<String, MetaCell>) -> Self {
+    pub fn new(data: T, metadata: HashMap<String, MetaCell>) -> Self {
         DataBlock { data: Arc::new(data), metadata}
     }
 
-    pub fn data(&self) -> &Vec<T> {
+    pub fn data(&self) -> &T {
         self.data.as_ref()
     }
 
     pub fn schema(&self) -> &Schema {
         self.metadata().get(SCHEMA_META_NAME).unwrap().to_schema()
     }
-
-    pub fn len(&self) -> usize {
-        self.data().len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.data().is_empty()
-    }
 }
 
-impl<T> From<Vec<T>> for DataBlock<T> {
-    fn from(data: Vec<T>) -> Self {
+impl<T> From<T> for DataBlock<T> {
+    fn from(data: T) -> Self {
         Self::new(data, HashMap::new())
-    }
-}
-
-impl<T> Index<usize> for DataBlock<T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.data()[index]
     }
 }
 
 impl<T> Debug for DataBlock<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DataBlock").field("count", &self.data.len()).finish()
-    }
-}
-
-impl<ArrayRow: std::fmt::Display> fmt::Display for DataBlock<ArrayRow> {
-    // This trait requires `fmt` with this exact signature.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Write strictly the first element into the supplied output
-        // stream: `f`. Returns `fmt::Result` which indicates whether the
-        // operation succeeded or failed. Note that `write!` uses syntax which
-        // is very similar to `println!`.
-
-        // Print output
-        let schema = self.metadata.get(SCHEMA_META_NAME)
-        .unwrap()
-        .to_schema();
-
-        for col in schema.columns.clone() {
-            write!(f, "{} | ", col.name).expect("Error displaying DataBlock");
-        }
-        writeln!(f).expect("Error displaying DataBlock");
-        let mut ct = 0;
-        for row in self.data() {
-            ct += 1;
-            write!(f, "{}", row).expect("Error displaying DataBlock");
-            if ct >= 20 {
-                writeln!(f, "Displayed 20 rows out of {} rows", self.data().len()).expect("Error displaying DataBlock");
-                break;
-            }
-        }
-        write!(f,"Table Output")
+        f.debug_struct("DataBlock").finish()
     }
 }
 

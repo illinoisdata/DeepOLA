@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main};
-use runtime::data::DataCell;
 use criterion::{Criterion, Throughput};
 use std::path::Path;
 use std::str;
@@ -15,20 +14,20 @@ fn deepola_csvreader_lineitem(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(path.metadata().unwrap().len() as u64));
         group.sample_size(10);
         // Create a CSV Node with this scale
-        let input_vec = vec![
-            polars::prelude::Series::new("input_files",&[filename]),
-        ];
-
+        let input_df = df!(
+            "a" => &[filename],
+        ).unwrap();
+        
         // Metadata for DataBlock
         let lineitem_schema = runtime::data::Schema::from_example("lineitem").unwrap();
         let mut metadata = MetaCell::Schema(lineitem_schema.clone()).into_meta_map();
         *metadata.entry(DATABLOCK_TOTAL_RECORDS.to_string()).or_insert(MetaCell::Float(0.0)) = MetaCell::Float(1_000_000.0);
-        let dblock = DataBlock::new(input_vec, metadata);
 
         group.bench_function("deepola_csvreader", |b| {
             b.iter(|| {
-                let csvreader = CSVReaderNode::new_with_params('|', false, vec![]);
-                csvreader.write_to_self(0, DataMessage::from(dblock.clone()));
+                let csvreader = CSVReaderBuilder::new()
+                    .delimiter('|').has_headers(false).build();
+                csvreader.write_to_self(0, DataMessage::from(input_df.clone()));
                 csvreader.write_to_self(0, DataMessage::eof());
                 csvreader.run();
             });

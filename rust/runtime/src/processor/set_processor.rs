@@ -1,3 +1,5 @@
+/// Deprecated
+
 use generator::Generator;
 use std::collections::HashMap;
 
