@@ -5,6 +5,11 @@ use crate::{channel::{MultiChannelBroadcaster, MultiChannelReader}, data::{Paylo
 /// Stream-processes input data and writes output to the output channel. Assumed to
 /// process until we consume all data from input_stream.
 pub trait StreamProcessor<T: Send>: Send {
+    /// This function is called before processing actual data. Useful to support the case where
+    /// a node needs pre-processing in advance.
+    fn preproces(&mut self) {}
+
+    /// This function actually processes data.
     fn process(
         &self,
         input_stream: MultiChannelReader<T>,
