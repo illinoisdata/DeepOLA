@@ -1,3 +1,4 @@
+// This sub-library is no longer maintained; will be substituted by polars_operations
 mod joiner;
 mod csvreader;
 mod groupby;

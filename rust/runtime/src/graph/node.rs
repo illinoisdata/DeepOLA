@@ -42,6 +42,13 @@ impl<T: Send> Subscribable<T> for ExecutionNode<T> {
     }
 }
 
+/// Convenience method for creating ExecutionNode from a simple mapper.
+impl<T: Send + 'static> From<SimpleMapper<T>> for ExecutionNode<T> {
+    fn from(simple_mapper: SimpleMapper<T>) -> Self {
+        ExecutionNode::<T>::new(Box::new(simple_mapper), 1)
+    }
+}
+
 impl<T: Send + 'static> ExecutionNode<T> {
     /// Obtains a clone of self_writer. A caller of this method can then write messages to
     /// this node using the obtained writer. This is useful for testing. Why not simply use
@@ -57,13 +64,13 @@ impl<T: Send + 'static> ExecutionNode<T> {
         (&self.self_writers[seq_no]).clone()
     }
 
-    pub fn set_data_processor(&mut self, processor: Box<dyn SetProcessorV2<T>>) {
-        let stream_processor = SimpleStreamProcessor::<T>::from(processor);
-        self.stream_processor = Box::new(stream_processor);
-    }
+    // pub fn set_data_processor(&mut self, processor: Box<dyn SetProcessorV2<T>>) {
+    //     let stream_processor = SimpleStreamProcessor::<T>::from(processor);
+    //     self.stream_processor = Box::new(stream_processor);
+    // }
 
     pub fn set_simple_map(&mut self, map: SimpleMapper<T>) {
-        self.set_data_processor(Box::new(map));
+        self.stream_processor = Box::new(map);
     }
 
     /// This is a convenience method mostly for testing. That is, we directly write a record
@@ -79,6 +86,10 @@ impl<T: Send + 'static> ExecutionNode<T> {
     }
 
     /// Processes the data from input stream until we see EOF from all input channels.
+    /// 
+    /// This is the primary method used by ExecutionService to start all the nodes.
+    /// 
+    /// Caution: If eof is not passed, a node may run indefinitely, waiting for messages.
     pub fn run(&self) {
         log::debug!("Starting Node: {}",self.node_id);
         let input_reader = self.input_reader.borrow();
@@ -104,27 +115,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
     }
 
     pub fn create() -> Self {
-        Self::create_with_record_mapper(SimpleMapper::<T>::from(|_: &T| None))
-    }
-
-    /// Convenience method for creating Self from a record mapper. One way is to pass
-    /// `SimpleMapper::from_lambda( any closure function )`.
-    pub fn create_with_record_mapper(mapper: SimpleMapper<T>) -> Self {
-        Self::from_set_processor(Box::new(mapper))
-    }
-
-    /// A general factory constructor.
-    ///
-    /// Takes a set process, which processes a set of T (i.e., `Vec<T>`) and outputs
-    /// a possibly empty set of T (which is again `Vec<T>`).
-    pub fn from_set_processor(data_processor: Box<dyn SetProcessorV2<T>>) -> Self {
-        let stream_processor = SimpleStreamProcessor::<T>::from(data_processor);
-        Self::new(Box::new(stream_processor), 1)
-    }
-
-    pub fn from_right_complete_processor(data_processor: Box<dyn SetMultiProcessor<T>>, num_channels: usize) -> Self {
-        let stream_processor = RightCompleteProcessor::<T>::from(data_processor);
-        Self::new(Box::new(stream_processor), num_channels)
+        Self::from(SimpleMapper::<T>::from(|_: &T| None))
     }
 
     pub fn new_single_input(stream_processor: Box<dyn StreamProcessor<T>>) -> Self {
@@ -135,6 +126,10 @@ impl<T: Send + 'static> ExecutionNode<T> {
         Self::new(stream_processor, 2)
     }
 
+    /// Creates a new instance from stream_processor, which processes the inputs from
+    /// num_input input channels.
+    /// 
+    /// @arg num_input The number of input channels
     pub fn new(stream_processor: Box<dyn StreamProcessor<T>>, num_input: usize) -> Self {
         let mut input_channels = MultiChannelReader::<T>::new();
         let mut self_writers = vec![];
@@ -151,20 +146,6 @@ impl<T: Send + 'static> ExecutionNode<T> {
             output_writer: RefCell::new(MultiChannelBroadcaster::<T>::new()),
             node_id: nanoid!(NODE_ID_LEN, &NODE_ID_ALPHABET),
         }
-    }
-}
-
-impl<T: Send + 'static> From<Box<dyn SetMultiProcessor<T>>> for ExecutionNode<T> {
-    fn from(data_processor: Box<dyn SetMultiProcessor<T>>) -> Self {
-        let stream_processor = RightCompleteProcessor::<T>::from(data_processor);
-        Self::new(Box::new(stream_processor), 1)
-    }
-}
-
-impl<T: Send + 'static> From<(Box<dyn SetMultiProcessor<T>>,usize)> for ExecutionNode<T> {
-    fn from(input: (Box<dyn SetMultiProcessor<T>>,usize)) -> Self {
-        let stream_processor = RightCompleteProcessor::<T>::from(input.0);
-        Self::new(Box::new(stream_processor), input.1)
     }
 }
 
@@ -214,11 +195,11 @@ mod tests {
 
     #[test]
     fn can_create_node() {
-        let node = ExecutionNode::create();
+        let node = ExecutionNode::<KeyValueList>::create();
         let node_reader = NodeReader::new(&node);
-        node.write_to_self(0, DataMessage::from_single(KeyValue::from_str(
-            "mykey", "hello",
-        )));
+        node.write_to_self(0, DataMessage::from_single(
+            KeyValueList::from(KeyValue::from_str("mykey", "hello")))
+        );
         node.write_to_self(0, DataMessage::eof());
         node.run();
         node_reader.read();
@@ -311,9 +292,7 @@ mod tests {
 
         let out_msg = reader_node.read().payload();
         if let Payload::Some(data_arc) = out_msg {
-            let data = data_arc.data();
-            assert_eq!(data.len(), 1);
-            let kv = &data[0];
+            let kv = data_arc.data();
             assert_eq!(kv.key(), &"mykey".to_string());
             assert_eq!(
                 kv.value(),

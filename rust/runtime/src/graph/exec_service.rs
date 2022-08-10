@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn stop_given_eof() {
         let node =
-            ExecutionNode::create_with_record_mapper(SimpleMapper::from(|r: &String| {
+            ExecutionNode::from(SimpleMapper::from(|r: &String| {
                 Some(r.clone() + "X")
             }));
         let self_writer = node.self_writer(0);

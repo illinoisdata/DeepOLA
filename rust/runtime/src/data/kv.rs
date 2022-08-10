@@ -1,5 +1,23 @@
 use getset::Getters;
 
+#[derive(Getters)]
+pub struct KeyValueList {
+    #[getset(get = "pub")]
+    data: Vec<KeyValue>,
+}
+
+impl KeyValueList {
+    pub fn new(data: Vec<KeyValue>) -> Self {
+        KeyValueList { data }
+    }
+}
+
+impl From<KeyValue> for KeyValueList {
+    fn from(kv: KeyValue) -> Self {
+        KeyValueList::new(vec![kv])
+    }
+}
+
 #[derive(Getters, Debug, Clone)]
 pub struct KeyValue {
     #[getset(get = "pub")]

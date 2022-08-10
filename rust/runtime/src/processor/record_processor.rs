@@ -4,7 +4,7 @@ use super::set_processor::SetProcessorV2;
 
 /// Processes a set of dataset in a stateless manner.
 pub struct SimpleMapper<T> {
-    record_map: Box<dyn Fn(&T) -> Option<T>>,
+    data_map: Box<dyn Fn(&T) -> Option<T>>,
 }
 
 impl<T: Send, F> From<F> for SimpleMapper<T>
@@ -14,22 +14,24 @@ where
     /// Constructor from a closure
     fn from(record_map: F) -> Self {
         SimpleMapper {
-            record_map: Box::new(record_map),
+            data_map: Box::new(record_map),
         }
     }
 }
 
 unsafe impl<T> Send for SimpleMapper<T> {}
 
-impl<T: Send> SetProcessorV2<T> for SimpleMapper<T> {
-    fn process_v1(&self, input_set: &DataBlock<T>) -> DataBlock<T> {
-        let mut records: Vec<T> = vec![];
-        for r in input_set.data().iter() {
-            if let Some(a) = (*self.record_map)(r) { records.push(a) }
-        }
-        DataBlock::from(records)
-    }
-}
+
+
+// impl<T: Send> SetProcessorV2<T> for SimpleMapper<T> {
+//     fn process_v1(&self, input_set: &DataBlock<T>) -> DataBlock<T> {
+//         let mut records: Vec<T> = vec![];
+//         for r in input_set.data().iter() {
+//             if let Some(a) = (*self.data_map)(r) { records.push(a) }
+//         }
+//         DataBlock::from(records)
+//     }
+// }
 
 // impl<T: Send> SetProcessorV1<T> for SimpleMapper<T> {
 //     fn process_v1<'a>(&'a self, input_set: &'a DataBlock<T>) -> Generator<'a, (), DataBlock<T>> {

@@ -4,11 +4,5 @@
 /// implements StreamProcessor<T>.
 
 mod stream_processor;
-mod set_processor;
-mod record_processor;
-mod right_complete_processor;
 
 pub use stream_processor::*;
-pub use set_processor::*;
-pub use record_processor::*;
-pub use right_complete_processor::*;

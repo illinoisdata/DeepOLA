@@ -17,11 +17,17 @@ If you want to see logs printed, run
 sh test_with_log.sh
 ```
 
+Run benchmark:
+```
+cargo bench
+```
+
 # Running Examples
 
 ```
 cargo run --example hello
 ```
+
 
 
 # PR Rules

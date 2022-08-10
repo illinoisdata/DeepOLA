@@ -1,5 +1,5 @@
 use getset::Getters;
-use std::{ops::Index, collections::HashMap, fmt::Debug};
+use std::{fmt::Debug};
 
 use super::payload::*;
 
@@ -8,17 +8,6 @@ use super::payload::*;
 pub struct DataMessage<T> {
     #[getset(set = "pub")]
     payload: Payload<T>,
-}
-
-impl<T> Index<usize> for DataMessage<T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &T {
-        match &self.payload {
-            Payload::Some(dblock) => &dblock.data()[index],
-            _ => panic!("index called on non-data."),
-        }
-    }
 }
 
 impl<T> Clone for DataMessage<T> {
@@ -39,18 +28,16 @@ impl<T> From<DataBlock<T>> for DataMessage<T> {
     }
 }
 
+impl<T> From<T> for DataMessage<T> {
+    fn from(data: T) -> Self {
+        Self::from(DataBlock::from(data))
+    }
+}
+
 impl<T> DataMessage<T> {
 
     pub fn from_single(record: T) -> Self {
-        Self::from_set(vec![record])
-    }
-
-    pub fn from_set(records: Vec<T>) -> Self {
-        Self::from_set_ref(records)
-    }
-
-    pub fn from_set_ref(records: Vec<T>) -> Self {
-        Self::from(DataBlock::new(records, HashMap::new()))
+        Self::from(DataBlock::from(record))
     }
 
     pub fn eof() -> Self {
@@ -71,24 +58,6 @@ impl<T> DataMessage<T> {
 
     pub fn payload(&self) -> Payload<T> {
         self.payload.clone()
-    }
-
-    pub fn len(&self) -> usize {
-        match &self.payload {
-            Payload::Some(dblock) => dblock.data().len(),
-            _ => panic!("len called on non-data."),
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item=&T> + '_ {
-        match &self.payload {
-            Payload::Some(dblock) => dblock.data().iter(),
-            _ => panic!("iter called on non-data."),
-        }
     }
 
     pub fn datablock(&self) -> &DataBlock<T> {
