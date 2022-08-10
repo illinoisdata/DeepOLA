@@ -17,8 +17,10 @@ use super::node_base::*;
 /// to process.
 #[derive(Getters, Setters)]
 pub struct ExecutionNode<T: Send> {
+    /// Note: [RefCell] enables us to keep [ExecutionNode] immutable while we can still
+    /// update [self::stream_processor]
     #[getset(get)]
-    stream_processor: Box<dyn StreamProcessor<T>>,
+    stream_processor: RefCell<Box<dyn StreamProcessor<T>>>,
 
     input_reader: RefCell<MultiChannelReader<T>>,
 
@@ -26,7 +28,7 @@ pub struct ExecutionNode<T: Send> {
 
     /// Once we process records, we send them via these writers.
     ///
-    /// `RefCell` makes it possible to treat `ExecutionNode` as immutable when we add
+    /// [RefCell] makes it possible to treat `ExecutionNode` as immutable when we add
     /// additional output channels.
     output_writer: RefCell<MultiChannelBroadcaster<T>>,
 
@@ -70,7 +72,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
     // }
 
     pub fn set_simple_map(&mut self, map: SimpleMapper<T>) {
-        self.stream_processor = Box::new(map);
+        self.stream_processor = RefCell::new(Box::new(map));
     }
 
     /// This is a convenience method mostly for testing. That is, we directly write a record
@@ -89,7 +91,8 @@ impl<T: Send + 'static> ExecutionNode<T> {
     /// 
     /// This is the primary method used by ExecutionService to start all the nodes.
     /// 
-    /// Caution: If eof is not passed, a node may run indefinitely, waiting for messages.
+    /// Caution: If eof is not passed, a node may run indefinitely, waiting for messages. This
+    /// behavior is defined inside [StreamProcessor::process()]
     pub fn run(&self) {
         log::debug!("Starting Node: {}",self.node_id);
         let input_reader = self.input_reader.borrow();
@@ -102,8 +105,17 @@ impl<T: Send + 'static> ExecutionNode<T> {
             log::debug!("Node: {}; Writes to: {}", self.node_id, channel.channel_id());
         }
 
-        self.stream_processor().process(input_reader.clone(), output_writer.clone());
-        log::debug!("Finished Node: {}",self.node_id);
+        // Pre-processing (if needed)
+        log::debug!("Starts Pre-Processing for Node: {}", self.node_id());
+        self.stream_processor.borrow_mut().preproces();
+        log::debug!("Finished Pre-Processing for Node: {}", self.node_id());
+
+        // Actual data processing
+        log::debug!("Starts Data Processing for Node: {}", self.node_id());
+        self.stream_processor().borrow().process(input_reader.clone(), output_writer.clone());
+        log::debug!("Finished Data Processing for Node: {}", self.node_id());
+
+        log::debug!("Terminating Node: {}", self.node_id());
     }
 
     pub fn input_reader(&self) -> MultiChannelReader<T> {
@@ -140,7 +152,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
         }
 
         Self {
-            stream_processor,
+            stream_processor: RefCell::new(stream_processor),
             input_reader: RefCell::new(input_channels),
             self_writers,
             output_writer: RefCell::new(MultiChannelBroadcaster::<T>::new()),
@@ -203,6 +215,58 @@ mod tests {
         node.write_to_self(0, DataMessage::eof());
         node.run();
         node_reader.read();
+    }
+
+    struct WithPreprocessing {
+        test_data: String,
+    }
+
+    impl WithPreprocessing {
+        fn new(message: String) -> Self {
+            WithPreprocessing { test_data: message }
+        }
+    }
+
+    impl StreamProcessor<String> for WithPreprocessing {
+        fn preproces(&mut self) {
+            self.test_data = self.test_data.clone() + "x";
+        }
+
+        fn process(
+            &self,
+            input_stream: MultiChannelReader<String>,
+            output_stream: MultiChannelBroadcaster<String>,
+        ) {
+            loop {
+                let seq_no = 0;
+                let message =  input_stream.read(seq_no);
+                if message.is_eof() {
+                    output_stream.write(message);
+                    break;
+                }
+                output_stream.write(DataMessage::from(self.test_data.clone()));
+            }
+        }
+    }
+
+    #[test]
+    fn calls_preprocess() {
+        let test_message: String = "test_message".into();
+        let processor = WithPreprocessing::new(test_message.clone());
+        let node = ExecutionNode::<String>::new(
+            Box::new(processor), 1
+        );
+        node.write_to_self(0, DataMessage::from("hello".to_string()));
+        node.write_to_self(0, DataMessage::eof());
+        let reader_node = NodeReader::new(&node);
+        node.run();
+        loop {
+            let message = reader_node.read();
+            if message.is_eof() {
+                break;
+            }
+            assert_eq!(message.datablock().data(), &(test_message.clone() + "x"));
+        }
     }
 
     #[test]
