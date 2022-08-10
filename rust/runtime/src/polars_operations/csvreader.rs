@@ -13,17 +13,17 @@ pub struct CSVReaderBuilder {
 
 impl Default for CSVReaderBuilder {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CSVReaderBuilder {
-    pub fn new() -> Self {
         CSVReaderBuilder {
             delimiter: ',',
             has_headers: false,
             projected_cols: Option::None,
         }
+    }
+}
+
+impl CSVReaderBuilder {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn delimiter(&mut self, delimiter: char) -> &mut Self {
@@ -47,7 +47,7 @@ impl CSVReaderBuilder {
             self.has_headers,
             self.projected_cols.clone(),
         );
-        ExecutionNode::<DataFrame>::new(data_processor, 1)
+        ExecutionNode::<DataFrame>::new(Box::new(data_processor), 1)
     }
 }
 
@@ -65,12 +65,12 @@ impl CSVReader {
         delimiter: char,
         has_headers: bool,
         projected_cols: Option<Vec<usize>>,
-    ) -> Box<dyn StreamProcessor<DataFrame>> {
-        Box::new(CSVReader {
+    ) -> Self {
+        CSVReader {
             delimiter,
             has_headers,
             projected_cols,
-        })
+        }
     }
 
     fn dataframe_from_filename(&self, filename: &str) -> DataFrame {
