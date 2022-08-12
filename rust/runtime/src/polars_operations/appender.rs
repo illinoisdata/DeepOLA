@@ -44,7 +44,6 @@ pub struct AppenderOp {
 unsafe impl Send for AppenderOp {}
 
 impl StreamProcessor<DataFrame> for AppenderOp {
-
     fn process(
         &self,
         input_stream: crate::channel::MultiChannelReader<DataFrame>,
