@@ -1,42 +1,49 @@
-use std::{cell::RefCell};
+use std::{cell::RefCell, marker::PhantomData};
 
 use getset::{Setters, Getters};
 use polars::prelude::*;
 
-use crate::{processor::StreamProcessor, data::{Payload, DataMessage}, graph::ExecutionNode};
+use crate::{processor::{MessageProcessor}, graph::ExecutionNode};
 
 
 /// Factory class for creating an ExecutionNode that can perform AccumulatorOp.
 /// 
 /// See [AccumulatorBase] to understand the role of individual fields.
 #[derive(Getters, Setters)]
-pub struct AccumulatorNode<T: AccumulatorOp> {
+pub struct AccumulatorNode<T, P: AccumulatorOp<T>> {
     #[set = "pub"]
-    accumulator: T,
+    accumulator: P,
+
+    // Necessary to have T as a generic type
+    phantom: PhantomData<T>,
 }
 
 /// Creates an identity accumulator that passes all the information as it is.
-impl<T: AccumulatorOp + Clone> Default for AccumulatorNode<T> {
+impl<T, P: AccumulatorOp<T> + Clone> Default for AccumulatorNode<T, P> {
     fn default() -> Self {
         Self { 
-            accumulator: T::new(),
+            accumulator: P::new(),
+            phantom: PhantomData::default()
         }
     }
 }
 
-impl<T: 'static + AccumulatorOp + Clone> AccumulatorNode<T> {
+impl<T: 'static + Send, P> AccumulatorNode<T, P> 
+where
+    P: 'static + AccumulatorOp<T> + MessageProcessor<T> + Clone
+{
     pub fn new() -> Self {
         AccumulatorNode::default()
     }
 
-    pub fn accumulator(&mut self, op: T) -> &mut Self {
+    pub fn accumulator(&mut self, op: P) -> &mut Self {
         self.accumulator = op;
         self
     }
 
-    pub fn build(&self) -> ExecutionNode<DataFrame> {
+    pub fn build(&self) -> ExecutionNode<T> {
         let data_processor = Box::new(self.accumulator.clone());
-        ExecutionNode::<DataFrame>::new(data_processor, 1)
+        ExecutionNode::<T>::new(data_processor, 1)
     }
 }
 
@@ -44,7 +51,7 @@ impl<T: 'static + AccumulatorOp + Clone> AccumulatorNode<T> {
 /// 
 /// This operation type supposed to accumulate the results that have been observed thus far
 /// in some way (where the way should be defined by implementing structs).
-pub trait AccumulatorOp : Send {
+pub trait AccumulatorOp<T> : Send {
     /// Creates a new struct with an initial state.
     fn new() -> Self;
 
@@ -55,7 +62,7 @@ pub trait AccumulatorOp : Send {
     /// @df A new dataframe.
     /// 
     /// @return The accumulation result.
-    fn accumulate(&self, df: &DataFrame) -> DataFrame;
+    fn accumulate(&self, df: &T) -> T;
 }
 
 /// Accumulates the result of aggregation based on grouping keys. A common use case is to 
@@ -63,7 +70,7 @@ pub trait AccumulatorOp : Send {
 /// 
 /// This is an important example struct that implements [AccumulatorOp]. In the future, different
 /// types of accumulators may be added.
-#[derive(Getters, Setters)]
+#[derive(Getters, Setters, Clone)]
 pub struct SumAccumulator {
     #[set = "pub"]
     #[get = "pub"]
@@ -110,7 +117,7 @@ impl SumAccumulator {
     }
 }
 
-impl AccumulatorOp for SumAccumulator {
+impl AccumulatorOp<DataFrame> for SumAccumulator {
     fn accumulate(&self, df: &DataFrame) -> DataFrame {
         let df_agg = self.aggregate(df);
         
@@ -133,40 +140,18 @@ impl AccumulatorOp for SumAccumulator {
     }
 }
 
-/// We implement [StreamProcessor] for the objects implementing [AccumulatorOp]
-impl<T: AccumulatorOp> StreamProcessor<DataFrame> for T
-{
-    fn process(
-        &self,
-        input_stream: crate::channel::MultiChannelReader<DataFrame>,
-        output_stream: crate::channel::MultiChannelBroadcaster<DataFrame>,
-    ) {
-        loop {
-            let channel_seq = 0;
-            let message = input_stream.read(channel_seq);
-            match message.payload() {
-                Payload::EOF => {
-                    output_stream.write(message);
-                    break;
-                }
-                Payload::Some(data_block) => {
-                    let df_acc = self.accumulate(data_block.data());
-                    let message = DataMessage::from(df_acc);
-                    output_stream.write(message);
-                },
-                Payload::Signal(_) => {
-                    break;
-                },
-            }
-        }
+impl MessageProcessor<DataFrame> for SumAccumulator {
+    fn process_msg(&self, input: &DataFrame) -> Option<DataFrame> {
+        Some(self.accumulate(input))
     }
 }
+
 
 #[cfg(test)]
 mod tests {
     use polars::prelude::*;
 
-    use crate::polars_operations::util::tests::truncate_df;
+    use crate::{polars_operations::util::tests::truncate_df, data::DataMessage, graph::NodeReader};
 
     use super::*;
 
@@ -191,6 +176,31 @@ mod tests {
         // create a new DataFrame
         let df = DataFrame::new(vec![s0, s1, s2]).unwrap();
         df
+    }
+
+    #[test]
+    fn sum_accumulator_node() {
+        let sum_node = 
+            AccumulatorNode::<DataFrame, SumAccumulator>::new().build();
+        let input_df = get_example_df().select(["temp", "rain"]).unwrap();
+        sum_node.write_to_self(0, DataMessage::from(input_df));
+        sum_node.write_to_self(0, DataMessage::eof());
+        let reader_node = NodeReader::new(&sum_node);
+        sum_node.run();
+
+        let expected_df = df![
+            "temp" => [47],
+            "rain" => [0.71],
+        ].unwrap();
+        loop {
+            let message = reader_node.read();
+            if message.is_eof() {
+                break;
+            }
+            let mut output_df = message.datablock().data().clone();
+            truncate_df(&mut output_df, "rain", 3);
+            assert_eq!(output_df, expected_df);
+        }
     }
 
     #[test]

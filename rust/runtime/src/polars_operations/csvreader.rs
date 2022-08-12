@@ -87,7 +87,7 @@ impl CSVReader {
 }
 
 impl StreamProcessor<DataFrame> for CSVReader {
-    fn process(
+    fn process_stream(
         &self,
         input_stream: crate::channel::MultiChannelReader<DataFrame>,
         output_stream: crate::channel::MultiChannelBroadcaster<DataFrame>,
