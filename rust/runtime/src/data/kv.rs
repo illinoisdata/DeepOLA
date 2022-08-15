@@ -1,6 +1,6 @@
 use getset::Getters;
 
-#[derive(Getters)]
+#[derive(Getters, Clone)]
 pub struct KeyValueList {
     #[getset(get = "pub")]
     data: Vec<KeyValue>,

@@ -1,35 +1,61 @@
+use std::{marker::PhantomData, sync::Arc};
+
+use getset::{Getters, Setters};
 use polars::prelude::DataFrame;
 
-use crate::{processor::StreamProcessor, data::{Payload, DataMessage}, graph::ExecutionNode};
+use crate::{processor::{MessageProcessor}, graph::ExecutionNode};
 
 
 /// Factory class for generating an Appender-type execution node, which is designed to support 
 /// [AppenderOp] transformation.
-pub struct Appender {
-    data_map: fn(&DataFrame) -> DataFrame,
+/// 
+/// Type `P` stands for Procesor, which must be of type [AppenderOp<T>].
+/// Type `T` stands for Data Type.
+#[derive(Getters, Setters)]
+pub struct AppenderNode<T, P> 
+where
+    P: AppenderOp<T>
+{
+    #[set = "pub"]
+    appender: P,
+    
+    // Necessary to have T as a generic type
+    phantom: PhantomData<T>,
 }
 
-impl Default for Appender {
+impl<T, P: AppenderOp<T>> Default for AppenderNode<T, P> {
     fn default() -> Self {
-        Self { data_map: |df| df.clone()  }
+        Self { appender: P::new(), phantom: PhantomData::default() }
     }
 }
 
-impl Appender {
+impl<T: 'static + Send, P> AppenderNode<T, P> 
+where
+    P: 'static + AppenderOp<T> + MessageProcessor<T> + Clone
+{
     pub fn new() -> Self {
-        Appender::default()
+        AppenderNode::default()
     }
 
-    pub fn map(&mut self, data_map: fn(&DataFrame) -> DataFrame) -> &mut Self {
-        self.data_map = data_map;
+    /// Use this method to create an Appender-type node with a custom mapper.
+    /// 
+    /// Example:
+    /// ```
+    /// use runtime::polars_operations::{AppenderNode, MapAppender};
+    /// use polars::prelude::DataFrame;
+    /// 
+    /// AppenderNode::<DataFrame, MapAppender>::new().appender(
+    ///     MapAppender::new( Box::new(|x: &DataFrame| x.clone() ))
+    /// ).build();
+    /// ```
+    pub fn appender(&mut self, appender: P) -> &mut Self {
+        self.appender = appender;
         self
     }
 
-    pub fn build(&self) -> ExecutionNode<DataFrame> {
-        let data_processor = AppenderOp {
-            data_map: self.data_map.clone()
-        };
-        ExecutionNode::<DataFrame>::new(Box::new(data_processor), 1)
+    pub fn build(&self) -> ExecutionNode<T> {
+        let data_processor = self.appender.clone();
+        ExecutionNode::<T>::new(Box::new(data_processor), 1)
     }
 }
 
@@ -37,58 +63,54 @@ impl Appender {
 /// Useful for creating a simple, memoryless Appender operation such as row filtering, column
 /// projection, etc. Not the best for implementing join operations because they may require
 /// materialized tables.
-pub struct AppenderOp {
-    data_map: fn(&DataFrame) -> DataFrame,
+pub trait AppenderOp<T> : Send {
+    fn new() -> Self;
+
+    fn map(&self, df: &T) -> T;
 }
 
-unsafe impl Send for AppenderOp {}
+/// A concrete implementation of type `P`, which implements all of AppenderOp<T> + 
+/// MessageProcessor<T> + Clone, for T = DataFrame.
+#[derive(Clone)]
+pub struct MapAppender {
+    mapper: Arc<Box<dyn Fn(&DataFrame) -> DataFrame>>,
+}
 
-impl StreamProcessor<DataFrame> for AppenderOp {
-    fn process(
-        &self,
-        input_stream: crate::channel::MultiChannelReader<DataFrame>,
-        output_stream: crate::channel::MultiChannelBroadcaster<DataFrame>,
-    ) {
-        loop {
-            let channel_seq = 0;
-            let message = input_stream.read(channel_seq);
-            match message.payload() {
-                Payload::EOF => {
-                    output_stream.write(message);
-                    break;
-                }
-                Payload::Some(data_block) => {
-                    let output = (self.data_map)(data_block.data());
-                    let message = DataMessage::from(output);
-                    output_stream.write(message);
-                },
-                Payload::Signal(_) => {
-                    break;
-                },
-            }
-        }
+impl MapAppender {
+    pub fn new(mapper: Box<dyn Fn(&DataFrame) -> DataFrame>) -> Self {
+        MapAppender { mapper: Arc::new(mapper) }
     }
 }
 
-impl From<fn(&DataFrame) -> DataFrame> for AppenderOp
-{
-    /// Constructor from a closure
-    fn from(data_map: fn(&DataFrame) -> DataFrame) -> Self {
-        AppenderOp { data_map }
+unsafe impl Send for MapAppender {}
+
+impl AppenderOp<DataFrame> for MapAppender {
+    fn new() -> Self {
+        Self::new(Box::new(|data| data.clone()))
+    }
+
+    fn map(&self, data: &DataFrame) -> DataFrame {
+        (self.mapper)(data)
+    }
+}
+
+impl MessageProcessor<DataFrame> for MapAppender {
+    fn process_msg(&self, input: &DataFrame) -> Option<DataFrame> {
+        Some(self.map(input))
     }
 }
 
 
 #[cfg(test)]
 mod tests {
-    use crate::graph::NodeReader;
+    use crate::{graph::NodeReader, data::DataMessage};
 
     use super::*;
     use polars::prelude::*;
 
     #[test]
-    fn identity_appender() {
-        let identity = Appender::new().build();
+    fn identity_appender_node() {
+        let identity = AppenderNode::<DataFrame, MapAppender>::new().build();
         let input_df = df!(
             "col1" => &[
                 "hello",
@@ -117,13 +139,15 @@ mod tests {
 
     /// This test has an example of how to filter rows.
     #[test]
-    fn filter_rows() {
-        let row_filter = Appender::new()
-            .map(|df| {
-                let a = df.column("col2").unwrap();
-                let mask = a.equal("my").unwrap();
-                df.filter(&mask).unwrap()
-            })
+    fn filter_rows_node() {
+        let row_filter = AppenderNode::<DataFrame, MapAppender>::new()
+            .appender(MapAppender::new(Box::new(
+                |df: &DataFrame| {
+                    let a = df.column("col2").unwrap();
+                    let mask = a.equal("my").unwrap();
+                    df.filter(&mask).unwrap()
+                }))
+            )
             .build();
         let input_df = df!(
             "col1" => &["hello", "world"],
@@ -151,11 +175,11 @@ mod tests {
 
     /// This test has an example of how to select a subset of columns.
     #[test]
-    fn column_projetion() {
-        let projector = Appender::new()
-            .map(|df|
+    fn column_projetion_node() {
+        let projector = AppenderNode::<DataFrame, MapAppender>::new()
+            .appender(MapAppender::new(Box::new(|df|
                 df.select(["col1"]).unwrap()
-            )
+            )))
             .build();
         let input_df = df!(
             "col1" => &["hello", "world"],
@@ -182,16 +206,16 @@ mod tests {
 
     /// This test has an example of how we can add new columns.
     #[test]
-    fn add_new_column() {
+    fn add_new_column_node() {
         // This projector adds a new column "col3" that contains the length of the string values
         // in column "col2".
-        let projector = Appender::new()
-            .map(|df| {
+        let projector = AppenderNode::new()
+            .appender(MapAppender::new(Box::new(|df| {
                     let mut col = df.column("col2").unwrap().clone();
                     col = str_to_len(&col);
                     col.rename("col3");
                     df.hstack(&[col.clone()]).unwrap()
-                }
+                }))
             )
             .build();
         let input_df = df!(

@@ -66,11 +66,6 @@ impl<T: Send + 'static> ExecutionNode<T> {
         (&self.self_writers[seq_no]).clone()
     }
 
-    // pub fn set_data_processor(&mut self, processor: Box<dyn SetProcessorV2<T>>) {
-    //     let stream_processor = SimpleStreamProcessor::<T>::from(processor);
-    //     self.stream_processor = Box::new(stream_processor);
-    // }
-
     pub fn set_simple_map(&mut self, map: SimpleMapper<T>) {
         self.stream_processor = RefCell::new(Box::new(map));
     }
@@ -94,28 +89,28 @@ impl<T: Send + 'static> ExecutionNode<T> {
     /// Caution: If eof is not passed, a node may run indefinitely, waiting for messages. This
     /// behavior is defined inside [StreamProcessor::process()]
     pub fn run(&self) {
-        log::debug!("Starting Node: {}",self.node_id);
+        log::debug!("Starting Node: [{}]",self.node_id);
         let input_reader = self.input_reader.borrow();
         let output_writer = self.output_writer.borrow();
         // Add log message here saying that which channels are linked to which nodes.
         for channel in input_reader.readers.iter() {
-            log::debug!("Node: {}; Reads from: {}", self.node_id, channel.channel_id());
+            log::debug!("Node: [{}]; Reads from: [{}]", self.node_id, channel.channel_id());
         }
         for channel in output_writer.iter() {
-            log::debug!("Node: {}; Writes to: {}", self.node_id, channel.channel_id());
+            log::debug!("Node: [{}]; Writes to: [{}]", self.node_id, channel.channel_id());
         }
 
         // Pre-processing (if needed)
-        log::debug!("Starts Pre-Processing for Node: {}", self.node_id());
+        log::debug!("Starts Pre-Processing for Node: [{}]", self.node_id());
         self.stream_processor.borrow_mut().preproces();
-        log::debug!("Finished Pre-Processing for Node: {}", self.node_id());
+        log::debug!("Finished Pre-Processing for Node: [{}]", self.node_id());
 
         // Actual data processing
-        log::debug!("Starts Data Processing for Node: {}", self.node_id());
-        self.stream_processor().borrow().process(input_reader.clone(), output_writer.clone());
-        log::debug!("Finished Data Processing for Node: {}", self.node_id());
+        log::debug!("Starts Data Processing for Node: [{}]", self.node_id());
+        self.stream_processor().borrow().process_stream(input_reader.clone(), output_writer.clone());
+        log::debug!("Finished Data Processing for Node: [{}]", self.node_id());
 
-        log::debug!("Terminating Node: {}", self.node_id());
+        log::debug!("Terminating Node: [{}]", self.node_id());
     }
 
     pub fn input_reader(&self) -> MultiChannelReader<T> {
@@ -127,7 +122,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
     }
 
     pub fn create() -> Self {
-        Self::from(SimpleMapper::<T>::from(|_: &T| None))
+        Self::from(SimpleMapper::<T>::ignore())
     }
 
     pub fn new_single_input(stream_processor: Box<dyn StreamProcessor<T>>) -> Self {
@@ -168,13 +163,14 @@ pub struct NodeReader<T: Send> {
     internal_node: ExecutionNode<T>,
 }
 
-impl<T: Send + 'static> NodeReader<T> {
+impl<T: Send + Clone + 'static> NodeReader<T> {
     pub fn read(&self) -> DataMessage<T> {
         self.internal_node.input_reader().read(0)
     }
 
     pub fn new(listens_to: &ExecutionNode<T>) -> Self {
-        let node = ExecutionNode::create();
+        let mut node = ExecutionNode::create();
+        node.set_simple_map(SimpleMapper::identity());
         node.subscribe_to_node(listens_to, 0);
         Self {
             internal_node: node,
@@ -232,7 +228,7 @@ mod tests {
             self.test_data = self.test_data.clone() + "x";
         }
 
-        fn process(
+        fn process_stream(
             &self,
             input_stream: MultiChannelReader<String>,
             output_stream: MultiChannelBroadcaster<String>,
