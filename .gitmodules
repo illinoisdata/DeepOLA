@@ -1,3 +1,6 @@
 [submodule "tpch-kit"]
 	path = tpch-kit
 	url = https://github.com/gregrahn/tpch-kit/
+[submodule "rust/polars"]
+	path = rust/polars
+	url = https://github.com/nikhil96sher/polars

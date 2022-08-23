@@ -24,7 +24,9 @@ simple-error = "0.2.3"
 structopt = "0.3.26"
 uuid = { version = "0.8", features = ["v4"] }
 jemallocator = "0.3.2"
-polars = "0.23.2"
+
+[dependencies.polars]
+path = "../polars/polars/"
 
 [dev-dependencies]
 ctor = "0.1.21"
