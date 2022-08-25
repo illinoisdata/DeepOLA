@@ -8,6 +8,7 @@ use crate::processor::StreamProcessor;
 pub struct CSVReaderBuilder {
     delimiter: char,
     has_headers: bool,
+    column_names: Option<Vec<String>>,
     projected_cols: Option<Vec<usize>>,
 }
 
@@ -16,6 +17,7 @@ impl Default for CSVReaderBuilder {
         CSVReaderBuilder {
             delimiter: ',',
             has_headers: false,
+            column_names: Option::None,
             projected_cols: Option::None,
         }
     }
@@ -36,8 +38,13 @@ impl CSVReaderBuilder {
         self
     }
 
-    pub fn projected_cols(&mut self, projected_cols: Vec<usize>) -> &mut Self {
-        self.projected_cols = Some(projected_cols);
+    pub fn column_names(&mut self, column_names: Option<Vec<String>>) -> &mut Self {
+        self.column_names = column_names;
+        self
+    }
+
+    pub fn projected_cols(&mut self, projected_cols: Option<Vec<usize>>) -> &mut Self {
+        self.projected_cols = projected_cols;
         self
     }
 
@@ -45,6 +52,7 @@ impl CSVReaderBuilder {
         let data_processor = CSVReader::new(
             self.delimiter,
             self.has_headers,
+            self.column_names.clone(),
             self.projected_cols.clone(),
         );
         ExecutionNode::<DataFrame>::new(Box::new(data_processor), 1)
@@ -55,6 +63,7 @@ impl CSVReaderBuilder {
 struct CSVReader {
     delimiter: char,
     has_headers: bool,
+    column_names: Option<Vec<String>>,
     projected_cols: Option<Vec<usize>>,
 }
 
@@ -64,11 +73,13 @@ impl CSVReader {
     pub fn new(
         delimiter: char,
         has_headers: bool,
+        column_names: Option<Vec<String>>,
         projected_cols: Option<Vec<usize>>,
     ) -> Self {
         CSVReader {
             delimiter,
             has_headers,
+            column_names,
             projected_cols,
         }
     }
@@ -81,8 +92,16 @@ impl CSVReader {
         if self.projected_cols.is_some() {
             reader = reader.with_projection(self.projected_cols.clone());
         }
-
-        reader.finish().unwrap()
+        let mut df = reader.finish().unwrap();
+        if self.column_names.is_some() {
+            match &self.column_names {
+                Some(a) => {
+                    df.set_column_names(a).unwrap();
+                },
+                _ => {},
+            }
+        }
+        df
     }
 }
 
@@ -200,7 +219,7 @@ mod tests {
         let csvreader = CSVReaderBuilder::new()
             .delimiter(',')
             .has_headers(true)
-            .projected_cols(vec![0, 1, 2])
+            .projected_cols(Some(vec![0, 1, 2]))
             .build();
         csvreader.write_to_self(0, DataMessage::from(input_files.clone()));
         csvreader.write_to_self(0, DataMessage::eof());

@@ -99,7 +99,7 @@ impl SumAccumulator {
             let grouped_df = df.groupby(&self.group_key).unwrap();
             let mut df_agg = grouped_df.sum().unwrap();
             df_agg.set_column_names(
-                &self.restore_column_names(df)
+                &self.restore_column_names(&df_agg)
             ).unwrap();
             df_agg
         }
