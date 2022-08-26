@@ -16,4 +16,4 @@ jobs:
       run: git lfs checkout
     - name: Run Benchmarks
       run: cargo bench
-      working-directory: rust/runtime/
+      working-directory: deepola/

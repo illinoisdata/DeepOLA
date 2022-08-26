@@ -2,9 +2,6 @@ name: Clippy Check
 
 on:
   push:
-    paths:
-      - 'rust/**'
-      - '.github/workflows/**'
 
 jobs:
   clippy_check:
@@ -15,4 +12,4 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --manifest-path rust/runtime/Cargo.toml
+          args: --all-features --manifest-path deepola/Cargo.toml
