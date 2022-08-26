@@ -4,40 +4,46 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 use crate::utils::TableInput;
 
 extern crate wake;
+use glob::glob;
 use polars::prelude::DataFrame;
 use wake::data::*;
 use wake::graph::*;
-use glob::glob;
 
 use std::collections::HashMap;
-use std::time::Instant;
 use std::env;
+use std::time::Instant;
 
-mod utils;
 mod q1;
+mod utils;
 
 fn main() {
     env_logger::Builder::from_default_env()
-    .format_timestamp_micros()
-    .init();
+        .format_timestamp_micros()
+        .init();
     let tpch_tables = vec![
-        "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier"
+        "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier",
     ];
     let mut table_input = HashMap::new();
     for tpch_table in tpch_tables {
         let mut input_files = vec![];
-        for entry in glob(&format!("resources/tpc-h/data/scale=1/partition=1/{}.tbl*",tpch_table)).expect("Failed to read glob pattern") {
+        for entry in glob(&format!(
+            "resources/tpc-h/data/scale=1/partition=1/{}.tbl*",
+            tpch_table
+        ))
+        .expect("Failed to read glob pattern")
+        {
             match entry {
                 Ok(path) => input_files.push(path.to_str().unwrap().to_string()),
                 Err(e) => println!("{:?}", e),
             }
         }
-        table_input.insert(tpch_table.to_string(),
+        table_input.insert(
+            tpch_table.to_string(),
             TableInput {
                 batch_size: 100_000,
                 input_files: input_files,
                 scale: 1,
-            }
+            },
         );
     }
 
@@ -48,8 +54,10 @@ fn main() {
     let query = env::args().skip(1).collect::<Vec<String>>();
     if query.len() != 0 {
         match query[0].as_str() {
-            "q1" => { query_service = q1::query(table_input,&mut output_reader); },
-            _ => panic!("Invalid Query Parameter")
+            "q1" => {
+                query_service = q1::query(table_input, &mut output_reader);
+            }
+            _ => panic!("Invalid Query Parameter"),
         }
     } else {
         panic!("Query not specified. Run like: cargo run --release --example tpch_polars -- q1")

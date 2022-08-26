@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{Schema, Column};
+use super::{Column, Schema};
 
 pub const SCHEMA_META_NAME: &str = "reserved.schema";
 pub const DATABLOCK_TYPE: &str = "reserved.type";
@@ -21,7 +21,7 @@ impl MetaCell {
     pub fn to_schema(&self) -> &Schema {
         match self {
             MetaCell::Schema(a) => a,
-            _ => panic!("Not a Valid Schema DataCell")
+            _ => panic!("Not a Valid Schema DataCell"),
         }
     }
 
@@ -70,7 +70,7 @@ impl From<MetaCell> for String {
     fn from(cell: MetaCell) -> Self {
         match cell {
             MetaCell::Text(a) => a,
-            _ => panic!("Invalid conversion from MetaCell")
+            _ => panic!("Invalid conversion from MetaCell"),
         }
     }
 }
@@ -79,7 +79,7 @@ impl From<&MetaCell> for f64 {
     fn from(cell: &MetaCell) -> Self {
         match cell {
             MetaCell::Float(a) => *a,
-            _ => panic!("Invalid conversion from MetaCell")
+            _ => panic!("Invalid conversion from MetaCell"),
         }
     }
 }

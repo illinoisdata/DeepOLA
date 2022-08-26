@@ -1,4 +1,4 @@
-use crate::data::{Payload, DataMessage};
+use crate::data::{DataMessage, Payload};
 
 use super::StreamProcessor;
 
@@ -24,7 +24,7 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
                     if let Some(df_acc) = self.process_msg(data_block.data()) {
                         let message = DataMessage::from(df_acc);
                         output_stream.write(message);
-                    }                    
+                    }
                 }
                 Payload::Signal(_) => {
                     break;
@@ -42,14 +42,16 @@ pub struct SimpleMapper<T> {
 impl<T: Clone> SimpleMapper<T> {
     pub fn identity() -> Self {
         SimpleMapper {
-            data_map: Box::new(|x| Some(x.clone()))
+            data_map: Box::new(|x| Some(x.clone())),
         }
     }
 }
 
 impl<T> SimpleMapper<T> {
     pub fn ignore() -> Self {
-        SimpleMapper { data_map: Box::new(|_| None) }
+        SimpleMapper {
+            data_map: Box::new(|_| None),
+        }
     }
 }
 
@@ -73,12 +75,11 @@ impl<T: Send> MessageProcessor<T> for SimpleMapper<T> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::thread;
 
-    use crate::{data::{KeyValue}};
+    use crate::data::KeyValue;
 
     use super::*;
 
@@ -99,12 +100,10 @@ mod tests {
 
     #[test]
     fn can_send() {
-        let set_processor =
-            Box::new(SimpleMapper::<String>::from(|r: &String| Some(r.clone())));
+        let set_processor = Box::new(SimpleMapper::<String>::from(|r: &String| Some(r.clone())));
         thread::spawn(move || {
             // having `drop` prevents warning.
             drop(set_processor);
         });
     }
 }
-

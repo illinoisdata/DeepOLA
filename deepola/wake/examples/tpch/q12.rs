@@ -1,12 +1,12 @@
 use crate::utils::*;
 
 extern crate runtime;
-use runtime::graph::*;
 use runtime::data::*;
+use runtime::graph::*;
 use runtime::operations::*;
 
-use std::collections::HashMap;
 use std::cmp;
+use std::collections::HashMap;
 
 // select
 // 	l_shipmode,
@@ -37,23 +37,36 @@ use std::cmp;
 // order by
 // 	l_shipmode;
 
-pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+pub fn query(
+    tableinput: HashMap<String, TableInput>,
+    output_reader: &mut NodeReader<ArrayRow>,
+) -> ExecutionService<ArrayRow> {
     let table_columns = HashMap::from([
-        ("lineitem".into(), vec!["l_orderkey","l_shipdate","l_commitdate","l_receiptdate","l_shipmode"]),
-        ("orders".into(), vec!["o_orderkey","o_orderpriority"]),
+        (
+            "lineitem".into(),
+            vec![
+                "l_orderkey",
+                "l_shipdate",
+                "l_commitdate",
+                "l_receiptdate",
+                "l_shipmode",
+            ],
+        ),
+        ("orders".into(), vec!["o_orderkey", "o_orderpriority"]),
     ]);
 
     // CSVReaderNode
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
 
     // WHERE Node
     fn predicate(record: &ArrayRow) -> bool {
-        (record.values[4] == "MAIL" || record.values[4] == "SHIP") &&
-        (record.values[2] < record.values[3]) &&
-        (record.values[1] < record.values[2]) &&
-        (record.values[3] >= DataCell::from("1994-01-01")) &&
-        (record.values[3] < DataCell::from("1995-01-01"))
+        (record.values[4] == "MAIL" || record.values[4] == "SHIP")
+            && (record.values[2] < record.values[3])
+            && (record.values[1] < record.values[2])
+            && (record.values[3] >= DataCell::from("1994-01-01"))
+            && (record.values[3] < DataCell::from("1995-01-01"))
     }
     let where_node = WhereNode::node(predicate);
 
@@ -82,13 +95,13 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
         Expression {
             predicate: high_line_count,
             alias: "high_line_count".into(),
-            dtype: DataType::Integer
+            dtype: DataType::Integer,
         },
         Expression {
             predicate: low_line_count,
             alias: "low_line_count".into(),
-            dtype: DataType::Integer
-        }
+            dtype: DataType::Integer,
+        },
     ];
     let expression_node = ExpressionNode::node(expressions);
 
@@ -124,12 +137,12 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let select_node = select_node_builder.build();
 
     // Connect nodes with subscription
-    where_node.subscribe_to_node(&lineitem_csvreader_node,0);
-    merge_join_node.subscribe_to_node(&where_node,0);
-    merge_join_node.subscribe_to_node(&orders_csvreader_node,1);
+    where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
+    merge_join_node.subscribe_to_node(&where_node, 0);
+    merge_join_node.subscribe_to_node(&orders_csvreader_node, 1);
     expression_node.subscribe_to_node(&merge_join_node, 0);
-    groupby_node.subscribe_to_node(&expression_node,0);
-    select_node.subscribe_to_node(&groupby_node,0);
+    groupby_node.subscribe_to_node(&expression_node, 0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);

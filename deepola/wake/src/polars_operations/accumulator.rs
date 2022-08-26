@@ -1,10 +1,9 @@
 use std::{cell::RefCell, marker::PhantomData};
 
-use getset::{Setters, Getters};
+use getset::{Getters, Setters};
 use polars::prelude::*;
 
-use crate::{processor::{MessageProcessor}, graph::ExecutionNode};
-
+use crate::{graph::ExecutionNode, processor::MessageProcessor};
 
 /// Factory class for creating an ExecutionNode that can perform AccumulatorOp.
 #[derive(Getters, Setters)]
@@ -19,16 +18,16 @@ pub struct AccumulatorNode<T, P: AccumulatorOp<T>> {
 /// Creates an identity accumulator that passes all the information as it is.
 impl<T, P: AccumulatorOp<T> + Clone> Default for AccumulatorNode<T, P> {
     fn default() -> Self {
-        Self { 
+        Self {
             accumulator: P::new(),
-            phantom: PhantomData::default()
+            phantom: PhantomData::default(),
         }
     }
 }
 
-impl<T: 'static + Send, P> AccumulatorNode<T, P> 
+impl<T: 'static + Send, P> AccumulatorNode<T, P>
 where
-    P: 'static + AccumulatorOp<T> + MessageProcessor<T> + Clone
+    P: 'static + AccumulatorOp<T> + MessageProcessor<T> + Clone,
 {
     pub fn new() -> Self {
         AccumulatorNode::default()
@@ -46,26 +45,26 @@ where
 }
 
 /// The internal accumulation operation performed by [AccumulatorNode].
-/// 
+///
 /// This operation type supposed to accumulate the results that have been observed thus far
 /// in some way (where the way should be defined by implementing structs).
-pub trait AccumulatorOp<T> : Send {
+pub trait AccumulatorOp<T>: Send {
     /// Creates a new struct with an initial state.
     fn new() -> Self;
 
     /// Given a new dataframe, accumulates it with the other dataframes that have been observed
     /// thus far, and produces a new result. The past observations must be kept in the implementing
     /// struct itself.
-    /// 
+    ///
     /// @df A new dataframe.
-    /// 
+    ///
     /// @return The accumulation result.
     fn accumulate(&self, df: &T) -> T;
 }
 
-/// Accumulates the result of aggregation based on grouping keys. A common use case is to 
+/// Accumulates the result of aggregation based on grouping keys. A common use case is to
 /// compute the up-to-date aggregate results from a series of data.
-/// 
+///
 /// This is an important example struct that implements [AccumulatorOp]. In the future, different
 /// types of accumulators may be added.
 #[derive(Getters, Setters, Clone)]
@@ -85,7 +84,10 @@ unsafe impl Send for SumAccumulator {}
 
 impl SumAccumulator {
     pub fn new() -> Self {
-        SumAccumulator { group_key: vec![], accumulated: RefCell::new(DataFrame::empty()) }
+        SumAccumulator {
+            group_key: vec![],
+            accumulated: RefCell::new(DataFrame::empty()),
+        }
     }
 
     /// Aggregates a single dataframe itself without considering the past observations. Used
@@ -96,20 +98,22 @@ impl SumAccumulator {
         } else {
             let grouped_df = df.groupby(&self.group_key).unwrap();
             let mut df_agg = grouped_df.sum().unwrap();
-            df_agg.set_column_names(
-                &self.restore_column_names(&df_agg)
-            ).unwrap();
+            df_agg
+                .set_column_names(&self.restore_column_names(&df_agg))
+                .unwrap();
             df_agg
         }
     }
 
     fn restore_column_names(&self, df: &DataFrame) -> Vec<String> {
-        df.get_column_names().into_iter()
+        df.get_column_names()
+            .into_iter()
             .map(|n| {
                 match n.strip_suffix("_sum") {
                     Some(a) => a,
                     None => n,
-                }.to_string()
+                }
+                .to_string()
             })
             .collect()
     }
@@ -118,7 +122,7 @@ impl SumAccumulator {
 impl AccumulatorOp<DataFrame> for SumAccumulator {
     fn accumulate(&self, df: &DataFrame) -> DataFrame {
         let df_agg = self.aggregate(df);
-        
+
         // accumulate
         let df_acc_new;
         {
@@ -126,11 +130,11 @@ impl AccumulatorOp<DataFrame> for SumAccumulator {
             let stacked = df_acc.vstack(&df_agg).unwrap();
             df_acc_new = self.aggregate(&stacked);
         }
-        
+
         // save
         *self.accumulated.borrow_mut() = df_acc_new.clone();
 
-        df_acc_new        
+        df_acc_new
     }
 
     fn new() -> Self {
@@ -144,12 +148,13 @@ impl MessageProcessor<DataFrame> for SumAccumulator {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use polars::prelude::*;
 
-    use crate::{polars_operations::util::tests::truncate_df, data::DataMessage, graph::NodeReader};
+    use crate::{
+        data::DataMessage, graph::NodeReader, polars_operations::util::tests::truncate_df,
+    };
 
     use super::*;
 
@@ -165,8 +170,7 @@ mod tests {
             "2020-08-22",
         ];
         // create date series
-        let s0 = DateChunked::parse_from_str_slice("date", dates, DATE_FMT)
-                .into_series();
+        let s0 = DateChunked::parse_from_str_slice("date", dates, DATE_FMT).into_series();
         // create temperature series
         let s1 = Series::new("temp", [20, 10, 7, 9, 1]);
         // create rain series
@@ -178,8 +182,7 @@ mod tests {
 
     #[test]
     fn sum_accumulator_node() {
-        let sum_node = 
-            AccumulatorNode::<DataFrame, SumAccumulator>::new().build();
+        let sum_node = AccumulatorNode::<DataFrame, SumAccumulator>::new().build();
         let input_df = get_example_df().select(["temp", "rain"]).unwrap();
         sum_node.write_to_self(0, DataMessage::from(input_df));
         sum_node.write_to_self(0, DataMessage::eof());
@@ -189,7 +192,8 @@ mod tests {
         let expected_df = df![
             "temp" => [47],
             "rain" => [0.71],
-        ].unwrap();
+        ]
+        .unwrap();
         loop {
             let message = reader_node.read();
             if message.is_eof() {
@@ -209,11 +213,12 @@ mod tests {
         sum_acc.accumulate(&df);
         let mut acc_df = sum_acc.accumulated().borrow_mut();
         truncate_df(&mut acc_df, "rain", 3);
-        
+
         let expected_df = df![
             "temp" => [47],
             "rain" => [0.71],
-        ].unwrap();
+        ]
+        .unwrap();
         assert_eq!(&*acc_df, &expected_df);
 
         // Test sum with groups
@@ -221,22 +226,26 @@ mod tests {
         sum_acc.set_group_key(vec!["date".into()]);
         let df = get_example_df();
         sum_acc.accumulate(&df);
-        let mut acc_df = 
-            sum_acc.accumulated().borrow_mut()
-                .sort(["date"], false).unwrap();
+        let mut acc_df = sum_acc
+            .accumulated()
+            .borrow_mut()
+            .sort(["date"], false)
+            .unwrap();
         truncate_df(&mut acc_df, "rain", 3);
         let expected_df = df![
-                "date" => DateChunked::parse_from_str_slice("date", 
-                    &[
-                        "2020-08-21",
-                        "2020-08-22",
-                        "2020-08-23",
-                    ], DATE_FMT
-                ).into_series(),
-                "temp" => [30, 8, 9],
-                "rain" => [0.3, 0.31, 0.1],
-            ].unwrap()
-            .sort(["date"], false).unwrap();
+            "date" => DateChunked::parse_from_str_slice("date",
+                &[
+                    "2020-08-21",
+                    "2020-08-22",
+                    "2020-08-23",
+                ], DATE_FMT
+            ).into_series(),
+            "temp" => [30, 8, 9],
+            "rain" => [0.3, 0.31, 0.1],
+        ]
+        .unwrap()
+        .sort(["date"], false)
+        .unwrap();
         assert_eq!(&acc_df, &expected_df);
     }
 
@@ -261,25 +270,27 @@ mod tests {
         // │ 2020-08-22 ┆ 1    ┆ 0.01 │
         // └────────────┴──────┴──────┘
 
-        let distinct_dates = &[
-            "2020-08-21",
-            "2020-08-22",
-            "2020-08-23",
-        ];
+        let distinct_dates = &["2020-08-21", "2020-08-22", "2020-08-23"];
 
         // Count per group
-        let df_count = 
-            df.groupby(["date"]).unwrap()
-                .count().unwrap()
-                .sort(["date"], false).unwrap();
+        let df_count = df
+            .groupby(["date"])
+            .unwrap()
+            .count()
+            .unwrap()
+            .sort(["date"], false)
+            .unwrap();
         println!("{:?}", df_count);
-        assert_eq!(df_count,
+        assert_eq!(
+            df_count,
             df![
                 "date" => DateChunked::parse_from_str_slice("date", distinct_dates, DATE_FMT)
                     .into_series(),
                 "temp_count" => [2, 2, 1] as [u32; 3],
                 "rain_count" => [2, 2, 1] as [u32; 3],
-            ].unwrap());
+            ]
+            .unwrap()
+        );
         // shape: (3, 3)
         // ┌────────────┬────────────┬────────────┐
         // │ date       ┆ temp_count ┆ rain_count │
@@ -294,20 +305,26 @@ mod tests {
         // └────────────┴────────────┴────────────┘
 
         // Sum per group
-        let mut df_sum =
-            df.groupby(["date"]).unwrap()
-                .sum().unwrap()
-                .sort(["date"], false).unwrap();
+        let mut df_sum = df
+            .groupby(["date"])
+            .unwrap()
+            .sum()
+            .unwrap()
+            .sort(["date"], false)
+            .unwrap();
         // truncate floating point numbers for approximate equality check
         truncate_df(&mut df_sum, "rain_sum", 3);
         println!("{:?}", df_sum);
-        assert_eq!(df_sum, 
+        assert_eq!(
+            df_sum,
             df![
                 "date" => DateChunked::parse_from_str_slice("date", distinct_dates, DATE_FMT)
                     .into_series(),
                 "temp_sum" => [30, 8, 9] as [i32; 3],
                 "rain_sum" => [0.3, 0.31, 0.1] as [f64; 3],
-            ].unwrap());
+            ]
+            .unwrap()
+        );
         // shape: (3, 3)
         // ┌────────────┬──────────┬──────────┐
         // │ date       ┆ temp_sum ┆ rain_sum │
@@ -322,18 +339,24 @@ mod tests {
         // └────────────┴──────────┴──────────┘
 
         // Last per group
-        let df_last =
-            df.groupby(["date"]).unwrap()
-                .last().unwrap()
-                .sort(["date"], false).unwrap();
+        let df_last = df
+            .groupby(["date"])
+            .unwrap()
+            .last()
+            .unwrap()
+            .sort(["date"], false)
+            .unwrap();
         println!("{:?}", df_last);
-        assert_eq!(df_last,
+        assert_eq!(
+            df_last,
             df![
                 "date" => DateChunked::parse_from_str_slice("date", distinct_dates, DATE_FMT)
                     .into_series(),
                 "temp_last" => [10, 1, 9],
                 "rain_last" => [0.1, 0.01, 0.1],
-            ].unwrap());
+            ]
+            .unwrap()
+        );
         // shape: (3, 3)
         // ┌────────────┬───────────┬───────────┐
         // │ date       ┆ temp_last ┆ rain_last │
@@ -346,6 +369,5 @@ mod tests {
         // ├╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┤
         // │ 2020-08-21 ┆ 10        ┆ 0.1       │
         // └────────────┴───────────┴───────────┘
-
     }
 }

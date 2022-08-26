@@ -59,10 +59,7 @@ mod tests {
 
     #[test]
     fn stop_given_eof() {
-        let node =
-            ExecutionNode::from(SimpleMapper::from(|r: &String| {
-                Some(r.clone() + "X")
-            }));
+        let node = ExecutionNode::from(SimpleMapper::from(|r: &String| Some(r.clone() + "X")));
         let self_writer = node.self_writer(0);
         let mut exec_service = ExecutionService::create();
         exec_service.add(node);

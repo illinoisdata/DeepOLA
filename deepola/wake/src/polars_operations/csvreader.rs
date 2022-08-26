@@ -97,8 +97,8 @@ impl CSVReader {
             match &self.column_names {
                 Some(a) => {
                     df.set_column_names(a).unwrap();
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         df
@@ -189,11 +189,12 @@ mod tests {
     #[test]
     fn test_partial_col_read() {
         let input_files = df!(
-                "col" => &[
-                    "resources/tpc-h/data/lineitem-100.csv",
-                ]
-            ).unwrap();
-        
+            "col" => &[
+                "resources/tpc-h/data/lineitem-100.csv",
+            ]
+        )
+        .unwrap();
+
         // First, test a regular reader; which must read all the 16 columns for the lineitem table
         let csvreader = CSVReaderBuilder::new()
             .delimiter(',')
@@ -234,7 +235,10 @@ mod tests {
             let dblock = message.datablock();
             let data = dblock.data();
             println!("{:?}", data);
-            assert_eq!(data.get_column_names(), vec!["l_orderkey", "l_partkey", "l_suppkey"]);
+            assert_eq!(
+                data.get_column_names(),
+                vec!["l_orderkey", "l_partkey", "l_suppkey"]
+            );
             assert_eq!(data.width(), total_column_count);
         }
     }

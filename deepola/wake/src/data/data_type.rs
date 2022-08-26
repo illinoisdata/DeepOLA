@@ -3,8 +3,8 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
 use std::hash::Hasher;
-use std::str::FromStr;
 use std::str;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum DataType {
@@ -24,7 +24,7 @@ pub enum DataCell {
     Integer(i32),
     Float(f64),
     Text(Box<str>),
-    Tuple(Box<(DataCell,DataCell)>),
+    Tuple(Box<(DataCell, DataCell)>),
     Null(),
 }
 
@@ -41,7 +41,7 @@ impl DataCell {
             DataCell::Tuple(a) => {
                 hasher.write_u64((*a).0.hash());
                 hasher.write_u64((*a).1.hash());
-            },
+            }
             _ => {}
         }
         hasher.finish()
@@ -62,7 +62,7 @@ impl DataCell {
                 DataCell::Tuple(a) => {
                     hasher.write_u64((*a).0.hash());
                     hasher.write_u64((*a).1.hash());
-                    },
+                }
                 _ => {}
             }
         }
@@ -80,7 +80,7 @@ impl DataCell {
                     result += i32::from(cell);
                 }
                 DataCell::Integer(result)
-            },
+            }
             DataCell::Float(a) => {
                 let mut result = a;
                 for cell in cells.iter().skip(1) {
@@ -106,7 +106,7 @@ impl DataCell {
                     }
                 }
                 DataCell::Integer(result)
-            },
+            }
             DataCell::Float(a) => {
                 let mut result = a;
                 for cell in cells.iter().skip(1) {
@@ -116,8 +116,8 @@ impl DataCell {
                     }
                 }
                 DataCell::Float(result)
-            },
-            _ => panic!("MIN not implemented")
+            }
+            _ => panic!("MIN not implemented"),
         }
     }
 
@@ -135,7 +135,7 @@ impl DataCell {
                     }
                 }
                 DataCell::Integer(result)
-            },
+            }
             DataCell::Float(a) => {
                 let mut result = a;
                 for cell in cells.iter().skip(1) {
@@ -145,8 +145,8 @@ impl DataCell {
                     }
                 }
                 DataCell::Float(result)
-            },
-            _ => panic!("MIN not implemented")
+            }
+            _ => panic!("MIN not implemented"),
         }
     }
 
@@ -156,7 +156,7 @@ impl DataCell {
             match cell {
                 DataCell::Null() => {
                     result += 0;
-                },
+                }
                 _ => {
                     result += 1;
                 }
@@ -168,7 +168,7 @@ impl DataCell {
     pub fn avg(cells: &[DataCell]) -> DataCell {
         let sum = Self::sum(cells);
         let count = Self::count(cells);
-        DataCell::Tuple(Box::new((sum,count)))
+        DataCell::Tuple(Box::new((sum, count)))
     }
 }
 
@@ -231,14 +231,19 @@ impl DataCell {
         }
     }
 
-    pub fn create_data_cell_from_bytes(value: &[u8], d: &DataType) -> Result<DataCell, Box<dyn Error>> {
+    pub fn create_data_cell_from_bytes(
+        value: &[u8],
+        d: &DataType,
+    ) -> Result<DataCell, Box<dyn Error>> {
         if value.is_empty() {
             return Ok(DataCell::Null());
         }
-        let parsed_value = unsafe {str::from_utf8_unchecked(value).to_string()};
+        let parsed_value = unsafe { str::from_utf8_unchecked(value).to_string() };
         match d {
             DataType::Boolean => Ok(DataCell::Boolean(parsed_value.parse::<bool>().unwrap())),
-            DataType::UnsignedInt => Ok(DataCell::UnsignedInt(parsed_value.parse::<usize>().unwrap())),
+            DataType::UnsignedInt => Ok(DataCell::UnsignedInt(
+                parsed_value.parse::<usize>().unwrap(),
+            )),
             DataType::Integer => Ok(DataCell::Integer(parsed_value.parse::<i32>().unwrap())),
             DataType::Float => Ok(DataCell::Float(parsed_value.parse::<f64>().unwrap())),
             DataType::Text => Ok(DataCell::from(parsed_value)),
@@ -273,7 +278,7 @@ impl fmt::Display for DataCell {
             DataCell::Integer(a) => a.to_string(),
             DataCell::Float(a) => a.to_string(),
             DataCell::Text(a) => a.to_string(),
-            DataCell::Tuple(a) => format!("({},{})",(*a).0,(*a).1),
+            DataCell::Tuple(a) => format!("({},{})", (*a).0, (*a).1),
             _ => panic!("Invalid DataCell"),
         };
         write!(f, "{}", result)
@@ -327,7 +332,6 @@ impl From<DataCell> for String {
     }
 }
 
-
 impl From<&str> for DataCell {
     fn from(value: &str) -> Self {
         DataCell::Text(value.into())
@@ -366,7 +370,7 @@ impl From<usize> for DataCell {
 
 impl From<(DataCell, DataCell)> for DataCell {
     fn from(value: (DataCell, DataCell)) -> Self {
-        DataCell::Tuple(Box::new((value.0,value.1)))
+        DataCell::Tuple(Box::new((value.0, value.1)))
     }
 }
 
@@ -451,7 +455,10 @@ mod tests {
         }
         assert_eq!(
             DataCell::avg(&cells),
-            DataCell::Tuple(Box::new((DataCell::from(target_sum), DataCell::from(target_ct))))
+            DataCell::Tuple(Box::new((
+                DataCell::from(target_sum),
+                DataCell::from(target_ct)
+            )))
         );
     }
 

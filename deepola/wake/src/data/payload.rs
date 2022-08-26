@@ -1,7 +1,7 @@
 use getset::Getters;
-use std::{sync::Arc, collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
-use super::{SCHEMA_META_NAME, Schema, MetaCell};
+use super::{MetaCell, Schema, SCHEMA_META_NAME};
 
 /// Either actual data (`DataBlock`) or other special signals (e.g., EOF, Signal).
 ///
@@ -76,14 +76,20 @@ pub struct DataBlock<T> {
 
 impl<T> Clone for DataBlock<T> {
     fn clone(&self) -> Self {
-        Self { data: self.data.clone(), metadata: self.metadata.clone() }
+        Self {
+            data: self.data.clone(),
+            metadata: self.metadata.clone(),
+        }
     }
 }
 
 impl<T> DataBlock<T> {
     /// Public constructor.
     pub fn new(data: T, metadata: HashMap<String, MetaCell>) -> Self {
-        DataBlock { data: Arc::new(data), metadata}
+        DataBlock {
+            data: Arc::new(data),
+            metadata,
+        }
     }
 
     pub fn data(&self) -> &T {
@@ -109,7 +115,7 @@ impl<T> Debug for DataBlock<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap};
+    use std::collections::HashMap;
 
     use super::*;
     use crate::data::schema::Schema;
@@ -128,16 +134,17 @@ mod tests {
     fn datablock_new_with_schema() {
         let data: Vec<i64> = vec![19241];
         let lineitem_schema = Schema::from_example("lineitem").unwrap();
-        let metadata= HashMap::from(
-            [
-                ("key".into(), MetaCell::Text("value".to_string())),
-                ("schema".into(), MetaCell::Schema(lineitem_schema.clone()))
-            ]
-        );
+        let metadata = HashMap::from([
+            ("key".into(), MetaCell::Text("value".to_string())),
+            ("schema".into(), MetaCell::Schema(lineitem_schema.clone())),
+        ]);
         let dblock = DataBlock::new(data.clone(), metadata.clone());
         assert_eq!(dblock.data.as_ref(), &data);
         assert_eq!(dblock.metadata, metadata);
-        assert_eq!(dblock.metadata.get("schema"), Some(&MetaCell::Schema(lineitem_schema)));
+        assert_eq!(
+            dblock.metadata.get("schema"),
+            Some(&MetaCell::Schema(lineitem_schema))
+        );
     }
 
     /// Even if a payload is cloned, their underlying data objects are the same.
@@ -159,5 +166,4 @@ mod tests {
         }
         panic!("{}", "not expected to reach here");
     }
-
 }

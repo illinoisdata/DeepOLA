@@ -1,4 +1,4 @@
-use crate::{channel::{MultiChannelBroadcaster, MultiChannelReader}};
+use crate::channel::{MultiChannelBroadcaster, MultiChannelReader};
 
 /// The interface for ExecutionNode.
 ///
@@ -16,4 +16,3 @@ pub trait StreamProcessor<T: Send>: Send {
         output_stream: MultiChannelBroadcaster<T>,
     );
 }
-

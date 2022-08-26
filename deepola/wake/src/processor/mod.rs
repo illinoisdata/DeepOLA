@@ -2,7 +2,6 @@
 ///
 /// For convenience, this module also provides the SimpleRecordProcessor<T> struct, which
 /// implements StreamProcessor<T>.
-
 mod message_processor;
 mod stream_processor;
 
