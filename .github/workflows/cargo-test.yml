@@ -2,9 +2,6 @@ name: Rust CI
 
 on:
   push:
-    paths:
-      - 'rust/**'
-      - '.github/workflows/**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,10 +15,10 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
-      working-directory: rust/runtime/
+      working-directory: deepola/
     - name: Run tests
       run: cargo test --verbose
-      working-directory: rust/runtime/
+      working-directory: deepola/
   tpch:
     needs: test
     name: tpch-test
@@ -31,7 +28,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build TPCH examples
       run: cargo build --examples
-      working-directory: rust/runtime/
+      working-directory: deepola/
   benchmark:
     needs: tpch
     name: benchmark
@@ -43,4 +40,4 @@ jobs:
       run: git lfs checkout
     - name: Run Benchmarks
       run: cargo bench
-      working-directory: rust/runtime/
+      working-directory: deepola/

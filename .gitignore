@@ -1,4 +1,5 @@
-data/*
+*.lock
+resources/*
 src/outputs/
 .DS_Store
 # Byte-compiled / optimized / DLL files
