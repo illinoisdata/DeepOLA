@@ -1,16 +1,16 @@
-mod message;
-mod kv;
-mod array_row;
-mod payload;
-mod data_type;
-mod schema;
-mod meta_type;
 mod arithmetic;
+mod array_row;
+mod data_type;
+mod kv;
+mod message;
+mod meta_type;
+mod payload;
+mod schema;
 
-pub use message::*;
-pub use kv::*;
 pub use array_row::*;
-pub use payload::*;
 pub use data_type::*;
-pub use schema::*;
+pub use kv::*;
+pub use message::*;
 pub use meta_type::*;
+pub use payload::*;
+pub use schema::*;

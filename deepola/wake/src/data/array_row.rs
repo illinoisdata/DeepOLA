@@ -1,5 +1,5 @@
-use std::ops::{Index, IndexMut};
 use std::fmt;
+use std::ops::{Index, IndexMut};
 
 use crate::data::data_type::DataCell;
 use getset::Getters;
@@ -25,7 +25,7 @@ impl ArrayRow {
     }
 
     pub fn slice_indices(&self, indices: &[usize]) -> Vec<DataCell> {
-      indices.iter().map(|idx| self[*idx].clone()).collect()
+        indices.iter().map(|idx| self[*idx].clone()).collect()
     }
 }
 
@@ -38,7 +38,9 @@ impl From<Vec<DataCell>> for ArrayRow {
 // Clone values from a vector of DataCell references
 impl From<Vec<&DataCell>> for ArrayRow {
     fn from(values: Vec<&DataCell>) -> Self {
-        ArrayRow { values: values.into_iter().cloned().collect() }
+        ArrayRow {
+            values: values.into_iter().cloned().collect(),
+        }
     }
 }
 
@@ -78,7 +80,7 @@ impl fmt::Display for ArrayRow {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for cell in &self.values {
-            write!(f,"{} | ",cell).expect("Error displaying ArrayRow");
+            write!(f, "{} | ", cell).expect("Error displaying ArrayRow");
         }
         writeln!(f)
     }

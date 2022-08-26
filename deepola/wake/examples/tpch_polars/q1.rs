@@ -34,54 +34,75 @@ use std::collections::HashMap;
 // 	l_linestatus;
 // limit -1;
 
-pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<polars::prelude::DataFrame>) -> ExecutionService<polars::prelude::DataFrame> {
+pub fn query(
+    tableinput: HashMap<String, TableInput>,
+    output_reader: &mut NodeReader<polars::prelude::DataFrame>,
+) -> ExecutionService<polars::prelude::DataFrame> {
     // Create a HashMap that stores table name and the columns in that query.
-    let table_columns = HashMap::from([
-        (
-            "lineitem".into(),
-            vec!["l_quantity","l_extendedprice","l_discount","l_tax","l_returnflag", "l_linestatus","l_shipdate"]
-        ),
-    ]);
+    let table_columns = HashMap::from([(
+        "lineitem".into(),
+        vec![
+            "l_quantity",
+            "l_extendedprice",
+            "l_discount",
+            "l_tax",
+            "l_returnflag",
+            "l_linestatus",
+            "l_shipdate",
+        ],
+    )]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
 
     // WHERE Node
     let where_node = AppenderNode::<DataFrame, MapAppender>::new()
-    .appender(MapAppender::new(Box::new(
-            |df: &DataFrame| {
-                let a = df.column("l_shipdate").unwrap();
-                let mask = a.lt_eq("1998-09-01").unwrap();
-                df.filter(&mask).unwrap()
-            }))
-        )
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let a = df.column("l_shipdate").unwrap();
+            let mask = a.lt_eq("1998-09-01").unwrap();
+            df.filter(&mask).unwrap()
+        })))
         .build();
 
     // EXPRESSION Node
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
-        .appender(MapAppender::new(Box::new(
-                |df: &DataFrame| {
-                    let extended_price = df.column("l_extendedprice").unwrap();
-                    let discount = df.column("l_discount").unwrap();
-                    let tax = df.column("l_tax").unwrap();
-                    let columns = vec![
-                        Series::new("disc_price", extended_price.cast(&polars::datatypes::DataType::Float64).unwrap() * (discount*-1f64 + 1f64)),
-                        Series::new("charge", (extended_price.cast(&polars::datatypes::DataType::Float64).unwrap() * (discount*-1f64 + 1f64))*(tax + 1f64))
-                    ];
-                    df.hstack(&columns).unwrap()
-                    }))
-            )
-            .build();
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let extended_price = df.column("l_extendedprice").unwrap();
+            let discount = df.column("l_discount").unwrap();
+            let tax = df.column("l_tax").unwrap();
+            let columns = vec![
+                Series::new(
+                    "disc_price",
+                    extended_price
+                        .cast(&polars::datatypes::DataType::Float64)
+                        .unwrap()
+                        * (discount * -1f64 + 1f64),
+                ),
+                Series::new(
+                    "charge",
+                    (extended_price
+                        .cast(&polars::datatypes::DataType::Float64)
+                        .unwrap()
+                        * (discount * -1f64 + 1f64))
+                        * (tax + 1f64),
+                ),
+            ];
+            df.hstack(&columns).unwrap()
+        })))
+        .build();
 
     // GROUP BY Aggregate Node
     let mut sum_accumulator = SumAccumulator::new();
     sum_accumulator.set_group_key(vec!["l_returnflag".to_string(), "l_linestatus".to_string()]);
-    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new().accumulator(sum_accumulator).build();
+    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new()
+        .accumulator(sum_accumulator)
+        .build();
 
     // Connect nodes with subscription
-    where_node.subscribe_to_node(&lineitem_csvreader_node,0);
+    where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     expression_node.subscribe_to_node(&where_node, 0);
-    groupby_node.subscribe_to_node(&expression_node,0);
+    groupby_node.subscribe_to_node(&expression_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&groupby_node, 0);

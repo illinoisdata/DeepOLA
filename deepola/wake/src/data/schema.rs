@@ -126,7 +126,7 @@ impl Schema {
                     Column::from_field("o_clerk".to_string(), DataType::Text),
                     Column::from_field("o_shippriority".to_string(), DataType::Integer),
                     Column::from_field("o_comment".to_string(), DataType::Text),
-                ]
+                ],
             )),
             "test_arraydata" => Ok(Schema::new(
                 String::from(table),

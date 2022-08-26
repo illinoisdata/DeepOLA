@@ -5,15 +5,12 @@
 // use criterion::Throughput;
 // use rand::Rng;
 
-
 // use wake::forecast::cell::ForecastSelector;
 // use wake::forecast::Series;
 // use wake::forecast::TimeType;
 // use wake::forecast::ValueType;
 
-
 // /* Dataset generation */
-
 // struct Dataset {
 //     pub times: Vec<TimeType>,
 //     pub values: Vec<ValueType>,
@@ -54,9 +51,7 @@
 //     }
 // }
 
-
 // /* Benchmarks */
-
 // fn forecast_cell_all_steps(c: &mut Criterion) {
 //     let mut group = c.benchmark_group("Default ForecastSelector Throughput");
 //     for num_batch in [1, 100, 10000] {

@@ -1,5 +1,5 @@
 use getset::Getters;
-use std::{fmt::Debug};
+use std::fmt::Debug;
 
 use super::payload::*;
 
@@ -12,19 +12,25 @@ pub struct DataMessage<T> {
 
 impl<T> Clone for DataMessage<T> {
     fn clone(&self) -> Self {
-        Self { payload: self.payload.clone() }
+        Self {
+            payload: self.payload.clone(),
+        }
     }
 }
 
 impl<T> Debug for DataMessage<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DataMessage").field("payload", &self.payload).finish()
+        f.debug_struct("DataMessage")
+            .field("payload", &self.payload)
+            .finish()
     }
 }
 
 impl<T> From<DataBlock<T>> for DataMessage<T> {
     fn from(dblock: DataBlock<T>) -> Self {
-        Self { payload: Payload::Some(dblock) }
+        Self {
+            payload: Payload::Some(dblock),
+        }
     }
 }
 
@@ -35,17 +41,20 @@ impl<T> From<T> for DataMessage<T> {
 }
 
 impl<T> DataMessage<T> {
-
     pub fn from_single(record: T) -> Self {
         Self::from(DataBlock::from(record))
     }
 
     pub fn eof() -> Self {
-        Self { payload: Payload::EOF }
+        Self {
+            payload: Payload::EOF,
+        }
     }
 
     pub fn stop() -> Self {
-        Self { payload: Payload::Signal(Signal::STOP) }
+        Self {
+            payload: Payload::Signal(Signal::STOP),
+        }
     }
 
     pub fn is_eof(&self) -> bool {

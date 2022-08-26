@@ -1,12 +1,12 @@
 use crate::utils::*;
 
 extern crate runtime;
-use runtime::graph::*;
 use runtime::data::*;
+use runtime::graph::*;
 use runtime::operations::*;
 
-use std::collections::HashMap;
 use std::cmp;
+use std::collections::HashMap;
 
 // select
 // 	n_name,
@@ -33,21 +33,36 @@ use std::cmp;
 // order by
 // 	revenue desc;
 
-pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+pub fn query(
+    tableinput: HashMap<String, TableInput>,
+    output_reader: &mut NodeReader<ArrayRow>,
+) -> ExecutionService<ArrayRow> {
     let table_columns = HashMap::from([
-        ("lineitem".into(), vec!["l_orderkey","l_suppkey","l_extendedprice","l_discount"]),
-        ("orders".into(), vec!["o_orderkey","o_custkey","o_orderdate"]),
-        ("customer".into(), vec!["c_custkey","c_nationkey"]),
-        ("supplier".into(), vec!["s_suppkey","s_nationkey"]),
-        ("nation".into(), vec!["n_nationkey","n_name","n_regionkey"]),
-        ("region".into(), vec!["r_regionkey","r_name"]),
+        (
+            "lineitem".into(),
+            vec!["l_orderkey", "l_suppkey", "l_extendedprice", "l_discount"],
+        ),
+        (
+            "orders".into(),
+            vec!["o_orderkey", "o_custkey", "o_orderdate"],
+        ),
+        ("customer".into(), vec!["c_custkey", "c_nationkey"]),
+        ("supplier".into(), vec!["s_suppkey", "s_nationkey"]),
+        (
+            "nation".into(),
+            vec!["n_nationkey", "n_name", "n_regionkey"],
+        ),
+        ("region".into(), vec!["r_regionkey", "r_name"]),
     ]);
 
     // CSV Reader node
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let customer_csvreader_node =
+        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node =
+        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
     let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
     let region_csvreader_node = build_csv_reader_node("region".into(), &tableinput, &table_columns);
 
@@ -59,8 +74,8 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     fn order_predicate(record: &ArrayRow) -> bool {
         // 	and o_orderdate >= date '1994-01-01'
         // 	and o_orderdate < date '1994-01-01' + interval '1' year
-        String::from(&record.values[2]) >= "1994-01-01".to_string() &&
-        String::from(&record.values[2]) < "1995-01-01".to_string()
+        String::from(&record.values[2]) >= "1994-01-01".to_string()
+            && String::from(&record.values[2]) < "1995-01-01".to_string()
     }
     let order_predicate_node = WhereNode::node(order_predicate);
 
@@ -68,22 +83,22 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let nation_region_join_node = HashJoinNode::node(
         vec!["r_regionkey".into()],
         vec!["n_regionkey".into()],
-        JoinType::Inner
+        JoinType::Inner,
     );
     let supplier_nation_join_node = HashJoinNode::node(
         vec!["n_nationkey".into()],
         vec!["s_nationkey".into()],
-        JoinType::Inner
+        JoinType::Inner,
     );
     let lineitem_supplier_join_node = HashJoinNode::node(
         vec!["l_suppkey".into()],
         vec!["s_suppkey".into()],
-        JoinType::Inner
+        JoinType::Inner,
     );
     let order_customer_join_node = HashJoinNode::node(
-        vec!["o_custkey".into(),"n_nationkey".into()],
-        vec!["c_custkey".into(),"c_nationkey".into()],
-        JoinType::Inner
+        vec!["o_custkey".into(), "n_nationkey".into()],
+        vec!["c_custkey".into(), "c_nationkey".into()],
+        JoinType::Inner,
     );
     let mut merge_join_node_builder = MergeJoinBuilder::new();
     merge_join_node_builder.left_on_index(vec![0]);
@@ -91,7 +106,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let lineitem_order_join_node = merge_join_node_builder.build();
 
     // Connect nodes with subscription
-    order_predicate_node.subscribe_to_node(&orders_csvreader_node,0);
+    order_predicate_node.subscribe_to_node(&orders_csvreader_node, 0);
     region_predicate_node.subscribe_to_node(&region_csvreader_node, 0);
 
     nation_region_join_node.subscribe_to_node(&region_predicate_node, 0);
@@ -115,23 +130,19 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     fn revenue_expression(record: &ArrayRow) -> DataCell {
         DataCell::Float(f64::from(&record.values[2]) * (1.0 - f64::from(&record.values[3])))
     }
-    let expressions = vec![
-        Expression {
-            predicate: revenue_expression,
-            alias: "revenue".into(),
-            dtype: DataType::Float
-        }
-    ];
+    let expressions = vec![Expression {
+        predicate: revenue_expression,
+        alias: "revenue".into(),
+        dtype: DataType::Float,
+    }];
     let expression_node = ExpressionNode::node(expressions);
 
     // GROUP BY node
-    let aggregates = vec![
-        Aggregate {
-            column: "revenue".to_string(),
-            operation: AggregationOperation::Sum,
-            alias: Some("revenue".into()),
-        }
-    ];
+    let aggregates = vec![Aggregate {
+        column: "revenue".to_string(),
+        operation: AggregationOperation::Sum,
+        alias: Some("revenue".into()),
+    }];
     let groupby_cols = vec!["n_name".into()];
     let groupby_node = GroupByNode::node(groupby_cols, aggregates);
 
@@ -152,7 +163,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
 
     expression_node.subscribe_to_node(&order_customer_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
-    select_node.subscribe_to_node(&groupby_node,0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);

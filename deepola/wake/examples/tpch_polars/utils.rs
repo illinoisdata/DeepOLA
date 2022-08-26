@@ -1,7 +1,7 @@
 extern crate wake;
 use polars::prelude::*;
-use wake::graph::*;
 use wake::data::*;
+use wake::graph::*;
 use wake::polars_operations::*;
 
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use std::error::Error;
 pub struct TableInput {
     pub batch_size: usize,
     pub input_files: Vec<String>,
-    pub scale: usize
+    pub scale: usize,
 }
 
 pub fn total_number_of_records(table: &str, scale: usize) -> usize {
@@ -28,7 +28,11 @@ pub fn total_number_of_records(table: &str, scale: usize) -> usize {
     }
 }
 
-pub fn build_csv_reader_node(table: String, tableinput: &HashMap<String, TableInput>, table_columns: &HashMap<String,Vec<&str>>) -> ExecutionNode<polars::prelude::DataFrame> {
+pub fn build_csv_reader_node(
+    table: String,
+    tableinput: &HashMap<String, TableInput>,
+    table_columns: &HashMap<String, Vec<&str>>,
+) -> ExecutionNode<polars::prelude::DataFrame> {
     // Get batch size and file names from tableinput tables;
     let raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
     let scale = tableinput.get(&table as &str).unwrap().scale.clone();
@@ -36,11 +40,11 @@ pub fn build_csv_reader_node(table: String, tableinput: &HashMap<String, TableIn
 
     let projected_cols_index = match table_columns.get(&table) {
         Some(columns) => Some(columns.iter().map(|x| schema.index(x)).collect()),
-        None => None // No columns specified means taking all columns.
+        None => None, // No columns specified means taking all columns.
     };
     let projected_column_names = match table_columns.get(&table) {
         Some(columns) => Some(columns.iter().map(|x| x.to_string()).collect()),
-        None => None
+        None => None,
     };
 
     let input_files = df!("col" => &raw_input_files).unwrap();
@@ -53,7 +57,10 @@ pub fn build_csv_reader_node(table: String, tableinput: &HashMap<String, TableIn
         .build();
 
     let mut metadata = MetaCell::Schema(schema.clone()).into_meta_map();
-    *metadata.entry(DATABLOCK_TOTAL_RECORDS.to_string()).or_insert(MetaCell::Float(0.0)) = MetaCell::Float(total_number_of_records(&table, scale) as f64);
+    *metadata
+        .entry(DATABLOCK_TOTAL_RECORDS.to_string())
+        .or_insert(MetaCell::Float(0.0)) =
+        MetaCell::Float(total_number_of_records(&table, scale) as f64);
 
     let dblock = DataBlock::new(input_files.clone(), metadata);
     csvreader.write_to_self(0, DataMessage::from(dblock));
@@ -147,7 +154,7 @@ pub fn tpch_schema(table: &str) -> std::result::Result<wake::data::Schema, Box<d
     } else {
         Ok(wake::data::Schema::new(
             String::from(table),
-            columns.clone()
+            columns.clone(),
         ))
     }
 }

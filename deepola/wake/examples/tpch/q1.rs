@@ -1,12 +1,12 @@
 use crate::utils::*;
 
 extern crate runtime;
-use runtime::graph::*;
 use runtime::data::*;
+use runtime::graph::*;
 use runtime::operations::*;
 
-use std::collections::HashMap;
 use std::cmp;
+use std::collections::HashMap;
 
 /// This node implements the following SQL query
 // select
@@ -32,18 +32,27 @@ use std::cmp;
 // 	l_linestatus;
 // limit -1;
 
-pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+pub fn query(
+    tableinput: HashMap<String, TableInput>,
+    output_reader: &mut NodeReader<ArrayRow>,
+) -> ExecutionService<ArrayRow> {
     // Create a HashMap that stores table name and the columns in that query.
-    let table_columns = HashMap::from([
-        (
-            "lineitem".into(),
-            vec!["l_quantity","l_extendedprice","l_discount","l_tax",
-            "l_returnflag", "l_linestatus","l_shipdate"]
-        ),
-    ]);
+    let table_columns = HashMap::from([(
+        "lineitem".into(),
+        vec![
+            "l_quantity",
+            "l_extendedprice",
+            "l_discount",
+            "l_tax",
+            "l_returnflag",
+            "l_linestatus",
+            "l_shipdate",
+        ],
+    )]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
 
     // WHERE Node
     fn predicate(record: &ArrayRow) -> bool {
@@ -57,19 +66,23 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
         DataCell::from(record.values[1].clone() * (DataCell::from(1) - record.values[2].clone()))
     }
     fn charge_predicate(record: &ArrayRow) -> DataCell {
-        DataCell::from(record.values[1].clone() * (DataCell::from(1) - record.values[2].clone()) * (DataCell::from(1) + record.values[3].clone()))
+        DataCell::from(
+            record.values[1].clone()
+                * (DataCell::from(1) - record.values[2].clone())
+                * (DataCell::from(1) + record.values[3].clone()),
+        )
     }
     let expressions = vec![
         Expression {
             predicate: disc_price_predicate,
             alias: "disc_price".into(),
-            dtype: DataType::Float
+            dtype: DataType::Float,
         },
         Expression {
             predicate: charge_predicate,
             alias: "charge".into(),
-            dtype: DataType::Float
-        }
+            dtype: DataType::Float,
+        },
     ];
     let expression_node = ExpressionNode::node(expressions);
 
@@ -116,7 +129,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
             alias: Some("count_order".into()),
         },
     ];
-    let groupby_cols = vec!["l_returnflag".into(),"l_linestatus".into()];
+    let groupby_cols = vec!["l_returnflag".into(), "l_linestatus".into()];
     let groupby_node = GroupByNode::node(groupby_cols, aggregates);
 
     // SELECT and ORDERBY Node
@@ -141,10 +154,10 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let select_node = select_node_builder.build();
 
     // Connect nodes with subscription
-    where_node.subscribe_to_node(&lineitem_csvreader_node,0);
+    where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     expression_node.subscribe_to_node(&where_node, 0);
-    groupby_node.subscribe_to_node(&expression_node,0);
-    select_node.subscribe_to_node(&groupby_node,0);
+    groupby_node.subscribe_to_node(&expression_node, 0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);

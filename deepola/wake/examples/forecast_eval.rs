@@ -21,7 +21,6 @@ use runtime::graph::ExecutionService;
 use runtime::graph::NodeReader;
 use runtime::operations::CSVReaderNode;
 
-
 /* Parsed arguments */
 
 #[derive(Debug, StructOpt)]
@@ -60,7 +59,7 @@ fn select_schema(schema_name: &str) -> Schema {
                 Column::from_field("supplier_cnt".to_string(), DataType::Integer),
             ],
         ),
-        _ => panic!("Invalid schema name {}", schema_name)
+        _ => panic!("Invalid schema name {}", schema_name),
     }
 }
 
@@ -72,24 +71,22 @@ fn read_csv(args: &Cli) -> (ExecutionNode<ArrayRow>, Metadata) {
         (SCHEMA_META_NAME.into(), MetaCell::Schema(schema)),
         (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DM)),
         (DATABLOCK_CARDINALITY.into(), MetaCell::from(0.0)),
-        (DATABLOCK_TOTAL_RECORDS.into(), MetaCell::from(1_000_000.0)),  // TODO: how to find this?
+        (DATABLOCK_TOTAL_RECORDS.into(), MetaCell::from(1_000_000.0)), // TODO: how to find this?
     ]);
     let csvreader = CSVReaderNode::new_with_params(
-        1_000_000,  // anything larger
+        1_000_000, // anything larger
         ',',
-        false  /* has_headers */,
-        vec![]  /* filtered_cols */,
+        false,  /* has_headers */
+        vec![], /* filtered_cols */
     );
     log::info!("Metadata: {:?}", metadata);
-    for idx in 1 .. args.series_n + 1 {
+    for idx in 1..args.series_n + 1 {
         let series_path = format!("{}/{}.csv", args.series_dir, idx);
         log::debug!("Reading {}", series_path);
-        let input_vec = vec![
-            ArrayRow::from_vector(vec![DataCell::from(series_path)])
-        ];
+        let input_vec = vec![ArrayRow::from_vector(vec![DataCell::from(series_path)])];
         metadata.insert(
             DATABLOCK_CARDINALITY.into(),
-            MetaCell::from(idx as f64 / args.series_n as f64)  // update cardinality
+            MetaCell::from(idx as f64 / args.series_n as f64), // update cardinality
         );
         let dblock = DataBlock::new(input_vec, metadata.clone());
         let dmsg = DataMessage::from(dblock);
@@ -109,17 +106,15 @@ fn read_answer(args: &Cli) -> DataBlock<ArrayRow> {
         (SCHEMA_META_NAME.into(), MetaCell::Schema(schema)),
         (DATABLOCK_TYPE.into(), MetaCell::from(DATABLOCK_TYPE_DM)),
         (DATABLOCK_CARDINALITY.into(), MetaCell::from(1.0)),
-        (DATABLOCK_TOTAL_RECORDS.into(), MetaCell::from(1_000_000.0)),  // TODO: how to find this?
+        (DATABLOCK_TOTAL_RECORDS.into(), MetaCell::from(1_000_000.0)), // TODO: how to find this?
     ]);
     let csvreader = CSVReaderNode::new_with_params(
-        1_000_000,  // anything larger
+        1_000_000, // anything larger
         ',',
-        false  /* has_headers */,
-        vec![]  /* filtered_cols */,
+        false,  /* has_headers */
+        vec![], /* filtered_cols */
     );
-    let input_vec = vec![
-        ArrayRow::from_vector(vec![DataCell::from(answer_path)])
-    ];
+    let input_vec = vec![ArrayRow::from_vector(vec![DataCell::from(answer_path)])];
     let dblock = DataBlock::new(input_vec, metadata.clone());
     let dmsg = DataMessage::from(dblock);
     csvreader.write_to_self(0, dmsg);
@@ -137,10 +132,7 @@ fn attach_forecast(
     metadata: Metadata,
     final_time: usize,
 ) -> ExecutionNode<ArrayRow> {
-    let input_schema = metadata
-        .get(SCHEMA_META_NAME)
-        .unwrap()
-        .to_schema();
+    let input_schema = metadata.get(SCHEMA_META_NAME).unwrap().to_schema();
     let forecast_node = ForecastNode::node(input_schema, final_time as f64);
     forecast_node.subscribe_to_node(dataset_node, 0);
     forecast_node
@@ -184,12 +176,14 @@ fn measure_error(pred: &DataBlock<ArrayRow>, expected: &DataBlock<ArrayRow>) -> 
     let mut errors: HashMap<String, Vec<f64>> = HashMap::new();
     for expected_record in expected.data().iter() {
         let expected_key = expected_record.slice_indices(&expected_key_indexes);
-        let expected_value = expected_record.slice_indices(&expected_value_indexes)
+        let expected_value = expected_record
+            .slice_indices(&expected_value_indexes)
             .iter()
             .map(f64::from)
             .collect::<Vec<f64>>();
-        let default_errors = expected_value_indexes.iter()
-            .map(|_| 1.0)  // 100% error if no prediction
+        let default_errors = expected_value_indexes
+            .iter()
+            .map(|_| 1.0) // 100% error if no prediction
             .collect::<Vec<f64>>();
         expected_answer.insert(format!("{:?}", expected_key), expected_value);
         errors.insert(format!("{:?}", expected_key), default_errors);
@@ -198,16 +192,17 @@ fn measure_error(pred: &DataBlock<ArrayRow>, expected: &DataBlock<ArrayRow>) -> 
     // measure cell-wise errors
     for pred_record in pred.data().iter() {
         let pred_key = pred_record.slice_indices(&pred_key_indexes);
-        let pred_value = pred_record.slice_indices(&pred_value_indexes)
+        let pred_value = pred_record
+            .slice_indices(&pred_value_indexes)
             .iter()
             .map(f64::from)
             .collect::<Vec<f64>>();
         let pred_key_str = format!("{:?}", pred_key);
         if let Some(expected_value) = expected_answer.get(&pred_key_str) {
             assert_eq!(pred_value.len(), expected_value.len());
-            let row_errors = (0 .. pred_value.len()).map(|idx| {
-                (expected_value[idx] - pred_value[idx]).abs() / expected_value[idx]
-            }).collect();
+            let row_errors = (0..pred_value.len())
+                .map(|idx| (expected_value[idx] - pred_value[idx]).abs() / expected_value[idx])
+                .collect();
             errors.insert(format!("{:?}", pred_key), row_errors);
         } else {
             log::error!("Predicted unexpected key group: {:?}", pred_key);
@@ -215,7 +210,10 @@ fn measure_error(pred: &DataBlock<ArrayRow>, expected: &DataBlock<ArrayRow>) -> 
     }
 
     // summarize errors by averaging
-    let flatten_errors = errors.into_iter().flat_map(|(_k, v)| v).collect::<Vec<f64>>();
+    let flatten_errors = errors
+        .into_iter()
+        .flat_map(|(_k, v)| v)
+        .collect::<Vec<f64>>();
     log::debug!("Errors: {:?}", flatten_errors);
     100.0 * flatten_errors.iter().sum::<f64>() / flatten_errors.len() as f64
 }
@@ -237,7 +235,7 @@ fn do_test(args: &Cli) {
 
     // execute!
     service.run();
-    for idx in 1 .. args.series_n + 1 {
+    for idx in 1..args.series_n + 1 {
         let start_time = Instant::now();
         let read_message = reader_node.read();
         let read_data = read_message.datablock().data();
@@ -245,7 +243,12 @@ fn do_test(args: &Cli) {
         log::trace!("Expected {:?}", answer_dblock.data());
 
         let avg_perr = measure_error(read_message.datablock(), &answer_dblock);
-        log::info!("Part {}: {:>9.2?}, avg_perr= {}", idx, start_time.elapsed(), avg_perr);
+        log::info!(
+            "Part {}: {:>9.2?}, avg_perr= {}",
+            idx,
+            start_time.elapsed(),
+            avg_perr
+        );
     }
     log::info!("Testing took {:?}", q1_start_time.elapsed());
 }

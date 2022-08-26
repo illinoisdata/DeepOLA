@@ -3,47 +3,49 @@ use std::{marker::PhantomData, sync::Arc};
 use getset::{Getters, Setters};
 use polars::prelude::DataFrame;
 
-use crate::{processor::{MessageProcessor}, graph::ExecutionNode};
+use crate::{graph::ExecutionNode, processor::MessageProcessor};
 
-
-/// Factory class for generating an Appender-type execution node, which is designed to support 
+/// Factory class for generating an Appender-type execution node, which is designed to support
 /// [AppenderOp] transformation.
-/// 
+///
 /// Type `P` stands for Procesor, which must be of type [AppenderOp<T>].
 /// Type `T` stands for Data Type.
 #[derive(Getters, Setters)]
-pub struct AppenderNode<T, P> 
+pub struct AppenderNode<T, P>
 where
-    P: AppenderOp<T>
+    P: AppenderOp<T>,
 {
     #[set = "pub"]
     appender: P,
-    
+
     // Necessary to have T as a generic type
     phantom: PhantomData<T>,
 }
 
 impl<T, P: AppenderOp<T>> Default for AppenderNode<T, P> {
     fn default() -> Self {
-        Self { appender: P::new(), phantom: PhantomData::default() }
+        Self {
+            appender: P::new(),
+            phantom: PhantomData::default(),
+        }
     }
 }
 
-impl<T: 'static + Send, P> AppenderNode<T, P> 
+impl<T: 'static + Send, P> AppenderNode<T, P>
 where
-    P: 'static + AppenderOp<T> + MessageProcessor<T> + Clone
+    P: 'static + AppenderOp<T> + MessageProcessor<T> + Clone,
 {
     pub fn new() -> Self {
         AppenderNode::default()
     }
 
     /// Use this method to create an Appender-type node with a custom mapper.
-    /// 
+    ///
     /// Example:
     /// ```
     /// use wake::polars_operations::{AppenderNode, MapAppender};
     /// use polars::prelude::DataFrame;
-    /// 
+    ///
     /// AppenderNode::<DataFrame, MapAppender>::new().appender(
     ///     MapAppender::new( Box::new(|x: &DataFrame| x.clone() ))
     /// ).build();
@@ -59,17 +61,16 @@ where
     }
 }
 
-
 /// Useful for creating a simple, memoryless Appender operation such as row filtering, column
 /// projection, etc. Not the best for implementing join operations because they may require
 /// materialized tables.
-pub trait AppenderOp<T> : Send {
+pub trait AppenderOp<T>: Send {
     fn new() -> Self;
 
     fn map(&self, df: &T) -> T;
 }
 
-/// A concrete implementation of type `P`, which implements all of AppenderOp<T> + 
+/// A concrete implementation of type `P`, which implements all of AppenderOp<T> +
 /// MessageProcessor<T> + Clone, for T = DataFrame.
 #[derive(Clone)]
 pub struct MapAppender {
@@ -78,7 +79,9 @@ pub struct MapAppender {
 
 impl MapAppender {
     pub fn new(mapper: Box<dyn Fn(&DataFrame) -> DataFrame>) -> Self {
-        MapAppender { mapper: Arc::new(mapper) }
+        MapAppender {
+            mapper: Arc::new(mapper),
+        }
     }
 }
 
@@ -100,10 +103,9 @@ impl MessageProcessor<DataFrame> for MapAppender {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::{graph::NodeReader, data::DataMessage};
+    use crate::{data::DataMessage, graph::NodeReader};
 
     use super::*;
     use polars::prelude::*;
@@ -120,7 +122,8 @@ mod tests {
                 "my",
                 "name"
             ]
-        ).unwrap();
+        )
+        .unwrap();
 
         identity.write_to_self(0, DataMessage::from(input_df.clone()));
         identity.write_to_self(0, DataMessage::eof());
@@ -141,22 +144,22 @@ mod tests {
     #[test]
     fn filter_rows_node() {
         let row_filter = AppenderNode::<DataFrame, MapAppender>::new()
-            .appender(MapAppender::new(Box::new(
-                |df: &DataFrame| {
-                    let a = df.column("col2").unwrap();
-                    let mask = a.equal("my").unwrap();
-                    df.filter(&mask).unwrap()
-                }))
-            )
+            .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+                let a = df.column("col2").unwrap();
+                let mask = a.equal("my").unwrap();
+                df.filter(&mask).unwrap()
+            })))
             .build();
         let input_df = df!(
             "col1" => &["hello", "world"],
             "col2" => &["my", "name"],
-        ).unwrap();
+        )
+        .unwrap();
         let expected_output = df!(
             "col1" => &["hello"],
             "col2" => &["my"],
-        ).unwrap();
+        )
+        .unwrap();
 
         row_filter.write_to_self(0, DataMessage::from(input_df.clone()));
         row_filter.write_to_self(0, DataMessage::eof());
@@ -177,17 +180,19 @@ mod tests {
     #[test]
     fn column_projetion_node() {
         let projector = AppenderNode::<DataFrame, MapAppender>::new()
-            .appender(MapAppender::new(Box::new(|df|
+            .appender(MapAppender::new(Box::new(|df| {
                 df.select(["col1"]).unwrap()
-            )))
+            })))
             .build();
         let input_df = df!(
             "col1" => &["hello", "world"],
             "col2" => &["my", "name"],
-        ).unwrap();
+        )
+        .unwrap();
         let expected_output = df!(
             "col1" => &["hello", "world"],
-        ).unwrap();
+        )
+        .unwrap();
 
         projector.write_to_self(0, DataMessage::from(input_df.clone()));
         projector.write_to_self(0, DataMessage::eof());
@@ -211,22 +216,23 @@ mod tests {
         // in column "col2".
         let projector = AppenderNode::new()
             .appender(MapAppender::new(Box::new(|df| {
-                    let mut col = df.column("col2").unwrap().clone();
-                    col = str_to_len(&col);
-                    col.rename("col3");
-                    df.hstack(&[col.clone()]).unwrap()
-                }))
-            )
+                let mut col = df.column("col2").unwrap().clone();
+                col = str_to_len(&col);
+                col.rename("col3");
+                df.hstack(&[col.clone()]).unwrap()
+            })))
             .build();
         let input_df = df!(
             "col1" => &["hello", "world"],
             "col2" => &["my", "name"],
-        ).unwrap();
+        )
+        .unwrap();
         let expected_output = df!(
             "col1" => &["hello", "world"],
             "col2" => &["my", "name"],
             "col3" => &[2 as u32, 4 as u32]
-        ).unwrap();
+        )
+        .unwrap();
 
         projector.write_to_self(0, DataMessage::from(input_df.clone()));
         projector.write_to_self(0, DataMessage::eof());
@@ -244,14 +250,12 @@ mod tests {
     }
 
     fn str_to_len(str_val: &Series) -> Series {
-        str_val.utf8()
+        str_val
+            .utf8()
             .unwrap()
             .into_iter()
-            .map(|opt_name: Option<&str>| {
-                opt_name.map(|name: &str| name.len() as u32)
-            })
+            .map(|opt_name: Option<&str>| opt_name.map(|name: &str| name.len() as u32))
             .collect::<UInt32Chunked>()
             .into_series()
     }
-
 }

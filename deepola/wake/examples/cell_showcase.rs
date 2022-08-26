@@ -11,7 +11,6 @@ use runtime::forecast::Series;
 use runtime::forecast::TimeType;
 use runtime::forecast::ValueType;
 
-
 struct Dataset {
     pub times: Vec<TimeType>,
     pub values: Vec<ValueType>,
@@ -21,10 +20,12 @@ struct Dataset {
 
 fn make_batches() -> Vec<Vec<i32>> {
     let mut rng = rand::thread_rng();
-    (0..100).map(|_| {
-        let batch_size: usize = rng.gen_range(9000..11000);
-        (0..batch_size).map(|_| rng.gen_range(0..10000)).collect()
-    }).collect()
+    (0..100)
+        .map(|_| {
+            let batch_size: usize = rng.gen_range(9000..11000);
+            (0..batch_size).map(|_| rng.gen_range(0..10000)).collect()
+        })
+        .collect()
 }
 
 fn make_sum_data() -> Dataset {
@@ -106,15 +107,17 @@ fn read_q1_data() -> Vec<Dataset> {
     const FILENAME: &str = "src/resources/q1_flatten.txt";
     let file = File::open(FILENAME).expect("file wasn't found.");
     let reader = BufReader::new(file);
-    reader.lines()
+    reader
+        .lines()
         .map(|line| {
-            let values: Vec<ValueType> = line.unwrap()
+            let values: Vec<ValueType> = line
+                .unwrap()
                 .split(' ')
                 .map(|num_str| num_str.parse::<ValueType>().unwrap())
                 .collect();
-            let times: Vec<TimeType> = (1..values.len()+1).map(|t| t as TimeType).collect();
-            let final_time = times[times.len()-1];
-            let final_answer = values[values.len()-1];
+            let times: Vec<TimeType> = (1..values.len() + 1).map(|t| t as TimeType).collect();
+            let final_time = times[times.len() - 1];
+            let final_answer = values[values.len() - 1];
             Dataset {
                 times,
                 values,
@@ -192,7 +195,7 @@ fn test_q1() {
         log::info!("Testing q1: series {} / {}", idx + 1, datasets.len());
         let est = ForecastSelector::make_with_default_candidates();
         let start_time = Instant::now();
-        do_test(dataset, est);   
+        do_test(dataset, est);
         log::info!("Forecasting took {:?}", start_time.elapsed());
     }
     log::info!("Testing q1 took {:?}", q1_start_time.elapsed());

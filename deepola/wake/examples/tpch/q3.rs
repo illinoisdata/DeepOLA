@@ -1,12 +1,12 @@
 use crate::utils::*;
 
 extern crate runtime;
-use runtime::graph::*;
 use runtime::data::*;
+use runtime::graph::*;
 use runtime::operations::*;
 
-use std::collections::HashMap;
 use std::cmp;
+use std::collections::HashMap;
 
 // select
 // 	l_orderkey,
@@ -31,22 +31,39 @@ use std::cmp;
 // 	revenue desc,
 // 	o_orderdate;
 
-pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeReader<ArrayRow>) -> ExecutionService<ArrayRow> {
+pub fn query(
+    tableinput: HashMap<String, TableInput>,
+    output_reader: &mut NodeReader<ArrayRow>,
+) -> ExecutionService<ArrayRow> {
     let table_columns = HashMap::from([
-        ("lineitem".into(), vec!["l_orderkey","l_extendedprice","l_discount","l_shipdate"]),
-        ("orders".into(), vec!["o_orderkey","o_custkey","o_orderdate","o_shippriority",]),
-        ("customer".into(), vec!["c_custkey","c_mktsegment"]),
+        (
+            "lineitem".into(),
+            vec!["l_orderkey", "l_extendedprice", "l_discount", "l_shipdate"],
+        ),
+        (
+            "orders".into(),
+            vec!["o_orderkey", "o_custkey", "o_orderdate", "o_shippriority"],
+        ),
+        ("customer".into(), vec!["c_custkey", "c_mktsegment"]),
     ]);
 
     // CSV Reader node
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let customer_csvreader_node =
+        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
 
     // WHERE node
-    fn lineitem_predicate(record: &ArrayRow) -> bool { String::from(&record.values[3]) > "1995-03-15".to_string() }
-    fn orders_predicate(record: &ArrayRow) -> bool { String::from(&record.values[2]) < "1995-03-15".to_string() }
-    fn customer_predicate(record: &ArrayRow) -> bool { String::from(&record.values[1]) == "BUILDING".to_string() }
+    fn lineitem_predicate(record: &ArrayRow) -> bool {
+        String::from(&record.values[3]) > "1995-03-15".to_string()
+    }
+    fn orders_predicate(record: &ArrayRow) -> bool {
+        String::from(&record.values[2]) < "1995-03-15".to_string()
+    }
+    fn customer_predicate(record: &ArrayRow) -> bool {
+        String::from(&record.values[1]) == "BUILDING".to_string()
+    }
     let lineitem_where_node = WhereNode::node(lineitem_predicate);
     let orders_where_node = WhereNode::node(orders_predicate);
     let customer_where_node = WhereNode::node(customer_predicate);
@@ -61,31 +78,31 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let hash_join_node = HashJoinNode::node(
         vec!["o_custkey".into()], //left is joined result of lineitem and orders
         vec!["c_custkey".into()], //right is customer
-        JoinType::Inner
+        JoinType::Inner,
     );
 
     // EXPRESSION node
     fn revenue_expression(record: &ArrayRow) -> DataCell {
         DataCell::Float(f64::from(&record.values[1]) * (1.0 - f64::from(&record.values[2])))
     }
-    let expressions = vec![
-        Expression {
-            predicate: revenue_expression,
-            alias: "revenue".into(),
-            dtype: DataType::Float
-        }
-    ];
+    let expressions = vec![Expression {
+        predicate: revenue_expression,
+        alias: "revenue".into(),
+        dtype: DataType::Float,
+    }];
     let expression_node = ExpressionNode::node(expressions);
 
     // GROUP BY node
-    let aggregates = vec![
-        Aggregate {
-            column: "revenue".to_string(),
-            operation: AggregationOperation::Sum,
-            alias: Some("revenue".into()),
-        }
+    let aggregates = vec![Aggregate {
+        column: "revenue".to_string(),
+        operation: AggregationOperation::Sum,
+        alias: Some("revenue".into()),
+    }];
+    let groupby_cols = vec![
+        "l_orderkey".into(),
+        "o_orderdate".into(),
+        "o_shippriority".into(),
     ];
-    let groupby_cols = vec!["l_orderkey".into(),"o_orderdate".into(),"o_shippriority".into()];
     let groupby_node = GroupByNode::node(groupby_cols, aggregates);
 
     // SELECT node
@@ -110,7 +127,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     let select_node = select_node_builder.build();
 
     // Connect nodes with subscription
-    lineitem_where_node.subscribe_to_node(&lineitem_csvreader_node,0);
+    lineitem_where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     orders_where_node.subscribe_to_node(&orders_csvreader_node, 0);
     customer_where_node.subscribe_to_node(&customer_csvreader_node, 0);
     merge_join_node.subscribe_to_node(&lineitem_where_node, 0);
@@ -119,7 +136,7 @@ pub fn query(tableinput: HashMap<String, TableInput>, output_reader: &mut NodeRe
     hash_join_node.subscribe_to_node(&customer_where_node, 1);
     expression_node.subscribe_to_node(&hash_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
-    select_node.subscribe_to_node(&groupby_node,0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);

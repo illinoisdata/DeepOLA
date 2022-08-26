@@ -1,13 +1,13 @@
 use crate::data::*;
 use crate::processor::*;
 
-use std::rc::Rc;
 use getset::{Getters, Setters};
 use nanoid::nanoid;
-use std::cell::{RefCell};
+use std::cell::RefCell;
+use std::rc::Rc;
 
-use crate::channel::*;
 use super::node_base::*;
+use crate::channel::*;
 
 /// (input channel) -> [This Node] -> (output channels)
 ///
@@ -83,21 +83,29 @@ impl<T: Send + 'static> ExecutionNode<T> {
     }
 
     /// Processes the data from input stream until we see EOF from all input channels.
-    /// 
+    ///
     /// This is the primary method used by ExecutionService to start all the nodes.
-    /// 
+    ///
     /// Caution: If eof is not passed, a node may run indefinitely, waiting for messages. This
     /// behavior is defined inside [StreamProcessor::process_stream()]
     pub fn run(&self) {
-        log::debug!("Starting Node: [{}]",self.node_id);
+        log::debug!("Starting Node: [{}]", self.node_id);
         let input_reader = self.input_reader.borrow();
         let output_writer = self.output_writer.borrow();
         // Add log message here saying that which channels are linked to which nodes.
         for channel in input_reader.readers.iter() {
-            log::debug!("Node: [{}]; Reads from: [{}]", self.node_id, channel.channel_id());
+            log::debug!(
+                "Node: [{}]; Reads from: [{}]",
+                self.node_id,
+                channel.channel_id()
+            );
         }
         for channel in output_writer.iter() {
-            log::debug!("Node: [{}]; Writes to: [{}]", self.node_id, channel.channel_id());
+            log::debug!(
+                "Node: [{}]; Writes to: [{}]",
+                self.node_id,
+                channel.channel_id()
+            );
         }
 
         // Pre-processing (if needed)
@@ -107,7 +115,9 @@ impl<T: Send + 'static> ExecutionNode<T> {
 
         // Actual data processing
         log::debug!("Starts Data Processing for Node: [{}]", self.node_id());
-        self.stream_processor().borrow().process_stream(input_reader.clone(), output_writer.clone());
+        self.stream_processor()
+            .borrow()
+            .process_stream(input_reader.clone(), output_writer.clone());
         log::debug!("Finished Data Processing for Node: [{}]", self.node_id());
 
         log::debug!("Terminating Node: [{}]", self.node_id());
@@ -135,7 +145,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
 
     /// Creates a new instance from stream_processor, which processes the inputs from
     /// num_input input channels.
-    /// 
+    ///
     /// @arg num_input The number of input channels
     pub fn new(stream_processor: Box<dyn StreamProcessor<T>>, num_input: usize) -> Self {
         let mut input_channels = MultiChannelReader::<T>::new();
@@ -155,7 +165,6 @@ impl<T: Send + 'static> ExecutionNode<T> {
         }
     }
 }
-
 
 pub struct NodeReader<T: Send> {
     /// We use the channel of this node to listens to the node we want to read from.
@@ -184,7 +193,8 @@ impl<T: Send + Clone + 'static> NodeReader<T> {
     }
 
     pub fn subscribe_to_node(&mut self, listens_to: &ExecutionNode<T>, for_channel: usize) {
-        self.internal_node.subscribe_to_node(listens_to, for_channel);
+        self.internal_node
+            .subscribe_to_node(listens_to, for_channel);
     }
 }
 
@@ -193,7 +203,7 @@ mod tests {
 
     use super::*;
     use crate::processor::SimpleMapper;
-    use std::{time, thread};
+    use std::{thread, time};
 
     /// ctor runs this `init()` function for each test case.
     #[ctor::ctor]
@@ -205,8 +215,9 @@ mod tests {
     fn can_create_node() {
         let node = ExecutionNode::<KeyValueList>::create();
         let node_reader = NodeReader::new(&node);
-        node.write_to_self(0, DataMessage::from_single(
-            KeyValueList::from(KeyValue::from_str("mykey", "hello")))
+        node.write_to_self(
+            0,
+            DataMessage::from_single(KeyValueList::from(KeyValue::from_str("mykey", "hello"))),
         );
         node.write_to_self(0, DataMessage::eof());
         node.run();
@@ -235,7 +246,7 @@ mod tests {
         ) {
             loop {
                 let seq_no = 0;
-                let message =  input_stream.read(seq_no);
+                let message = input_stream.read(seq_no);
                 if message.is_eof() {
                     output_stream.write(message);
                     break;
@@ -249,9 +260,7 @@ mod tests {
     fn calls_preprocess() {
         let test_message: String = "test_message".into();
         let processor = WithPreprocessing::new(test_message.clone());
-        let node = ExecutionNode::<String>::new(
-            Box::new(processor), 1
-        );
+        let node = ExecutionNode::<String>::new(Box::new(processor), 1);
         node.write_to_self(0, DataMessage::from("hello".to_string()));
         node.write_to_self(0, DataMessage::eof());
         let reader_node = NodeReader::new(&node);
@@ -341,8 +350,7 @@ mod tests {
         let first_node = &node_list[0];
         let last_node = &node_list[node_list.len() - 1];
         let reader_node = NodeReader::new(last_node);
-        first_node.write_to_self(0,
-            DataMessage::from_single(KeyValue::from_str("mykey", "")));
+        first_node.write_to_self(0, DataMessage::from_single(KeyValue::from_str("mykey", "")));
         first_node.write_to_self(0, DataMessage::eof());
 
         // process one by one
