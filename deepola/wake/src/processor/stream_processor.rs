@@ -7,7 +7,7 @@ use crate::channel::{MultiChannelBroadcaster, MultiChannelReader};
 pub trait StreamProcessor<T: Send>: Send {
     /// This function is called before processing actual data. Useful to support the case where
     /// a node needs pre-processing in advance.
-    fn preproces(&mut self) {}
+    fn pre_process(&mut self, _input_stream: MultiChannelReader<T>) {}
 
     /// This function actually processes data.
     fn process_stream(
