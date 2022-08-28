@@ -9,7 +9,6 @@ use std::error::Error;
 
 #[derive(Debug)]
 pub struct TableInput {
-    pub batch_size: usize,
     pub input_files: Vec<String>,
     pub scale: usize,
 }

@@ -26,6 +26,7 @@ uuid = { version = "0.8", features = ["v4"] }
 jemallocator = "0.3.2"
 polars = "0.23.2"
 glob = "0.3.0"
+alphanumeric-sort = "1.4.4"
 
 [dev-dependencies]
 ctor = "0.1.21"
