@@ -14,9 +14,12 @@ use std::env;
 use std::time::Instant;
 
 mod q1;
+mod q14;
 mod utils;
 
 fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput> {
+    log::info!("Specified Input Directory: {}", directory);
+
     let tpch_tables = vec![
         "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier",
     ];
@@ -41,6 +44,8 @@ fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput> {
             },
         );
     }
+    log::info!("Evaluating On Files");
+    log::info!("{:?}", table_input);
     table_input
 }
 
@@ -80,13 +85,13 @@ fn main() {
     let query = env::args().skip(1).collect::<Vec<String>>();
     if query.len() != 0 {
         let query_no = query[0].as_str();
-        let scale = if query.len() < 1 {
+        let scale = if query.len() <= 1 {
             1
         } else {
             *(&query[1].parse::<usize>().unwrap())
         };
-        let data_directory = if query.len() < 2 {
-            "resources/tpc-h/data/scale=1/partition=1/"
+        let data_directory = if query.len() <= 2 {
+            "resources/tpc-h/data/scale=1/partition=1"
         } else {
             query[2].as_str()
         };
@@ -94,6 +99,9 @@ fn main() {
         match query_no {
             "q1" => {
                 query_service = q1::query(table_input, &mut output_reader);
+            }
+            "q14" => {
+                query_service = q14::query(table_input, &mut output_reader);
             }
             _ => panic!("Invalid Query Parameter"),
         }

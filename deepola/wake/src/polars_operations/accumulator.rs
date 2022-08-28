@@ -82,6 +82,12 @@ pub struct SumAccumulator {
 /// Needed to be sent to different threads.
 unsafe impl Send for SumAccumulator {}
 
+impl Default for SumAccumulator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SumAccumulator {
     pub fn new() -> Self {
         SumAccumulator {

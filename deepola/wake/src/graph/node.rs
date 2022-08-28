@@ -110,7 +110,9 @@ impl<T: Send + 'static> ExecutionNode<T> {
 
         // Pre-processing (if needed)
         log::debug!("Starts Pre-Processing for Node: [{}]", self.node_id());
-        self.stream_processor.borrow_mut().preproces();
+        self.stream_processor
+            .borrow_mut()
+            .pre_process(input_reader.clone());
         log::debug!("Finished Pre-Processing for Node: [{}]", self.node_id());
 
         // Actual data processing
@@ -235,7 +237,7 @@ mod tests {
     }
 
     impl StreamProcessor<String> for WithPreprocessing {
-        fn preproces(&mut self) {
+        fn pre_process(&mut self, _input_stream: MultiChannelReader<String>) {
             self.test_data = self.test_data.clone() + "x";
         }
 

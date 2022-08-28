@@ -94,11 +94,8 @@ impl CSVReader {
         }
         let mut df = reader.finish().unwrap();
         if self.column_names.is_some() {
-            match &self.column_names {
-                Some(a) => {
-                    df.set_column_names(a).unwrap();
-                }
-                _ => {}
+            if let Some(a) = &self.column_names {
+                df.set_column_names(a).unwrap();
             }
         }
         df
