@@ -13,3 +13,5 @@ DeepOLA is implemented in Rust. The current implementation has been tested with 
 
 ## TPC-H Benchmark
 TPC-H Benchmark is a decision-support benchmark. This benchmark illustrates decision support systems that examine large volumes of data, execute queries with a high degree of complexity, and give answers to critical business questions. For more information on the official benchmark, refer to [https://www.tpc.org/tpch/](https://www.tpc.org/tpch/). For generating data and queries from this benchmark, we use the `tpch-dbgen` kit available at [https://github.com/dragansah/tpch-dbgen](https://github.com/dragansah/tpch-dbgen)
+
+To generate TPC-H dataset, go to `cd scripts/; ./data-gen.sh <scale> <num_partitions>`. For example: `./data-gen.sh 1 10` will generate a `scale=1` dataset divided into 10 partitions in the directory `resources/tpc-h/data/scale=1/partition=10/`.
