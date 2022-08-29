@@ -2,10 +2,12 @@ use crate::data::{DataMessage, Payload};
 
 use super::StreamProcessor;
 
+/// StreamProcessor for a single channel input.
 pub trait MessageProcessor<T> {
     fn process_msg(&self, input: &T) -> Option<T>;
 }
 
+/// Implements [StreamProcessor] for a type R of trait [MessageProcessor]
 impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
     fn process_stream(
         &self,
