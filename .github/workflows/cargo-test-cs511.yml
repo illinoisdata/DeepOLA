@@ -1,0 +1,35 @@
+name: CS511 AutoGrader
+
+on: push
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tpch:
+    name: TPC-H Query
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build TPCH examples
+      run: cargo build --examples
+      working-directory: deepola/wake
+    - name: Test Query Q1
+      run: cargo run --release --example tpch_polars -- test q1
+      working-directory: deepola/wake
+    - name: Test Query Q3
+      run: cargo run --release --example tpch_polars -- test q3
+      working-directory: deepola/wake
+    - name: Test Query Q6
+      run: cargo run --release --example tpch_polars -- test q6
+      working-directory: deepola/wake
+    - name: Test Query Q10
+      run: cargo run --release --example tpch_polars -- test q10
+      working-directory: deepola/wake
+    - name: Test Query Q14
+      run: cargo run --release --example tpch_polars -- test q14
+      working-directory: deepola/wake
+    - name: Test Query Q19
+      run: cargo run --release --example tpch_polars -- test q19
+      working-directory: deepola/wake

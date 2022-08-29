@@ -5,10 +5,10 @@ VS Code (IDE): https://code.visualstudio.com/
 
 # Running examples:
 To run the queries in `examples/tpch_polars/`, run `RUST_LOG=info cargo run --release --example tpch_polars -- q1`. The default scale and directory used to run the query is `resources/tpc-h/data/scale=1/partition=1/`. To specify a different directory, run:
-`RUST_LOG=info cargo run --release --example tpch_polars -- q<query-no> <scale> <directory>`
+`RUST_LOG=info cargo run --release --example tpch_polars -- query q<query-no> <scale> <directory>`
 
 For example:
-`RUST_LOG=info cargo run --release --example tpch_polars -- q1 1 resources/tpc-h/data/scale=1/partition=10/`
+`RUST_LOG=info cargo run --release --example tpch_polars -- query q1 1 resources/tpc-h/data/scale=1/partition=10/`
 
 # Directory Structure
 ```
