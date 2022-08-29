@@ -42,6 +42,7 @@ pub fn query(
     let table_columns = HashMap::from([(
         "lineitem".into(),
         vec![
+            "l_orderkey", // For COUNT(*) counting a key.
             "l_quantity",
             "l_extendedprice",
             "l_discount",
@@ -60,7 +61,7 @@ pub fn query(
     let where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let a = df.column("l_shipdate").unwrap();
-            let mask = a.lt_eq("1998-09-01").unwrap();
+            let mask = a.lt_eq("1998-09-02").unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -94,21 +95,74 @@ pub fn query(
 
     // GROUP BY Aggregate Node
     let mut sum_accumulator = SumAccumulator::new();
-    sum_accumulator.set_group_key(vec!["l_returnflag".to_string(), "l_linestatus".to_string()]);
+    sum_accumulator
+        .set_group_key(vec!["l_returnflag".to_string(), "l_linestatus".to_string()])
+        .set_aggregates(vec![
+            ("l_orderkey".into(), vec!["count".into()]),
+            ("l_quantity".into(), vec!["sum".into(), "count".into()]),
+            ("l_extendedprice".into(), vec!["sum".into(), "count".into()]),
+            ("l_discount".into(), vec!["sum".into(), "count".into()]),
+            ("disc_price".into(), vec!["sum".into()]),
+            ("charge".into(), vec!["sum".into()]),
+        ]);
+
     let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new()
         .accumulator(sum_accumulator)
+        .build();
+
+    // SELECT Node
+    let select_node = AppenderNode::<DataFrame, MapAppender>::new()
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            // Compute AVG from SUM/COUNT.
+            let columns = vec![
+                Series::new("l_returnflag", df.column("l_returnflag").unwrap()),
+                Series::new("l_linestatus", df.column("l_linestatus").unwrap()),
+                Series::new("sum_qty", df.column("l_quantity_sum").unwrap()),
+                Series::new("sum_base_price", df.column("l_extendedprice_sum").unwrap()),
+                Series::new("sum_disc_price", df.column("disc_price_sum").unwrap()),
+                Series::new("sum_charge", df.column("charge_sum").unwrap()),
+                Series::new(
+                    "avg_qty",
+                    (df.column("l_quantity_sum")
+                        .unwrap()
+                        .cast(&polars::datatypes::DataType::Float64)
+                        .unwrap())
+                        / (df
+                            .column("l_quantity_count")
+                            .unwrap()
+                            .cast(&polars::datatypes::DataType::Float64)
+                            .unwrap()),
+                ),
+                Series::new(
+                    "avg_price",
+                    df.column("l_extendedprice_sum").unwrap()
+                        / df.column("l_extendedprice_count").unwrap(),
+                ),
+                Series::new(
+                    "avg_disc",
+                    df.column("l_discount_sum").unwrap() / df.column("l_discount_count").unwrap(),
+                ),
+                Series::new("count_order", df.column("l_orderkey_count").unwrap()),
+            ];
+            DataFrame::new(columns)
+                .unwrap()
+                .sort(&["l_returnflag", "l_linestatus"], vec![false, false])
+                .unwrap()
+        })))
         .build();
 
     // Connect nodes with subscription
     where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     expression_node.subscribe_to_node(&where_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
-    output_reader.subscribe_to_node(&groupby_node, 0);
+    output_reader.subscribe_to_node(&select_node, 0);
 
     // Add all the nodes to the service
     let mut service = ExecutionService::<polars::prelude::DataFrame>::create();
+    service.add(select_node);
     service.add(groupby_node);
     service.add(expression_node);
     service.add(where_node);

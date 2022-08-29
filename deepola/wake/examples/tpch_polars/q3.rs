@@ -95,14 +95,14 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let extended_price = df.column("l_extendedprice").unwrap();
             let discount = df.column("l_discount").unwrap();
-            let revenue = Series::new(
-                "revenue",
+            let disc_price = Series::new(
+                "disc_price",
                 extended_price
                     .cast(&polars::datatypes::DataType::Float64)
                     .unwrap()
                     * (discount * -1f64 + 1f64),
             );
-            df.hstack(&vec![revenue]).unwrap()
+            df.hstack(&vec![disc_price]).unwrap()
         })))
         .build();
 
@@ -116,8 +116,8 @@ pub fn query(
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let cols = vec!["l_orderkey", "o_orderdate", "o_shippriority", "revenue"];
-            df.select(cols).unwrap().sort(&["revenue", "o_orderdate"], vec![true, false]).unwrap()
+            let cols = vec!["l_orderkey", "o_orderdate", "o_shippriority", "disc_price_sum"];
+            df.select(cols).unwrap().sort(&["disc_price_sum", "o_orderdate"], vec![true, false]).unwrap()
         })))
         .build();
 
