@@ -73,6 +73,10 @@ pub struct SumAccumulator {
     #[get = "pub"]
     group_key: Vec<String>,
 
+    #[set = "pub"]
+    #[get = "pub"]
+    aggregates: Vec<(String, Vec<String>)>,
+
     /// Used to store accumulation thus far
     #[set = "pub"]
     #[get = "pub"]
@@ -93,48 +97,44 @@ impl SumAccumulator {
         SumAccumulator {
             group_key: vec![],
             accumulated: RefCell::new(DataFrame::empty()),
+            aggregates: vec![],
         }
     }
 
     /// Aggregates a single dataframe itself without considering the past observations. Used
     /// inside [SumAccumulator::accumulate].
-    fn aggregate(&self, df: &DataFrame) -> DataFrame {
+    fn aggregate(&self, df: &DataFrame, accumulator: bool) -> DataFrame {
         if self.group_key.is_empty() {
+            // (nikhil96sher) TODO: Output dataframe doesn't have _sum suffix in column names.
             df.sum()
         } else {
             let grouped_df = df.groupby(&self.group_key).unwrap();
-            let mut df_agg = grouped_df.sum().unwrap();
-            df_agg
-                .set_column_names(&self.restore_column_names(&df_agg))
-                .unwrap();
-            df_agg
+            if accumulator {
+                let mut df_agg = grouped_df.sum().unwrap();
+                df_agg.set_column_names(&df.get_column_names()).unwrap();
+                df_agg
+            } else {
+                let df_agg = if self.aggregates().is_empty() {
+                    grouped_df.sum().unwrap()
+                } else {
+                    grouped_df.agg(self.aggregates()).unwrap()
+                };
+                df_agg
+            }
         }
-    }
-
-    fn restore_column_names(&self, df: &DataFrame) -> Vec<String> {
-        df.get_column_names()
-            .into_iter()
-            .map(|n| {
-                match n.strip_suffix("_sum") {
-                    Some(a) => a,
-                    None => n,
-                }
-                .to_string()
-            })
-            .collect()
     }
 }
 
 impl AccumulatorOp<DataFrame> for SumAccumulator {
     fn accumulate(&self, df: &DataFrame) -> DataFrame {
-        let df_agg = self.aggregate(df);
+        let df_agg = self.aggregate(df, false);
 
         // accumulate
         let df_acc_new;
         {
             let df_acc = &*self.accumulated.borrow();
             let stacked = df_acc.vstack(&df_agg).unwrap();
-            df_acc_new = self.aggregate(&stacked);
+            df_acc_new = self.aggregate(&stacked, true);
         }
 
         // save
@@ -237,7 +237,7 @@ mod tests {
             .borrow_mut()
             .sort(["date"], false)
             .unwrap();
-        truncate_df(&mut acc_df, "rain", 3);
+        truncate_df(&mut acc_df, "rain_sum", 3);
         let expected_df = df![
             "date" => DateChunked::parse_from_str_slice("date",
                 &[
@@ -246,8 +246,8 @@ mod tests {
                     "2020-08-23",
                 ], DATE_FMT
             ).into_series(),
-            "temp" => [30, 8, 9],
-            "rain" => [0.3, 0.31, 0.1],
+            "temp_sum" => [30, 8, 9],
+            "rain_sum" => [0.3, 0.31, 0.1],
         ]
         .unwrap()
         .sort(["date"], false)

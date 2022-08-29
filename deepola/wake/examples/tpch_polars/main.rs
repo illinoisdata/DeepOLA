@@ -14,8 +14,8 @@ use std::env;
 use std::time::Instant;
 
 mod q1;
-mod q3;
 mod q14;
+mod q3;
 mod utils;
 
 fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput> {
