@@ -148,6 +148,9 @@ impl AccumulatorOp<DataFrame> for SumAccumulator {
     }
 }
 
+/// Note: [MessageProcessor] cannot be implemented for a generic type [AccumulatorOp] because
+/// if so, there are multiple generic types implementing [MessageProcessor], which is not allowed
+/// in Rust.
 impl MessageProcessor<DataFrame> for SumAccumulator {
     fn process_msg(&self, input: &DataFrame) -> Option<DataFrame> {
         Some(self.accumulate(input))
