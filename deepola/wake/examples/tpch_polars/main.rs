@@ -14,6 +14,7 @@ use std::env;
 use std::time::Instant;
 
 mod q1;
+mod q3;
 mod q14;
 mod utils;
 
@@ -99,6 +100,9 @@ fn main() {
         match query_no {
             "q1" => {
                 query_service = q1::query(table_input, &mut output_reader);
+            }
+            "q3" => {
+                query_service = q3::query(table_input, &mut output_reader);
             }
             "q14" => {
                 query_service = q14::query(table_input, &mut output_reader);
