@@ -8,8 +8,8 @@ DeepOLA is implemented in Rust. The current implementation has been tested with 
 - Make sure the pre-generated TPC-H data is also fetched in `resources/tpc-h/data/` directory (`lineitem_1M.tbl` and `scale=1/partition=1/*.tbl` files). If the above files are not present, fetch them using Git LFS.
 `git lfs fetch`
 - From the `deepola/` directory, run `cargo test` to run the already included test-cases.
-- To run the provided example queries, run `cargo run --release --example tpch_polars -- q<query-no>`. Example:
-`cargo run --release --example tpch_polars -- q1`.
+- To run the provided example queries, run `cargo run --release --example tpch_polars -- query q<query-no>`. Example:
+`cargo run --release --example tpch_polars -- query q1`.
 
 ## TPC-H Benchmark
 TPC-H Benchmark is a decision-support benchmark. This benchmark illustrates decision support systems that examine large volumes of data, execute queries with a high degree of complexity, and give answers to critical business questions. For more information on the official benchmark, refer to [https://www.tpc.org/tpch/](https://www.tpc.org/tpch/). For generating data and queries from this benchmark, we use the `tpch-dbgen` kit available at [https://github.com/dragansah/tpch-dbgen](https://github.com/dragansah/tpch-dbgen)

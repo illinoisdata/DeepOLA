@@ -4,8 +4,10 @@ use wake::data::*;
 use wake::graph::*;
 use wake::polars_operations::*;
 
+use glob::glob;
 use std::collections::HashMap;
 use std::error::Error;
+use std::time::Instant;
 
 #[derive(Debug)]
 pub struct TableInput {
@@ -25,6 +27,61 @@ pub fn total_number_of_records(table: &str, scale: usize) -> usize {
         "region" => 5,
         _ => 0,
     }
+}
+
+pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput> {
+    log::info!("Specified Input Directory: {}", directory);
+
+    let tpch_tables = vec![
+        "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier",
+    ];
+    let mut table_input = HashMap::new();
+    for tpch_table in tpch_tables {
+        let mut input_files = vec![];
+        for entry in glob(&format!("{}/{}.tbl*", directory, tpch_table))
+            .expect("Failed to read glob pattern")
+        {
+            match entry {
+                Ok(path) => input_files.push(path.to_str().unwrap().to_string()),
+                Err(e) => println!("{:?}", e),
+            }
+        }
+        // To sort slices correctly taking into account the partition numbers.
+        alphanumeric_sort::sort_str_slice(&mut input_files);
+        table_input.insert(
+            tpch_table.to_string(),
+            TableInput {
+                input_files: input_files,
+                scale: scale,
+            },
+        );
+    }
+    log::info!("Evaluating On Files");
+    log::info!("{:?}", table_input);
+    table_input
+}
+
+pub fn run_query(
+    query_service: &mut ExecutionService<DataFrame>,
+    output_reader: &mut NodeReader<DataFrame>,
+) -> Vec<DataFrame> {
+    let mut query_result: Vec<DataFrame> = vec![];
+    let start_time = Instant::now();
+    query_service.run();
+    loop {
+        let message = output_reader.read();
+        if message.is_eof() {
+            break;
+        }
+        let data = message.datablock().data();
+        query_result.push(data.clone());
+    }
+    query_service.join();
+    let end_time = Instant::now();
+    log::info!("Query Result");
+    log::info!("{:?}", query_result[query_result.len() - 1]);
+    log::info!("Query Took: {:.2?}", end_time - start_time);
+    query_result
 }
 
 pub fn build_csv_reader_node(

@@ -158,9 +158,7 @@ impl MessageProcessor<DataFrame> for SumAccumulator {
 mod tests {
     use polars::prelude::*;
 
-    use crate::{
-        data::DataMessage, graph::NodeReader, polars_operations::util::tests::truncate_df,
-    };
+    use crate::{data::DataMessage, graph::NodeReader, polars_operations::util::truncate_df};
 
     use super::*;
 
