@@ -10,4 +10,4 @@ where
 group by
 	c_name
 order by
-	revenue desc
+	o_totalprice_sum desc
