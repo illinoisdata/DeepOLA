@@ -6,11 +6,14 @@ use polars::prelude::DataFrame;
 use std::env;
 use wake::graph::*;
 
-// TODO: UNCOMMENT THE IMPORT STATEMENTS BELOW AS YOU IMPLEMENT THESE QUERIES.
 mod q1;
+mod q10;
 mod q14;
 mod q17;
+mod q18;
+mod q19;
 mod q3;
+mod q6;
 mod utils;
 
 fn main() {
@@ -38,7 +41,7 @@ fn main() {
 
 fn run_query(args: Vec<String>) {
     if args.len() == 0 {
-        panic!("Query not specified. Run like: cargo run --release --example tpch_polars -- q1")
+        panic!("Query not specified. Run like: cargo run --release --example tpch_polars -- query q1")
     }
     let query_no = args[0].as_str();
     let scale = if args.len() <= 1 {
@@ -64,12 +67,15 @@ pub fn get_query_service(
     output_reader: &mut NodeReader<DataFrame>,
 ) -> ExecutionService<DataFrame> {
     let table_input = utils::load_tables(data_directory, scale);
-    // TODO: UNCOMMENT THE MATCH STATEMENTS BELOW AS YOU IMPLEMENT THESE QUERIES.
     let query_service = match query_no {
         "q1" => q1::query(table_input, output_reader),
+        "q10" => q10::query(table_input, output_reader),
         "q14" => q14::query(table_input, output_reader),
         "q17" => q17::query(table_input, output_reader),
+        "q18" => q18::query(table_input, output_reader),
+        "q19" => q19::query(table_input, output_reader),
         "q3" => q3::query(table_input, output_reader),
+        "q6" => q6::query(table_input, output_reader),
         _ => panic!("Invalid Query Parameter"),
     };
     query_service

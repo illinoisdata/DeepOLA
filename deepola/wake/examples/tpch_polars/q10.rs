@@ -12,27 +12,36 @@ use std::collections::HashMap;
 
 /// This node implements the following SQL query
 // select
-// 	l_orderkey,
+// 	c_custkey,
+// 	c_name,
 // 	sum(l_extendedprice * (1 - l_discount)) as revenue,
-// 	o_orderdate,
-// 	o_shippriority
+// 	c_acctbal,
+// 	n_name,
+// 	c_address,
+// 	c_phone,
+// 	c_comment
 // from
 // 	customer,
 // 	orders,
-// 	lineitem
+// 	lineitem,
+// 	nation
 // where
-// 	c_mktsegment = 'BUILDING'
-// 	and c_custkey = o_custkey
+// 	c_custkey = o_custkey
 // 	and l_orderkey = o_orderkey
-// 	and o_orderdate < date '1995-03-15'
-// 	and l_shipdate > date '1995-03-15'
+// 	and o_orderdate >= date '1993-10-01'
+// 	and o_orderdate < date '1993-10-01' + interval '3' month
+// 	and l_returnflag = 'R'
+// 	and c_nationkey = n_nationkey
 // group by
-// 	l_orderkey,
-// 	o_orderdate,
-// 	o_shippriority
+// 	c_custkey,
+// 	c_name,
+// 	c_acctbal,
+// 	c_phone,
+// 	n_name,
+// 	c_address,
+// 	c_comment
 // order by
-// 	revenue desc,
-// 	o_orderdate;
+// 	revenue desc;
 
 pub fn query(
     tableinput: HashMap<String, TableInput>,
@@ -42,13 +51,30 @@ pub fn query(
     let table_columns = HashMap::from([
         (
             "lineitem".into(),
-            vec!["l_orderkey", "l_extendedprice", "l_discount", "l_shipdate"],
+            vec![
+                "l_orderkey",
+                "l_extendedprice",
+                "l_discount",
+                "l_returnflag",
+            ],
         ),
         (
             "orders".into(),
-            vec!["o_orderkey", "o_custkey", "o_orderdate", "o_shippriority"],
+            vec!["o_orderkey", "o_custkey", "o_orderdate"],
         ),
-        ("customer".into(), vec!["c_custkey", "c_mktsegment"]),
+        (
+            "customer".into(),
+            vec![
+                "c_custkey",
+                "c_nationkey",
+                "c_name",
+                "c_acctbal",
+                "c_phone",
+                "c_address",
+                "c_comment",
+            ],
+        ),
+        ("nation".into(), vec!["n_nationkey", "n_name"]),
     ]);
 
     // CSVReaderNode would be created for this table.
@@ -57,34 +83,30 @@ pub fn query(
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
     let customer_csvreader_node =
         build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
 
     // WHERE Node
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let a = df.column("l_shipdate").unwrap();
-            let mask = a.gt("1995-03-15").unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
+            let a = df.column("l_returnflag").unwrap();
+            let mask = a.equal("R").unwrap();
+            df.filter(&mask).unwrap()
         })))
         .build();
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let a = df.column("o_orderdate").unwrap();
-            let mask = a.lt("1995-03-15").unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
-        })))
-        .build();
-    let customer_where_node = AppenderNode::<DataFrame, MapAppender>::new()
-        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let a = df.column("c_mktsegment").unwrap();
-            let mask = a.equal("BUILDING").unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
+            let mask = a.gt_eq("1993-10-01").unwrap() & a.lt("1994-01-01").unwrap();
+            df.filter(&mask).unwrap()
         })))
         .build();
 
     // HASH JOIN Node
+    let cn_hash_join_node = HashJoinBuilder::new()
+        .left_on(vec!["c_nationkey".into()])
+        .right_on(vec!["n_nationkey".into()])
+        .build();
+
     let oc_hash_join_node = HashJoinBuilder::new()
         .left_on(vec!["o_custkey".into()])
         .right_on(vec!["c_custkey".into()])
@@ -113,9 +135,13 @@ pub fn query(
     // GROUP BY AGGREGATE Node
     let mut sum_accumulator = SumAccumulator::new();
     sum_accumulator.set_group_key(vec![
-        "l_orderkey".into(),
-        "o_orderdate".into(),
-        "o_shippriority".into(),
+        "o_custkey".into(),
+        "c_name".into(),
+        "c_acctbal".into(),
+        "c_phone".into(),
+        "n_name".into(),
+        "c_address".into(),
+        "c_comment".into(),
     ]);
     let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new()
         .accumulator(sum_accumulator)
@@ -125,24 +151,29 @@ pub fn query(
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let cols = vec![
-                "l_orderkey",
-                "o_orderdate",
-                "o_shippriority",
+                "o_custkey",
+                "c_name",
                 "disc_price_sum",
+                "c_acctbal",
+                "c_phone",
+                "n_name",
+                "c_address",
+                "c_comment",
             ];
             df.select(cols)
                 .unwrap()
-                .sort(&["disc_price_sum", "o_orderdate"], vec![true, false])
+                .sort(&["disc_price_sum"], vec![true])
                 .unwrap()
         })))
         .build();
 
     // Connect nodes with subscription
     lineitem_where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
-    customer_where_node.subscribe_to_node(&customer_csvreader_node, 0);
     orders_where_node.subscribe_to_node(&orders_csvreader_node, 0);
-    oc_hash_join_node.subscribe_to_node(&orders_where_node, 0); // Left Node
-    oc_hash_join_node.subscribe_to_node(&customer_where_node, 1); // Right Node
+    cn_hash_join_node.subscribe_to_node(&customer_csvreader_node, 0);
+    cn_hash_join_node.subscribe_to_node(&nation_csvreader_node, 1);
+    oc_hash_join_node.subscribe_to_node(&orders_where_node, 0);
+    oc_hash_join_node.subscribe_to_node(&cn_hash_join_node, 1);
     lo_hash_join_node.subscribe_to_node(&lineitem_where_node, 0); // Left Node
     lo_hash_join_node.subscribe_to_node(&oc_hash_join_node, 1); // Right Node
     expression_node.subscribe_to_node(&lo_hash_join_node, 0);
@@ -157,9 +188,10 @@ pub fn query(
     service.add(lineitem_csvreader_node);
     service.add(customer_csvreader_node);
     service.add(orders_csvreader_node);
+    service.add(nation_csvreader_node);
     service.add(lineitem_where_node);
-    service.add(customer_where_node);
     service.add(orders_where_node);
+    service.add(cn_hash_join_node);
     service.add(oc_hash_join_node);
     service.add(lo_hash_join_node);
     service.add(expression_node);
