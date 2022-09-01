@@ -89,6 +89,11 @@ impl Schema {
         self.columns[self.index(column)].clone()
     }
 
+    // Get Column object corresponding to the index.
+    pub fn get_column_from_index(&self, index: usize) -> Column {
+        self.columns[index].clone()
+    }
+
     // Function to create and test examples of Schema creation
     pub fn from_example(table: &str) -> Result<Schema, Box<dyn Error>> {
         match table {
