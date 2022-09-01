@@ -94,21 +94,24 @@ pub fn build_csv_reader_node(
     let scale = tableinput.get(&table as &str).unwrap().scale.clone();
     let schema = tpch_schema(&table).unwrap();
 
-    let projected_cols_index = match table_columns.get(&table) {
-        Some(columns) => Some(columns.iter().map(|x| schema.index(x)).collect()),
-        None => None, // No columns specified means taking all columns.
-    };
-    let projected_column_names = match table_columns.get(&table) {
-        Some(columns) => Some(columns.iter().map(|x| x.to_string()).collect()),
-        None => None,
-    };
-
+    let mut projected_cols_index = None;
+    let mut projected_cols_names = None;
+    match table_columns.get(&table) {
+        Some(columns) => {
+            let mut cols_index = columns.iter().map(|x| schema.index(x)).collect::<Vec<usize>>();
+            cols_index.sort();
+            let col_names = cols_index.iter().map(|x| schema.get_column_from_index(*x).name).collect::<Vec<String>>();
+            projected_cols_index = Some(cols_index);
+            projected_cols_names = Some(col_names);
+        },
+        None => {}
+    }
     let input_files = df!("col" => &raw_input_files).unwrap();
 
     let csvreader = CSVReaderBuilder::new()
         .delimiter('|')
         .has_headers(false)
-        .column_names(projected_column_names)
+        .column_names(projected_cols_names)
         .projected_cols(projected_cols_index)
         .build();
 
