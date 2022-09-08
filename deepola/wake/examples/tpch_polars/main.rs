@@ -14,7 +14,10 @@ mod q18;
 mod q19;
 mod q2;
 mod q3;
+mod q4;
+mod q5;
 mod q6;
+mod q7;
 mod utils;
 
 fn main() {
@@ -51,7 +54,7 @@ fn run_query(args: Vec<String>) {
         *(&args[1].parse::<usize>().unwrap())
     };
     let data_directory = if args.len() <= 2 {
-        "resources/tpc-h/data/scale=1/partition=1"
+        "resources/tpc-h/data/scale=1/partition=10"
     } else {
         args[2].as_str()
     };
@@ -77,7 +80,10 @@ pub fn get_query_service(
         "q19" => q19::query(table_input, output_reader),
         "q2" => q2::query(table_input, output_reader),
         "q3" => q3::query(table_input, output_reader),
+        "q4" => q4::query(table_input, output_reader),
+        "q5" => q5::query(table_input, output_reader),
         "q6" => q6::query(table_input, output_reader),
+        "q7" => q7::query(table_input, output_reader),
         _ => panic!("Invalid Query Parameter"),
     };
     query_service

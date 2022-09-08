@@ -53,6 +53,10 @@ impl HashJoinNode {
     // Read partitions from right stream and append to the existing right dataframe.
     pub fn pre_process(&mut self, right_df: &DataFrame) {
         self.right_df.vstack_mut(right_df).unwrap();
+        // Documentation of vstack_mut recommends rechunk if multiple vstack operations performed.
+        if self.right_df.should_rechunk() {
+            self.right_df.rechunk();
+        }
     }
 
     // Compute Hash Join given left and right df.
