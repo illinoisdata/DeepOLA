@@ -74,6 +74,10 @@ pub fn run_query(
             break;
         }
         let data = message.datablock().data();
+        if query_result.is_empty() {
+            let end_time = Instant::now();
+            log::info!("First Query Result Took: {:.2?}", end_time - start_time);
+        }
         query_result.push(data.clone());
     }
     query_service.join();

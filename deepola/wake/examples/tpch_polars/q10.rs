@@ -112,10 +112,11 @@ pub fn query(
         .right_on(vec!["c_custkey".into()])
         .build();
 
-    let lo_hash_join_node = HashJoinBuilder::new()
-        .left_on(vec!["l_orderkey".into()])
-        .right_on(vec!["o_orderkey".into()])
-        .build();
+    // Merge JOIN Node
+    let mut merger = SortedDfMerger::new();
+    merger.set_left_on(vec!["l_orderkey".into()]);
+    merger.set_right_on(vec!["o_orderkey".into()]);
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
 
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
@@ -133,7 +134,7 @@ pub fn query(
         .build();
 
     // GROUP BY AGGREGATE Node
-    let mut sum_accumulator = SumAccumulator::new();
+    let mut sum_accumulator = AggAccumulator::new();
     sum_accumulator.set_group_key(vec![
         "o_custkey".into(),
         "c_name".into(),
@@ -142,8 +143,10 @@ pub fn query(
         "n_name".into(),
         "c_address".into(),
         "c_comment".into(),
+    ]).set_aggregates(vec![
+        ("disc_price".into(), vec!["sum".into()])
     ]);
-    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new()
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(sum_accumulator)
         .build();
 
@@ -174,9 +177,9 @@ pub fn query(
     cn_hash_join_node.subscribe_to_node(&nation_csvreader_node, 1);
     oc_hash_join_node.subscribe_to_node(&orders_where_node, 0);
     oc_hash_join_node.subscribe_to_node(&cn_hash_join_node, 1);
-    lo_hash_join_node.subscribe_to_node(&lineitem_where_node, 0); // Left Node
-    lo_hash_join_node.subscribe_to_node(&oc_hash_join_node, 1); // Right Node
-    expression_node.subscribe_to_node(&lo_hash_join_node, 0);
+    lo_merge_join_node.subscribe_to_node(&lineitem_where_node, 0); // Left Node
+    lo_merge_join_node.subscribe_to_node(&oc_hash_join_node, 1); // Right Node
+    expression_node.subscribe_to_node(&lo_merge_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
     select_node.subscribe_to_node(&groupby_node, 0);
 
@@ -193,7 +196,7 @@ pub fn query(
     service.add(orders_where_node);
     service.add(cn_hash_join_node);
     service.add(oc_hash_join_node);
-    service.add(lo_hash_join_node);
+    service.add(lo_merge_join_node);
     service.add(expression_node);
     service.add(groupby_node);
     service.add(select_node);
