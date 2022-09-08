@@ -94,7 +94,7 @@ pub fn query(
         .build();
 
     // GROUP BY Aggregate Node
-    let mut sum_accumulator = SumAccumulator::new();
+    let mut sum_accumulator = AggAccumulator::new();
     sum_accumulator
         .set_group_key(vec!["l_returnflag".to_string(), "l_linestatus".to_string()])
         .set_aggregates(vec![
@@ -106,7 +106,7 @@ pub fn query(
             ("charge".into(), vec!["sum".into()]),
         ]);
 
-    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new()
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(sum_accumulator)
         .build();
 

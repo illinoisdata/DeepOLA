@@ -94,16 +94,20 @@ pub fn query(
         .build();
 
     // AGGREGATE Node
-    let sum_accumulator = SumAccumulator::new();
-    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new()
-        .accumulator(sum_accumulator)
+    let mut agg_accumulator = AggAccumulator::new();
+    agg_accumulator.set_aggregates(vec![
+        ("numerator_promo_revenue".into(), vec!["sum".into()]),
+        ("denominator_promo_revenue".into(), vec!["sum".into()])
+    ]);
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
+        .accumulator(agg_accumulator)
         .build();
 
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let num = df.column("numerator_promo_revenue").unwrap();
-            let den = df.column("denominator_promo_revenue").unwrap();
+            let num = df.column("numerator_promo_revenue_sum").unwrap();
+            let den = df.column("denominator_promo_revenue_sum").unwrap();
             let res = Series::new("promo_revenue", (num / den) * 100f64);
             DataFrame::new(vec![res]).unwrap()
         })))

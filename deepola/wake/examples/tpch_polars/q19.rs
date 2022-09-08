@@ -85,17 +85,35 @@ pub fn query(
     let where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let p_brand = df.column("p_brand").unwrap();
-            // let p_container = df.column("p_container").unwrap();
+            let p_container = df.column("p_container").unwrap();
             let p_size = df.column("p_size").unwrap();
-            // let l_quantity = df.column("l_quantity").unwrap();
-            // let l_shipmode = df.column("l_shipmode").unwrap();
-            // let l_shipinstruct = df.column("l_shipinstruct").unwrap();
+            let l_quantity = df.column("l_quantity").unwrap();
+            let l_shipmode = df.column("l_shipmode").unwrap();
+            let l_shipinstruct = df.column("l_shipinstruct").unwrap();
 
-            // TODO (nsheoran): IS_IN OPERATION
-            let mask = p_brand.equal("Brand#34").unwrap() & p_size.gt_eq(1).unwrap();
-            // | (p_brand.eq("Brand#34").unwrap() & p_size.gt_eq(1) & p_size.lt_eq(15))
-            // | (p_brand.eq("Brand#34").unwrap() & p_size.gt_eq(1) & p_size.lt_eq(15));
+            let common_mask = p_size.gt_eq(1i32).unwrap()
+            & l_shipinstruct.equal("DELIVER IN PERSON").unwrap()
+            & l_shipmode.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["AIR", "AIR REG"].contains(&v) as bool)).collect();
 
+            let mask1 = p_brand.equal("Brand#12").unwrap()
+            & p_size.lt_eq(5i32).unwrap()
+            & l_quantity.gt_eq(1i32).unwrap()
+            & l_quantity.lt_eq(11i32).unwrap()
+            & p_container.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["SM CASE", "SM BOX", "SM PACK", "SM PKG"].contains(&v) as bool)).collect();
+
+            let mask2 = p_brand.equal("Brand#23").unwrap()
+            & p_size.lt_eq(10i32).unwrap()
+            & l_quantity.gt_eq(10i32).unwrap()
+            & l_quantity.lt_eq(20i32).unwrap()
+            & p_container.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["MED BAG", "MED BOX", "MED PKG", "MED PACK"].contains(&v) as bool)).collect();
+
+            let mask3 = p_brand.equal("Brand#34").unwrap()
+            & p_size.lt_eq(15i32).unwrap()
+            & l_quantity.gt_eq(20i32).unwrap()
+            & l_quantity.lt_eq(30i32).unwrap()
+            & p_container.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["LG CASE", "LG BOX", "LG PACK", "LG PKG"].contains(&v) as bool)).collect();
+
+            let mask = common_mask & (mask1 | mask2 | mask3);
             let result = df.filter(&mask).unwrap();
             result
         })))
@@ -107,7 +125,7 @@ pub fn query(
             let extended_price = df.column("l_extendedprice").unwrap();
             let discount = df.column("l_discount").unwrap();
             let columns = vec![Series::new(
-                "revenue",
+                "disc_price",
                 extended_price
                     .cast(&polars::datatypes::DataType::Float64)
                     .unwrap()
@@ -118,7 +136,11 @@ pub fn query(
         .build();
 
     // GROUP BY Node
-    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new().build();
+    let mut sum_accumulator = AggAccumulator::new();
+    sum_accumulator.set_aggregates(vec![
+        ("disc_price".into(), vec!["sum".into()])
+    ]);
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new().accumulator(sum_accumulator).build();
 
     // Connect nodes with subscription
     hash_join_node.subscribe_to_node(&lineitem_csvreader_node, 0); // Left Node

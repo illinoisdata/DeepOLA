@@ -12,6 +12,7 @@ mod q14;
 mod q17;
 mod q18;
 mod q19;
+mod q2;
 mod q3;
 mod q6;
 mod utils;
@@ -74,6 +75,7 @@ pub fn get_query_service(
         "q17" => q17::query(table_input, output_reader),
         "q18" => q18::query(table_input, output_reader),
         "q19" => q19::query(table_input, output_reader),
+        "q2" => q2::query(table_input, output_reader),
         "q3" => q3::query(table_input, output_reader),
         "q6" => q6::query(table_input, output_reader),
         _ => panic!("Invalid Query Parameter"),

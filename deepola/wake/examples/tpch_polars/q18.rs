@@ -61,15 +61,18 @@ pub fn query(
         .right_on(vec!["c_custkey".into()])
         .build();
 
-    let lo_hash_join_node = HashJoinBuilder::new()
-        .left_on(vec!["l_orderkey".into()])
-        .right_on(vec!["o_orderkey".into()])
-        .build();
+    // Merge JOIN Node
+    let mut merger = SortedDfMerger::new();
+    merger.set_left_on(vec!["l_orderkey".into()]);
+    merger.set_right_on(vec!["o_orderkey".into()]);
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
 
     // FIRST GROUP BY AGGREGATE NODE.
-    let mut sum_accumulator = SumAccumulator::new();
-    sum_accumulator.set_group_key(vec!["c_name".to_string(),"o_custkey".to_string(),"l_orderkey".to_string(),"o_orderdate".to_string(),"o_totalprice".to_string()]);
-    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new()
+    let mut sum_accumulator = AggAccumulator::new();
+    sum_accumulator.set_group_key(vec!["c_name".into(),"o_custkey".into(),"l_orderkey".into(),"o_orderdate".into(),"o_totalprice".into()]).set_aggregates(vec![
+        ("l_quantity".into(), vec!["sum".into()])
+    ]);
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(sum_accumulator)
         .build();
 
@@ -83,9 +86,9 @@ pub fn query(
     // Connect nodes with subscription
     oc_hash_join_node.subscribe_to_node(&orders_csvreader_node, 0);
     oc_hash_join_node.subscribe_to_node(&customer_csvreader_node, 1);
-    lo_hash_join_node.subscribe_to_node(&lineitem_csvreader_node, 0);
-    lo_hash_join_node.subscribe_to_node(&oc_hash_join_node, 1);
-    groupby_node.subscribe_to_node(&lo_hash_join_node, 0);
+    lo_merge_join_node.subscribe_to_node(&lineitem_csvreader_node, 0);
+    lo_merge_join_node.subscribe_to_node(&oc_hash_join_node, 1);
+    groupby_node.subscribe_to_node(&lo_merge_join_node, 0);
     where_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
@@ -96,7 +99,7 @@ pub fn query(
     service.add(lineitem_csvreader_node);
     service.add(customer_csvreader_node);
     service.add(orders_csvreader_node);
-    service.add(lo_hash_join_node);
+    service.add(lo_merge_join_node);
     service.add(oc_hash_join_node);
     service.add(groupby_node);
     service.add(where_node);

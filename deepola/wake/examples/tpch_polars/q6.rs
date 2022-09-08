@@ -55,13 +55,15 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let extended_price = df.column("l_extendedprice").unwrap();
             let discount = df.column("l_discount").unwrap();
-            let columns = vec![Series::new("revenue", extended_price * discount)];
+            let columns = vec![Series::new("disc_price", extended_price * discount)];
             DataFrame::new(columns).unwrap()
         })))
         .build();
 
     // GROUP BY Aggregate Node
-    let groupby_node = AccumulatorNode::<DataFrame, SumAccumulator>::new().build();
+    let mut agg_accumulator = AggAccumulator::new();
+    agg_accumulator.set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new().accumulator(agg_accumulator).build();
 
     // Connect nodes with subscription
     where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
