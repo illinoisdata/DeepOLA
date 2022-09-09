@@ -8,6 +8,7 @@ use wake::graph::*;
 
 mod q1;
 mod q10;
+mod q11;
 mod q12;
 mod q14;
 mod q17;
@@ -79,6 +80,7 @@ pub fn get_query_service(
     let query_service = match query_no {
         "q1" => q1::query(table_input, output_reader),
         "q10" => q10::query(table_input, output_reader),
+        "q11" => q11::query(table_input, output_reader),
         "q12" => q12::query(table_input, output_reader),
         "q14" => q14::query(table_input, output_reader),
         "q17" => q17::query(table_input, output_reader),
