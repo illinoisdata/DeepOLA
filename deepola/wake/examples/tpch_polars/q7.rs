@@ -63,15 +63,27 @@ pub fn query(
         ("customer".into(), vec!["c_custkey", "c_nationkey"]),
         ("supplier".into(), vec!["s_suppkey", "s_nationkey"]),
         ("orders".into(), vec!["o_orderkey", "o_custkey"]),
-        ("lineitem".into(), vec!["l_orderkey", "l_suppkey", "l_shipdate", "l_extendedprice", "l_discount"]),
+        (
+            "lineitem".into(),
+            vec![
+                "l_orderkey",
+                "l_suppkey",
+                "l_shipdate",
+                "l_extendedprice",
+                "l_discount",
+            ],
+        ),
     ]);
 
     // CSV Reader Nodes.
     let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node =
+        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let customer_csvreader_node =
+        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
 
     // WHERE Nodes
     let nation_where_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -85,7 +97,8 @@ pub fn query(
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let l_shipdate = df.column("l_shipdate").unwrap();
-            let mask = l_shipdate.gt_eq("1995-01-01").unwrap() & l_shipdate.lt_eq("1996-12-31").unwrap();
+            let mask =
+                l_shipdate.gt_eq("1995-01-01").unwrap() & l_shipdate.lt_eq("1996-12-31").unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -131,16 +144,20 @@ pub fn query(
         .build();
 
     let mut merger = SortedDfMerger::new();
-        merger.set_left_on(vec!["l_orderkey".into()]);
-        merger.set_right_on(vec!["o_orderkey".into()]);
-    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+    merger.set_left_on(vec!["l_orderkey".into()]);
+    merger.set_right_on(vec!["o_orderkey".into()]);
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
+        .build();
 
     // Expression Node.
     let lineitem_expression_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let supp_nation = df.column("supp_nation").unwrap();
             let cust_nation = df.column("cust_nation").unwrap();
-            let mask = (supp_nation.equal("FRANCE").unwrap() & cust_nation.equal("GERMANY").unwrap()) | (supp_nation.equal("GERMANY").unwrap() & cust_nation.equal("FRANCE").unwrap());
+            let mask = (supp_nation.equal("FRANCE").unwrap()
+                & cust_nation.equal("GERMANY").unwrap())
+                | (supp_nation.equal("GERMANY").unwrap() & cust_nation.equal("FRANCE").unwrap());
             let df = df.filter(&mask).unwrap();
 
             let extended_price = df.column("l_extendedprice").unwrap();
@@ -153,24 +170,42 @@ pub fn query(
                     * (discount * -1f64 + 1f64),
             );
             let l_shipdate = df.column("l_shipdate").unwrap();
-            let l_year = Series::new("l_year", l_shipdate.utf8().unwrap().as_date(Some("%Y-%m-%d")).unwrap().strftime("%Y").into_series());
-            df.hstack(&vec![disc_price, l_year]).unwrap()
+            let l_year = Series::new(
+                "l_year",
+                l_shipdate
+                    .utf8()
+                    .unwrap()
+                    .as_date(Some("%Y-%m-%d"))
+                    .unwrap()
+                    .strftime("%Y")
+                    .into_series(),
+            );
+            df.hstack(&[disc_price, l_year]).unwrap()
         })))
         .build();
 
     // GROUP BY Node.
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_group_key(vec!["supp_nation".into(), "cust_nation".into(), "l_year".into()]).
-    set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
+    agg_accumulator
+        .set_group_key(vec![
+            "supp_nation".into(),
+            "cust_nation".into(),
+            "l_year".into(),
+        ])
+        .set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
 
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
-    .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-        df.sort(vec!["supp_nation","cust_nation","l_year"], vec![false, false, false]).unwrap()
-    })))
-    .build();
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            df.sort(
+                vec!["supp_nation", "cust_nation", "l_year"],
+                vec![false, false, false],
+            )
+            .unwrap()
+        })))
+        .build();
 
     // Connect nodes with subscription
     nation_where_node.subscribe_to_node(&nation_csvreader_node, 0);

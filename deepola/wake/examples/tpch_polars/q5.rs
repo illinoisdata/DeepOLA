@@ -1,7 +1,7 @@
 use crate::utils::*;
 
 extern crate wake;
-use polars::prelude::{DataFrame, Series, NamedFrom};
+use polars::prelude::{DataFrame, NamedFrom, Series};
 use polars::series::ChunkCompare;
 use wake::graph::*;
 use wake::polars_operations::*;
@@ -34,7 +34,6 @@ use std::collections::HashMap;
 // order by
 // 	revenue desc;
 
-
 pub fn query(
     tableinput: HashMap<String, TableInput>,
     output_reader: &mut NodeReader<polars::prelude::DataFrame>,
@@ -42,18 +41,30 @@ pub fn query(
     // Table Name => Columns to Read.
     let table_columns = HashMap::from([
         ("customer".into(), vec!["c_custkey", "c_nationkey"]),
-        ("orders".into(), vec!["o_orderkey", "o_custkey", "o_orderdate"]),
-        ("lineitem".into(), vec!["l_orderkey", "l_suppkey", "l_extendedprice", "l_discount"]),
+        (
+            "orders".into(),
+            vec!["o_orderkey", "o_custkey", "o_orderdate"],
+        ),
+        (
+            "lineitem".into(),
+            vec!["l_orderkey", "l_suppkey", "l_extendedprice", "l_discount"],
+        ),
         ("supplier".into(), vec!["s_suppkey", "s_nationkey"]),
-        ("nation".into(), vec!["n_regionkey", "n_nationkey", "n_name"]),
-        ("region".into(), vec!["r_regionkey","r_name"]),
+        (
+            "nation".into(),
+            vec!["n_regionkey", "n_nationkey", "n_name"],
+        ),
+        ("region".into(), vec!["r_regionkey", "r_name"]),
     ]);
 
     // CSV Reader Nodes.
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let customer_csvreader_node =
+        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node =
+        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
     let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
     let region_csvreader_node = build_csv_reader_node("region".into(), &tableinput, &table_columns);
 
@@ -61,7 +72,8 @@ pub fn query(
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let o_orderdate = df.column("o_orderdate").unwrap();
-            let mask = o_orderdate.gt_eq("1994-01-01").unwrap() & o_orderdate.lt("1995-01-01").unwrap();
+            let mask =
+                o_orderdate.gt_eq("1994-01-01").unwrap() & o_orderdate.lt("1995-01-01").unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -90,14 +102,16 @@ pub fn query(
         .build();
 
     let oc_hash_join_node = HashJoinBuilder::new()
-        .left_on(vec!["o_custkey".into(),"s_nationkey".into()])
-        .right_on(vec!["c_custkey".into(),"c_nationkey".into()])
+        .left_on(vec!["o_custkey".into(), "s_nationkey".into()])
+        .right_on(vec!["c_custkey".into(), "c_nationkey".into()])
         .build();
 
     let mut merger = SortedDfMerger::new();
     merger.set_left_on(vec!["l_orderkey".into()]);
     merger.set_right_on(vec!["o_orderkey".into()]);
-    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
+        .build();
 
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
@@ -110,26 +124,24 @@ pub fn query(
                     .unwrap()
                     * (discount * -1f64 + 1f64),
             );
-            df.hstack(&vec![disc_price]).unwrap()
+            df.hstack(&[disc_price]).unwrap()
         })))
         .build();
 
     // GROUP BY AGGREGATE Node
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_group_key(vec![
-        "n_name".into(),
-    ]).set_aggregates(vec![
-        ("disc_price".into(), vec!["sum".into()])
-    ]);
+    agg_accumulator
+        .set_group_key(vec!["n_name".into()])
+        .set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
 
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
-    .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-        df.sort(vec!["disc_price_sum"], vec![true]).unwrap()
-    })))
-    .build();
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            df.sort(vec!["disc_price_sum"], vec![true]).unwrap()
+        })))
+        .build();
 
     // Connect nodes with subscription
     region_where_node.subscribe_to_node(&region_csvreader_node, 0);

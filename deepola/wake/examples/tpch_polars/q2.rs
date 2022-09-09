@@ -60,17 +60,39 @@ pub fn query(
 ) -> ExecutionService<polars::prelude::DataFrame> {
     // Table Name => Columns to Read.
     let table_columns = HashMap::from([
-        ("part".into(), vec!["p_partkey", "p_size", "p_type", "p_mfgr"]),
-        ("supplier".into(), vec!["s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment"]),
-        ("partsupp".into(), vec!["ps_partkey", "ps_suppkey", "ps_supplycost"]),
-        ("nation".into(), vec!["n_regionkey", "n_nationkey", "n_name"]),
-        ("region".into(), vec!["r_regionkey","r_name"]),
+        (
+            "part".into(),
+            vec!["p_partkey", "p_size", "p_type", "p_mfgr"],
+        ),
+        (
+            "supplier".into(),
+            vec![
+                "s_suppkey",
+                "s_name",
+                "s_address",
+                "s_nationkey",
+                "s_phone",
+                "s_acctbal",
+                "s_comment",
+            ],
+        ),
+        (
+            "partsupp".into(),
+            vec!["ps_partkey", "ps_suppkey", "ps_supplycost"],
+        ),
+        (
+            "nation".into(),
+            vec!["n_regionkey", "n_nationkey", "n_name"],
+        ),
+        ("region".into(), vec!["r_regionkey", "r_name"]),
     ]);
 
     // CSV Reader Nodes.
     let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
-    let partsupp_csvreader_node = build_csv_reader_node("partsupp".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node =
+        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let partsupp_csvreader_node =
+        build_csv_reader_node("partsupp".into(), &tableinput, &table_columns);
     let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
     let region_csvreader_node = build_csv_reader_node("region".into(), &tableinput, &table_columns);
 
@@ -100,9 +122,9 @@ pub fn query(
 
     // GROUP BY Aggregate Node
     let mut min_accumulator = AggAccumulator::new();
-    min_accumulator.set_group_key(vec!["ps_partkey".into()]).set_aggregates(vec![
-        ("ps_supplycost".into(), vec!["min".into()])
-    ]);
+    min_accumulator
+        .set_group_key(vec!["ps_partkey".into()])
+        .set_aggregates(vec![("ps_supplycost".into(), vec!["min".into()])]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(min_accumulator)
         .build();
@@ -111,7 +133,13 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let p_size = df.column("p_size").unwrap();
             let p_type = df.column("p_type").unwrap();
-            let mask = p_size.equal(15i32).unwrap() & p_type.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|x| x.ends_with("BRASS") as bool)).collect();
+            let mask = p_size.equal(15i32).unwrap()
+                & p_type
+                    .utf8()
+                    .unwrap()
+                    .into_iter()
+                    .map(|opt_v| opt_v.map(|x| x.ends_with("BRASS") as bool))
+                    .collect();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -127,11 +155,27 @@ pub fn query(
         .build();
 
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
-    .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-        let cols = vec!["s_acctbal", "s_name", "n_name", "ps_partkey", "p_mfgr", "s_address", "s_phone", "s_comment"];
-        df.select(&cols).unwrap().sort(vec!["s_acctbal","n_name","s_name","ps_partkey"], vec![true, false, false, false]).unwrap().slice(0, 100)
-    })))
-    .build();
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let cols = vec![
+                "s_acctbal",
+                "s_name",
+                "n_name",
+                "ps_partkey",
+                "p_mfgr",
+                "s_address",
+                "s_phone",
+                "s_comment",
+            ];
+            df.select(&cols)
+                .unwrap()
+                .sort(
+                    vec!["s_acctbal", "n_name", "s_name", "ps_partkey"],
+                    vec![true, false, false, false],
+                )
+                .unwrap()
+                .slice(0, 100)
+        })))
+        .build();
 
     // Connect nodes with subscription
     part_where_node.subscribe_to_node(&part_csvreader_node, 0);

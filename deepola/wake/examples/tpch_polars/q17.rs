@@ -50,9 +50,10 @@ pub fn query(
     let mut sum_accumulator = AggAccumulator::new();
     sum_accumulator
         .set_group_key(vec!["l_partkey".to_string()])
-        .set_aggregates(vec![
-            ("l_quantity".into(), vec!["sum".into(), "count".into()]),
-        ]);
+        .set_aggregates(vec![(
+            "l_quantity".into(),
+            vec!["sum".into(), "count".into()],
+        )]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(sum_accumulator)
         .build();
@@ -61,17 +62,18 @@ pub fn query(
             let cols = vec![
                 Series::new("l_partkey", df.column("l_partkey").unwrap()),
                 Series::new(
-                "l_quantity_avg",
-                (df.column("l_quantity_sum")
-                    .unwrap()
-                    .cast(&polars::datatypes::DataType::Float64)
-                    .unwrap()) * 0.2f64
-                    / (df
-                        .column("l_quantity_count")
+                    "l_quantity_avg",
+                    (df.column("l_quantity_sum")
                         .unwrap()
                         .cast(&polars::datatypes::DataType::Float64)
-                        .unwrap()),
-                )
+                        .unwrap())
+                        * 0.2f64
+                        / (df
+                            .column("l_quantity_count")
+                            .unwrap()
+                            .cast(&polars::datatypes::DataType::Float64)
+                            .unwrap()),
+                ),
             ];
             DataFrame::new(cols).unwrap()
         })))
@@ -108,9 +110,7 @@ pub fn query(
 
     // AGGREGATE Node
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_aggregates(vec![
-        ("l_extendedprice".into(), vec!["sum".into()])
-    ]);
+    agg_accumulator.set_aggregates(vec![("l_extendedprice".into(), vec!["sum".into()])]);
     let final_groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
@@ -118,7 +118,11 @@ pub fn query(
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            DataFrame::new(vec![Series::new("avg_yearly", df.column("l_extendedprice_sum").unwrap() / 7.0f64)]).unwrap()
+            DataFrame::new(vec![Series::new(
+                "avg_yearly",
+                df.column("l_extendedprice_sum").unwrap() / 7.0f64,
+            )])
+            .unwrap()
         })))
         .build();
 
