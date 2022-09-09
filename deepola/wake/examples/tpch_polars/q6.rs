@@ -63,7 +63,9 @@ pub fn query(
     // GROUP BY Aggregate Node
     let mut agg_accumulator = AggAccumulator::new();
     agg_accumulator.set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
-    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new().accumulator(agg_accumulator).build();
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
+        .accumulator(agg_accumulator)
+        .build();
 
     // Connect nodes with subscription
     where_node.subscribe_to_node(&lineitem_csvreader_node, 0);

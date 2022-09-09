@@ -58,23 +58,41 @@ pub fn query(
 ) -> ExecutionService<polars::prelude::DataFrame> {
     // Table Name => Columns to Read.
     let table_columns = HashMap::from([
-        ("nation".into(), vec!["n_nationkey", "n_regionkey", "n_name"]),
+        (
+            "nation".into(),
+            vec!["n_nationkey", "n_regionkey", "n_name"],
+        ),
         ("region".into(), vec!["r_regionkey", "r_name"]),
         ("customer".into(), vec!["c_custkey", "c_nationkey"]),
         ("part".into(), vec!["p_partkey", "p_type"]),
         ("supplier".into(), vec!["s_suppkey", "s_nationkey"]),
-        ("orders".into(), vec!["o_orderkey", "o_custkey", "o_orderdate"]),
-        ("lineitem".into(), vec!["l_orderkey", "l_suppkey", "l_partkey", "l_extendedprice", "l_discount"]),
+        (
+            "orders".into(),
+            vec!["o_orderkey", "o_custkey", "o_orderdate"],
+        ),
+        (
+            "lineitem".into(),
+            vec![
+                "l_orderkey",
+                "l_suppkey",
+                "l_partkey",
+                "l_extendedprice",
+                "l_discount",
+            ],
+        ),
     ]);
 
     // CSV Reader Nodes.
     let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
     let region_csvreader_node = build_csv_reader_node("region".into(), &tableinput, &table_columns);
-    let customer_csvreader_node = build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let customer_csvreader_node =
+        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
     let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node =
+        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
 
     // WHERE Nodes
     let region_where_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -96,7 +114,8 @@ pub fn query(
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let o_orderdate = df.column("o_orderdate").unwrap();
-            let mask = o_orderdate.gt_eq("1995-01-01").unwrap() & o_orderdate.lt_eq("1996-12-31").unwrap();
+            let mask =
+                o_orderdate.gt_eq("1995-01-01").unwrap() & o_orderdate.lt_eq("1996-12-31").unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -142,9 +161,11 @@ pub fn query(
         .build();
 
     let mut merger = SortedDfMerger::new();
-        merger.set_left_on(vec!["l_orderkey".into()]);
-        merger.set_right_on(vec!["o_orderkey".into()]);
-    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+    merger.set_left_on(vec!["l_orderkey".into()]);
+    merger.set_right_on(vec!["o_orderkey".into()]);
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
+        .build();
 
     // Expression Node.
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -159,33 +180,53 @@ pub fn query(
                     .unwrap()
                     * (discount * -1f64 + 1f64),
             );
-            let mask = nation.equal("BRAZIL").unwrap().cast(&polars::datatypes::DataType::UInt32).unwrap();
+            let mask = nation
+                .equal("BRAZIL")
+                .unwrap()
+                .cast(&polars::datatypes::DataType::UInt32)
+                .unwrap();
             let masked_volume = Series::new("masked_volume", volume.clone() * mask);
             let o_orderdate = df.column("o_orderdate").unwrap();
-            let o_year = Series::new("o_year", o_orderdate.utf8().unwrap().as_date(Some("%Y-%m-%d")).unwrap().strftime("%Y").into_series());
+            let o_year = Series::new(
+                "o_year",
+                o_orderdate
+                    .utf8()
+                    .unwrap()
+                    .as_date(Some("%Y-%m-%d"))
+                    .unwrap()
+                    .strftime("%Y")
+                    .into_series(),
+            );
             DataFrame::new(vec![o_year, volume, masked_volume]).unwrap()
         })))
         .build();
 
     // GROUP BY Node.
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_group_key(vec!["o_year".into()]).
-    set_aggregates(vec![
-        ("volume".into(), vec!["sum".into()]),
-        ("masked_volume".into(), vec!["sum".into()])
-    ]);
+    agg_accumulator
+        .set_group_key(vec!["o_year".into()])
+        .set_aggregates(vec![
+            ("volume".into(), vec!["sum".into()]),
+            ("masked_volume".into(), vec!["sum".into()]),
+        ]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
 
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
-    .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-        // Select row and divide to get mkt_share
-        let o_year = df.column("o_year").unwrap().clone();
-        let mkt_share = Series::new("mkt_share", df.column("masked_volume_sum").unwrap()/df.column("volume_sum").unwrap());
-        DataFrame::new(vec![o_year, mkt_share]).unwrap().sort(vec!["o_year"], vec![false]).unwrap()
-    })))
-    .build();
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            // Select row and divide to get mkt_share
+            let o_year = df.column("o_year").unwrap().clone();
+            let mkt_share = Series::new(
+                "mkt_share",
+                df.column("masked_volume_sum").unwrap() / df.column("volume_sum").unwrap(),
+            );
+            DataFrame::new(vec![o_year, mkt_share])
+                .unwrap()
+                .sort(vec!["o_year"], vec![false])
+                .unwrap()
+        })))
+        .build();
 
     // Connect nodes with subscription
     region_where_node.subscribe_to_node(&region_csvreader_node, 0);

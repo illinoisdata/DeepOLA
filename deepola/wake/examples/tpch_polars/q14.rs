@@ -49,8 +49,7 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let a = df.column("l_shipdate").unwrap();
             let mask = a.gt_eq("1995-09-01").unwrap() & a.lt("1995-10-01").unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
+            df.filter(&mask).unwrap()
         })))
         .build();
 
@@ -97,7 +96,7 @@ pub fn query(
     let mut agg_accumulator = AggAccumulator::new();
     agg_accumulator.set_aggregates(vec![
         ("numerator_promo_revenue".into(), vec!["sum".into()]),
-        ("denominator_promo_revenue".into(), vec!["sum".into()])
+        ("denominator_promo_revenue".into(), vec!["sum".into()]),
     ]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)

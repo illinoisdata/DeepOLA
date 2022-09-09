@@ -47,14 +47,16 @@ fn main() {
 }
 
 fn run_query(args: Vec<String>) {
-    if args.len() == 0 {
-        panic!("Query not specified. Run like: cargo run --release --example tpch_polars -- query q1")
+    if args.is_empty() {
+        panic!(
+            "Query not specified. Run like: cargo run --release --example tpch_polars -- query q1"
+        )
     }
     let query_no = args[0].as_str();
     let scale = if args.len() <= 1 {
         1
     } else {
-        *(&args[1].parse::<usize>().unwrap())
+        args[1].parse::<usize>().unwrap()
     };
     let data_directory = if args.len() <= 2 {
         "resources/tpc-h/data/scale=1/partition=10"

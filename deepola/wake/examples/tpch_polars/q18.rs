@@ -40,19 +40,18 @@ pub fn query(
 ) -> ExecutionService<polars::prelude::DataFrame> {
     // Create a HashMap that stores table name and the columns in that query.
     let table_columns = HashMap::from([
+        ("lineitem".into(), vec!["l_orderkey", "l_quantity"]),
         (
-            "lineitem".into(),
-            vec!["l_orderkey", "l_quantity"],
+            "orders".into(),
+            vec!["o_orderkey", "o_custkey", "o_orderdate", "o_totalprice"],
         ),
-        ("orders".into(), vec!["o_orderkey", "o_custkey", "o_orderdate", "o_totalprice"]),
         ("customer".into(), vec!["c_custkey", "c_name"]),
     ]);
 
     // CSVReaderNode would be created for this table.
     let lineitem_csvreader_node =
         build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let orders_csvreader_node =
-        build_csv_reader_node("orders".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
     let customer_csvreader_node =
         build_csv_reader_node("customer".into(), &tableinput, &table_columns);
 
@@ -65,13 +64,21 @@ pub fn query(
     let mut merger = SortedDfMerger::new();
     merger.set_left_on(vec!["l_orderkey".into()]);
     merger.set_right_on(vec!["o_orderkey".into()]);
-    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
+        .build();
 
     // FIRST GROUP BY AGGREGATE NODE.
     let mut sum_accumulator = AggAccumulator::new();
-    sum_accumulator.set_group_key(vec!["c_name".into(),"o_custkey".into(),"l_orderkey".into(),"o_orderdate".into(),"o_totalprice".into()]).set_aggregates(vec![
-        ("l_quantity".into(), vec!["sum".into()])
-    ]);
+    sum_accumulator
+        .set_group_key(vec![
+            "c_name".into(),
+            "o_custkey".into(),
+            "l_orderkey".into(),
+            "o_orderdate".into(),
+            "o_totalprice".into(),
+        ])
+        .set_aggregates(vec![("l_quantity".into(), vec!["sum".into()])]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(sum_accumulator)
         .build();
@@ -79,7 +86,10 @@ pub fn query(
     let where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let mask = df.column("l_quantity_sum").unwrap().gt(300).unwrap();
-            df.filter(&mask).unwrap().sort(vec!["o_totalprice", "o_orderdate"], vec![true, false]).unwrap()
+            df.filter(&mask)
+                .unwrap()
+                .sort(vec!["o_totalprice", "o_orderdate"], vec![true, false])
+                .unwrap()
         })))
         .build();
 

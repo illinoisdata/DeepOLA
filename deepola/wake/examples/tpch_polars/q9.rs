@@ -80,25 +80,46 @@ pub fn query(
     let table_columns = HashMap::from([
         ("nation".into(), vec!["n_nationkey", "n_name"]),
         ("part".into(), vec!["p_partkey", "p_name"]),
-        ("partsupp".into(), vec!["ps_partkey", "ps_suppkey", "ps_supplycost"]),
+        (
+            "partsupp".into(),
+            vec!["ps_partkey", "ps_suppkey", "ps_supplycost"],
+        ),
         ("supplier".into(), vec!["s_suppkey", "s_nationkey"]),
         ("orders".into(), vec!["o_orderkey", "o_orderdate"]),
-        ("lineitem".into(), vec!["l_orderkey", "l_suppkey", "l_partkey", "l_extendedprice", "l_discount", "l_quantity"]),
+        (
+            "lineitem".into(),
+            vec![
+                "l_orderkey",
+                "l_suppkey",
+                "l_partkey",
+                "l_extendedprice",
+                "l_discount",
+                "l_quantity",
+            ],
+        ),
     ]);
 
     // CSV Reader Nodes.
     let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
     let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
-    let partsupp_csvreader_node = build_csv_reader_node("partsupp".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node = build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let partsupp_csvreader_node =
+        build_csv_reader_node("partsupp".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node =
+        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let lineitem_csvreader_node = build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node =
+        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
 
     // WHERE Nodes
     let part_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let p_name = df.column("p_name").unwrap();
-            let mask = p_name.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|x| x.contains("green") as bool)).collect();
+            let mask = p_name
+                .utf8()
+                .unwrap()
+                .into_iter()
+                .map(|opt_v| opt_v.map(|x| x.contains("green") as bool))
+                .collect();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -124,16 +145,27 @@ pub fn query(
         .build();
 
     let mut merger = SortedDfMerger::new();
-        merger.set_left_on(vec!["l_orderkey".into()]);
-        merger.set_right_on(vec!["o_orderkey".into()]);
-    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+    merger.set_left_on(vec!["l_orderkey".into()]);
+    merger.set_right_on(vec!["o_orderkey".into()]);
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
+        .build();
 
     // Expression Node.
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let nation = Series::new("nation", df.column("n_name").unwrap());
             let o_orderdate = df.column("o_orderdate").unwrap();
-            let o_year = Series::new("o_year", o_orderdate.utf8().unwrap().as_date(Some("%Y-%m-%d")).unwrap().strftime("%Y").into_series());
+            let o_year = Series::new(
+                "o_year",
+                o_orderdate
+                    .utf8()
+                    .unwrap()
+                    .as_date(Some("%Y-%m-%d"))
+                    .unwrap()
+                    .strftime("%Y")
+                    .into_series(),
+            );
 
             let l_extendedprice = df.column("l_extendedprice").unwrap();
             let l_discount = df.column("l_discount").unwrap();
@@ -144,7 +176,8 @@ pub fn query(
                 l_extendedprice
                     .cast(&polars::datatypes::DataType::Float64)
                     .unwrap()
-                    * (l_discount * -1f64 + 1f64) - (ps_supplycost * l_quantity),
+                    * (l_discount * -1f64 + 1f64)
+                    - (ps_supplycost * l_quantity),
             );
             DataFrame::new(vec![nation, o_year, profit]).unwrap()
         })))
@@ -152,10 +185,9 @@ pub fn query(
 
     // GROUP BY Node.
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_group_key(vec!["nation".into(), "o_year".into()]).
-    set_aggregates(vec![
-        ("profit".into(), vec!["sum".into()]),
-    ]);
+    agg_accumulator
+        .set_group_key(vec!["nation".into(), "o_year".into()])
+        .set_aggregates(vec![("profit".into(), vec!["sum".into()])]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
@@ -163,7 +195,8 @@ pub fn query(
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             // Select row and divide to get mkt_share
-            df.sort(vec!["nation", "o_year"], vec![false, true]).unwrap()
+            df.sort(vec!["nation", "o_year"], vec![false, true])
+                .unwrap()
         })))
         .build();
 

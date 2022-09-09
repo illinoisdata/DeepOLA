@@ -92,30 +92,61 @@ pub fn query(
             let l_shipinstruct = df.column("l_shipinstruct").unwrap();
 
             let common_mask = p_size.gt_eq(1i32).unwrap()
-            & l_shipinstruct.equal("DELIVER IN PERSON").unwrap()
-            & l_shipmode.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["AIR", "AIR REG"].contains(&v) as bool)).collect();
+                & l_shipinstruct.equal("DELIVER IN PERSON").unwrap()
+                & l_shipmode
+                    .utf8()
+                    .unwrap()
+                    .into_iter()
+                    .map(|opt_v| opt_v.map(|v| vec!["AIR", "AIR REG"].contains(&v) as bool))
+                    .collect();
 
             let mask1 = p_brand.equal("Brand#12").unwrap()
-            & p_size.lt_eq(5i32).unwrap()
-            & l_quantity.gt_eq(1i32).unwrap()
-            & l_quantity.lt_eq(11i32).unwrap()
-            & p_container.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["SM CASE", "SM BOX", "SM PACK", "SM PKG"].contains(&v) as bool)).collect();
+                & p_size.lt_eq(5i32).unwrap()
+                & l_quantity.gt_eq(1i32).unwrap()
+                & l_quantity.lt_eq(11i32).unwrap()
+                & p_container
+                    .utf8()
+                    .unwrap()
+                    .into_iter()
+                    .map(|opt_v| {
+                        opt_v.map(|v| {
+                            vec!["SM CASE", "SM BOX", "SM PACK", "SM PKG"].contains(&v) as bool
+                        })
+                    })
+                    .collect();
 
             let mask2 = p_brand.equal("Brand#23").unwrap()
-            & p_size.lt_eq(10i32).unwrap()
-            & l_quantity.gt_eq(10i32).unwrap()
-            & l_quantity.lt_eq(20i32).unwrap()
-            & p_container.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["MED BAG", "MED BOX", "MED PKG", "MED PACK"].contains(&v) as bool)).collect();
+                & p_size.lt_eq(10i32).unwrap()
+                & l_quantity.gt_eq(10i32).unwrap()
+                & l_quantity.lt_eq(20i32).unwrap()
+                & p_container
+                    .utf8()
+                    .unwrap()
+                    .into_iter()
+                    .map(|opt_v| {
+                        opt_v.map(|v| {
+                            vec!["MED BAG", "MED BOX", "MED PKG", "MED PACK"].contains(&v) as bool
+                        })
+                    })
+                    .collect();
 
             let mask3 = p_brand.equal("Brand#34").unwrap()
-            & p_size.lt_eq(15i32).unwrap()
-            & l_quantity.gt_eq(20i32).unwrap()
-            & l_quantity.lt_eq(30i32).unwrap()
-            & p_container.utf8().unwrap().into_iter().map(|opt_v| opt_v.map(|v| vec!["LG CASE", "LG BOX", "LG PACK", "LG PKG"].contains(&v) as bool)).collect();
+                & p_size.lt_eq(15i32).unwrap()
+                & l_quantity.gt_eq(20i32).unwrap()
+                & l_quantity.lt_eq(30i32).unwrap()
+                & p_container
+                    .utf8()
+                    .unwrap()
+                    .into_iter()
+                    .map(|opt_v| {
+                        opt_v.map(|v| {
+                            vec!["LG CASE", "LG BOX", "LG PACK", "LG PKG"].contains(&v) as bool
+                        })
+                    })
+                    .collect();
 
             let mask = common_mask & (mask1 | mask2 | mask3);
-            let result = df.filter(&mask).unwrap();
-            result
+            df.filter(&mask).unwrap()
         })))
         .build();
 
@@ -137,10 +168,10 @@ pub fn query(
 
     // GROUP BY Node
     let mut sum_accumulator = AggAccumulator::new();
-    sum_accumulator.set_aggregates(vec![
-        ("disc_price".into(), vec!["sum".into()])
-    ]);
-    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new().accumulator(sum_accumulator).build();
+    sum_accumulator.set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
+        .accumulator(sum_accumulator)
+        .build();
 
     // Connect nodes with subscription
     hash_join_node.subscribe_to_node(&lineitem_csvreader_node, 0); // Left Node

@@ -112,7 +112,9 @@ impl AggAccumulator {
 
         // Add a column with value 0 to support both empty and non-empty groupby key with same syntax and column name mechanism.
         let num_of_rows = df.height();
-        let mut raw_df = df.hstack(&[Series::new("_default_groupby_key", vec![0; num_of_rows])]).unwrap();
+        let mut raw_df = df
+            .hstack(&[Series::new("_default_groupby_key", vec![0; num_of_rows])])
+            .unwrap();
 
         // Arrow raises an error if the Chunks gets misaligned.
         if raw_df.should_rechunk() {
@@ -127,7 +129,11 @@ impl AggAccumulator {
         } else {
             self.aggregates().clone()
         };
-        let mut df_agg = raw_df.groupby(&group_keys).unwrap().agg(&aggregates).unwrap();
+        let mut df_agg = raw_df
+            .groupby(&group_keys)
+            .unwrap()
+            .agg(&aggregates)
+            .unwrap();
         let _ = df_agg.drop_in_place("_default_groupby_key").unwrap();
         if accumulator {
             df_agg.set_column_names(&df.get_column_names()).unwrap();
@@ -139,12 +145,11 @@ impl AggAccumulator {
         let mut acc_aggs = vec![];
         for agg in self.aggregates() {
             for agg_op in &agg.1 {
-                acc_aggs.push((format!("{}_{}",agg.0,agg_op), vec![format!("{}",agg_op)]));
+                acc_aggs.push((format!("{}_{}", agg.0, agg_op), vec![format!("{}", agg_op)]));
             }
         }
         acc_aggs
     }
-
 }
 
 impl AccumulatorOp<DataFrame> for AggAccumulator {
@@ -214,9 +219,14 @@ mod tests {
     #[test]
     fn sum_accumulator_node() {
         let mut sum_acc = AggAccumulator::new();
-        sum_acc.set_aggregates(vec![("temp".into(), vec!["sum".into()]),("rain".into(), vec!["sum".into()])]);
+        sum_acc.set_aggregates(vec![
+            ("temp".into(), vec!["sum".into()]),
+            ("rain".into(), vec!["sum".into()]),
+        ]);
 
-        let sum_node = AccumulatorNode::<DataFrame, AggAccumulator>::new().accumulator(sum_acc).build();
+        let sum_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
+            .accumulator(sum_acc)
+            .build();
         let input_df = get_example_df().select(["temp", "rain"]).unwrap();
         sum_node.write_to_self(0, DataMessage::from(input_df));
         sum_node.write_to_self(0, DataMessage::eof());
@@ -243,7 +253,10 @@ mod tests {
     fn sum_accumulator_on_empty() {
         // Test sum with no groups
         let mut sum_acc = AggAccumulator::new();
-        sum_acc.set_aggregates(vec![("temp".into(), vec!["sum".into()]),("rain".into(), vec!["sum".into()])]);
+        sum_acc.set_aggregates(vec![
+            ("temp".into(), vec!["sum".into()]),
+            ("rain".into(), vec!["sum".into()]),
+        ]);
 
         let df = get_example_df().select(["temp", "rain"]).unwrap();
         sum_acc.accumulate(&df);
@@ -259,7 +272,12 @@ mod tests {
 
         // Test sum with groups
         let mut sum_acc = AggAccumulator::new();
-        sum_acc.set_group_key(vec!["date".into()]).set_aggregates(vec![("temp".into(), vec!["sum".into()]),("rain".into(), vec!["sum".into()])]);
+        sum_acc
+            .set_group_key(vec!["date".into()])
+            .set_aggregates(vec![
+                ("temp".into(), vec!["sum".into()]),
+                ("rain".into(), vec!["sum".into()]),
+            ]);
 
         let df = get_example_df();
         sum_acc.accumulate(&df);

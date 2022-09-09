@@ -63,24 +63,21 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let a = df.column("l_shipdate").unwrap();
             let mask = a.gt("1995-03-15").unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
+            df.filter(&mask).unwrap()
         })))
         .build();
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let a = df.column("o_orderdate").unwrap();
             let mask = a.lt("1995-03-15").unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
+            df.filter(&mask).unwrap()
         })))
         .build();
     let customer_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let a = df.column("c_mktsegment").unwrap();
             let mask = a.equal("BUILDING").unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
+            df.filter(&mask).unwrap()
         })))
         .build();
 
@@ -94,8 +91,9 @@ pub fn query(
     let mut merger = SortedDfMerger::new();
     merger.set_left_on(vec!["l_orderkey".into()]);
     merger.set_right_on(vec!["o_orderkey".into()]);
-    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
-
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
+        .build();
 
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
@@ -108,19 +106,19 @@ pub fn query(
                     .unwrap()
                     * (discount * -1f64 + 1f64),
             );
-            df.hstack(&vec![disc_price]).unwrap()
+            df.hstack(&[disc_price]).unwrap()
         })))
         .build();
 
     // GROUP BY AGGREGATE Node
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_group_key(vec![
-        "l_orderkey".into(),
-        "o_orderdate".into(),
-        "o_shippriority".into(),
-    ]).set_aggregates(vec![
-        ("disc_price".into(), vec!["sum".into()])
-    ]);
+    agg_accumulator
+        .set_group_key(vec![
+            "l_orderkey".into(),
+            "o_orderdate".into(),
+            "o_shippriority".into(),
+        ])
+        .set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();

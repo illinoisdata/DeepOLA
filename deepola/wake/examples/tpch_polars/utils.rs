@@ -48,13 +48,7 @@ pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput>
         }
         // To sort slices correctly taking into account the partition numbers.
         alphanumeric_sort::sort_str_slice(&mut input_files);
-        table_input.insert(
-            tpch_table.to_string(),
-            TableInput {
-                input_files: input_files,
-                scale: scale,
-            },
-        );
+        table_input.insert(tpch_table.to_string(), TableInput { input_files, scale });
     }
     log::info!("Evaluating On Files");
     log::info!("{:?}", table_input);
@@ -95,19 +89,25 @@ pub fn build_csv_reader_node(
 ) -> ExecutionNode<polars::prelude::DataFrame> {
     // Get batch size and file names from tableinput tables;
     let raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
-    let scale = tableinput.get(&table as &str).unwrap().scale.clone();
+    let scale = tableinput.get(&table as &str).unwrap().scale;
     let schema = tpch_schema(&table).unwrap();
 
     let mut projected_cols_index = None;
     let mut projected_cols_names = None;
     match table_columns.get(&table) {
         Some(columns) => {
-            let mut cols_index = columns.iter().map(|x| schema.index(x)).collect::<Vec<usize>>();
-            cols_index.sort();
-            let col_names = cols_index.iter().map(|x| schema.get_column_from_index(*x).name).collect::<Vec<String>>();
+            let mut cols_index = columns
+                .iter()
+                .map(|x| schema.index(x))
+                .collect::<Vec<usize>>();
+            cols_index.sort_unstable();
+            let col_names = cols_index
+                .iter()
+                .map(|x| schema.get_column_from_index(*x).name)
+                .collect::<Vec<String>>();
             projected_cols_index = Some(cols_index);
             projected_cols_names = Some(col_names);
-        },
+        }
         None => {}
     }
     let input_files = df!("col" => &raw_input_files).unwrap();
@@ -119,13 +119,13 @@ pub fn build_csv_reader_node(
         .projected_cols(projected_cols_index)
         .build();
 
-    let mut metadata = MetaCell::Schema(schema.clone()).into_meta_map();
+    let mut metadata = MetaCell::Schema(schema).into_meta_map();
     *metadata
         .entry(DATABLOCK_TOTAL_RECORDS.to_string())
         .or_insert(MetaCell::Float(0.0)) =
         MetaCell::Float(total_number_of_records(&table, scale) as f64);
 
-    let dblock = DataBlock::new(input_files.clone(), metadata);
+    let dblock = DataBlock::new(input_files, metadata);
     csvreader.write_to_self(0, DataMessage::from(dblock));
     csvreader.write_to_self(0, DataMessage::eof());
     csvreader
@@ -215,9 +215,6 @@ pub fn tpch_schema(table: &str) -> std::result::Result<wake::data::Schema, Box<d
     if columns.is_empty() {
         Err("Schema Not Defined".into())
     } else {
-        Ok(wake::data::Schema::new(
-            String::from(table),
-            columns.clone(),
-        ))
+        Ok(wake::data::Schema::new(String::from(table), columns))
     }
 }

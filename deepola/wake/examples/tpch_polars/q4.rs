@@ -31,7 +31,6 @@ use std::collections::HashMap;
 // order by
 // 	o_orderpriority;
 
-
 pub fn query(
     tableinput: HashMap<String, TableInput>,
     output_reader: &mut NodeReader<polars::prelude::DataFrame>,
@@ -59,14 +58,14 @@ pub fn query(
             let l_commitdate = df.column("l_commitdate").unwrap();
             let l_receiptdate = df.column("l_receiptdate").unwrap();
             let mask = l_commitdate.lt(l_receiptdate).unwrap();
-            let result = df.filter(&mask).unwrap();
-            result
+            df.filter(&mask).unwrap()
         })))
         .build();
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let o_orderdate = df.column("o_orderdate").unwrap();
-            let mask = o_orderdate.gt_eq("1993-07-01").unwrap() & o_orderdate.lt("1993-10-01").unwrap();
+            let mask =
+                o_orderdate.gt_eq("1993-07-01").unwrap() & o_orderdate.lt("1993-10-01").unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -75,24 +74,30 @@ pub fn query(
     let mut merger = SortedDfMerger::new();
     merger.set_left_on(vec!["l_orderkey".into()]);
     merger.set_right_on(vec!["o_orderkey".into()]);
-    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
+        .build();
 
     // EXPRESSION Node (for distinct)
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            df.unique(Some(&vec!["l_orderkey".into()]), polars::prelude::UniqueKeepStrategy::First).unwrap()
-            .groupby(["o_orderpriority"]).unwrap()
-            .agg(&vec![("l_orderkey", vec!["count"])]).unwrap()
+            df.unique(
+                Some(&["l_orderkey".into()]),
+                polars::prelude::UniqueKeepStrategy::First,
+            )
+            .unwrap()
+            .groupby(["o_orderpriority"])
+            .unwrap()
+            .agg(&[("l_orderkey", vec!["count"])])
+            .unwrap()
         })))
         .build();
 
     // GROUP BY AGGREGATE Node
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_group_key(vec![
-        "o_orderpriority".into()
-    ]).set_aggregates(vec![
-        ("l_orderkey_count".into(), vec!["sum".into()])
-    ]);
+    agg_accumulator
+        .set_group_key(vec!["o_orderpriority".into()])
+        .set_aggregates(vec![("l_orderkey_count".into(), vec!["sum".into()])]);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
