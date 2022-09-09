@@ -1,7 +1,6 @@
 use crate::utils::*;
 
 extern crate wake;
-use polars::prelude::AsUtf8;
 use polars::prelude::DataFrame;
 use polars::prelude::NamedFrom;
 use polars::prelude::Utf8Methods;

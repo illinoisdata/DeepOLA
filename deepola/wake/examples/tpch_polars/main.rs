@@ -8,6 +8,7 @@ use wake::graph::*;
 
 mod q1;
 mod q10;
+mod q12;
 mod q14;
 mod q17;
 mod q18;
@@ -18,6 +19,8 @@ mod q4;
 mod q5;
 mod q6;
 mod q7;
+mod q8;
+mod q9;
 mod utils;
 
 fn main() {
@@ -74,6 +77,7 @@ pub fn get_query_service(
     let query_service = match query_no {
         "q1" => q1::query(table_input, output_reader),
         "q10" => q10::query(table_input, output_reader),
+        "q12" => q12::query(table_input, output_reader),
         "q14" => q14::query(table_input, output_reader),
         "q17" => q17::query(table_input, output_reader),
         "q18" => q18::query(table_input, output_reader),
@@ -84,6 +88,8 @@ pub fn get_query_service(
         "q5" => q5::query(table_input, output_reader),
         "q6" => q6::query(table_input, output_reader),
         "q7" => q7::query(table_input, output_reader),
+        "q8" => q8::query(table_input, output_reader),
+        "q9" => q9::query(table_input, output_reader),
         _ => panic!("Invalid Query Parameter"),
     };
     query_service
