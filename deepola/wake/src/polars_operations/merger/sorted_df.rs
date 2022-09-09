@@ -1,69 +1,16 @@
-use std::{marker::PhantomData, cell::RefCell, borrow::Borrow};
+use super::base::MergerOp;
+use crate::data::{DataMessage, Payload};
+use crate::{
+    channel::{MultiChannelBroadcaster, MultiChannelReader},
+    processor::StreamProcessor,
+};
+use getset::{Getters, Setters};
+use polars::{prelude::DataFrame, series::Series};
+use std::borrow::Borrow;
+use std::cell::RefCell;
 
-use getset::{Setters, Getters};
-use polars::{prelude::{DataFrame}, series::{Series}};
-
-use crate::{processor::{StreamProcessor}, graph::ExecutionNode, channel::{MultiChannelReader, MultiChannelBroadcaster}, data::{Payload, DataMessage}};
-
-
-/// Factory for creating an [ExecutionNode] that merge-joins two frames already sorted
-/// on their join keys.
-#[derive(Getters, Setters)]
-pub struct MergerNode<T, P: MergerOp<T>> {
-    #[set = "pub"]
-    merger: P,
-
-    // Necessary to have T as a generic type
-    phantom: PhantomData<T>,
-}
-
-/// Creates a node that simply passes the data coming from the left.
-impl<T, P: MergerOp<T> + Clone> Default for MergerNode<T, P> {
-    fn default() -> Self {
-        Self {
-            merger: P::new(),
-            phantom: PhantomData::default(),
-        }
-    }
-}
-
-impl<T: 'static + Send, P> MergerNode<T, P>
-where
-    P: 'static + MergerOp<T> + StreamProcessor<T> + Clone,
-{
-    pub fn new() -> Self {
-        MergerNode::default()
-    }
-
-    pub fn merger(&mut self, op: P) -> &mut Self {
-        self.merger = op;
-        self
-    }
-
-    pub fn build(&self) -> ExecutionNode<T> {
-        let data_processor = Box::new(self.merger.clone());
-        ExecutionNode::<T>::new(data_processor, 2)
-    }
-}
-
-/// Represents a generic merger operation. For [MergerNode], a concrete struct implementing this
-/// trait (e.g., SortedDfMerger) must be used.
-pub trait MergerOp<T>: Send {
-    fn new() -> Self;
-
-    fn supply_left(&self, df_left: &T);
-
-    fn supply_right(&self, df_right: &T);
-
-    fn needs_left(&self) -> bool;
-
-    fn needs_right(&self) -> bool;
-
-    fn merge(&self) -> T;
-}
-
-/// Inner-joins two dataframes, both of which sorted on their join keys. Assumes that the next data 
-/// frame (each for left and right) does not contain the same key values appearing in the current 
+/// Inner-joins two dataframes, both of which sorted on their join keys. Assumes that the next data
+/// frame (each for left and right) does not contain the same key values appearing in the current
 /// data frame.
 #[derive(Getters, Setters, Clone)]
 pub struct SortedDfMerger {
@@ -108,9 +55,7 @@ impl SortedDfMerger {
             let zero_length = 0;
             // push all the columns from the left
             for left_col in df_left.get_columns() {
-                let empty_col = left_col
-                    .sample_n(zero_length, false, false, None)
-                    .unwrap();
+                let empty_col = left_col.sample_n(zero_length, false, false, None).unwrap();
                 new_columns.push(empty_col);
             }
             // push all the columns from the right, except for the ones composing join cols
@@ -118,19 +63,13 @@ impl SortedDfMerger {
                 if self.right_on.contains(&String::from(right_col.name())) {
                     continue;
                 }
-                let empty_col = right_col
-                    .sample_n(zero_length, false, false, None)
-                    .unwrap();
+                let empty_col = right_col.sample_n(zero_length, false, false, None).unwrap();
                 new_columns.push(empty_col);
             }
             DataFrame::new(new_columns).unwrap()
         } else {
             df_left
-                .inner_join(
-                    df_right,
-                    self.left_on.clone(),
-                    self.right_on().clone(),
-                )
+                .inner_join(df_right, self.left_on.clone(), self.right_on().clone())
                 .unwrap()
         }
     }
@@ -154,14 +93,10 @@ impl MergerOp<DataFrame> for SortedDfMerger {
         // checks which side of the dataframes (left or right) ends first.
         // we needs more dataframes from that side.
         let first_row_idx = 0;
-        
-        let l_join_max_df = left_df
-            .select(&self.left_on).unwrap()
-            .max();
+
+        let l_join_max_df = left_df.select(&self.left_on).unwrap().max();
         let l_join_max = l_join_max_df.get(first_row_idx);
-        let r_join_max_df = right_df
-            .select(&self.right_on).unwrap()
-            .max();
+        let r_join_max_df = right_df.select(&self.right_on).unwrap().max();
         let r_join_max = r_join_max_df.get(first_row_idx);
 
         // base cases
@@ -177,12 +112,12 @@ impl MergerOp<DataFrame> for SortedDfMerger {
             if l_join_max.as_ref() < r_join_max.as_ref() {
                 *self.needs_left.borrow_mut() = true;
                 *self.needs_right.borrow_mut() = false;
-            } 
+            }
             // right df ends first; thus we need another df for the right side
             else if l_join_max.as_ref() > r_join_max.as_ref() {
                 *self.needs_left.borrow_mut() = false;
                 *self.needs_right.borrow_mut() = true;
-            } 
+            }
             // both df end; thus, we need more df for both sides
             else {
                 *self.needs_left.borrow_mut() = true;
@@ -219,7 +154,6 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
         input_stream: MultiChannelReader<DataFrame>,
         output_stream: MultiChannelBroadcaster<DataFrame>,
     ) {
-
         let channel_left = 0;
         let channel_right = 1;
 
@@ -234,12 +168,12 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
             }
 
             if self.needs_left() {
-                let message = input_stream.read(channel_left);    
+                let message = input_stream.read(channel_left);
                 match message.payload() {
                     Payload::EOF => {
                         output_stream.write(message);
                         break;
-                    },
+                    }
                     Payload::Signal(_) => {
                         break;
                     }
@@ -252,12 +186,12 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
             }
 
             if self.needs_right() {
-                let message = input_stream.read(channel_right);    
+                let message = input_stream.read(channel_right);
                 match message.payload() {
                     Payload::EOF => {
                         output_stream.write(message);
                         break;
-                    },
+                    }
                     Payload::Signal(_) => {
                         break;
                     }
@@ -275,13 +209,12 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
     use polars::prelude::*;
 
-    use crate::{graph::NodeReader, data::DataMessage};
+    use crate::{data::DataMessage, graph::NodeReader, polars_operations::merger::MergerNode};
 
     use super::*;
 
@@ -306,13 +239,14 @@ mod tests {
     fn join_col_appear_middle() {
         let left_df = df!("left_col" => vec!["hello"], "col" => vec![1]).unwrap();
         let right_df = df!("right_col" => vec!["world"], "col" => vec![1]).unwrap();
-        let joined_df = left_df.inner_join(
-            &right_df, vec!["col"], vec!["col"])
+        let joined_df = left_df
+            .inner_join(&right_df, vec!["col"], vec!["col"])
             .unwrap();
         let expected_df = df!(
-            "left_col" => vec!["hello"], 
+            "left_col" => vec!["hello"],
             "col" => vec![1],
-            "right_col" => vec!["world"]).unwrap();
+            "right_col" => vec!["world"])
+        .unwrap();
         assert_eq!(joined_df, expected_df);
     }
 
@@ -324,8 +258,9 @@ mod tests {
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df));
         merger_node.write_to_self(0, DataMessage::eof());
         merger_node.write_to_self(1, DataMessage::from(right_df));
@@ -335,7 +270,8 @@ mod tests {
 
         let empty_df = df!(
             "col" => Vec::<String>::new()
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         loop {
@@ -355,17 +291,20 @@ mod tests {
         let left_df = df!(
             "left_col" => Vec::<String>::new(),
             "col" => Vec::<String>::new()
-        ).unwrap();
+        )
+        .unwrap();
         let right_df = df!(
             "col" => vec!["hello"],
             "right_col" => vec!["world"],
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df));
         merger_node.write_to_self(0, DataMessage::eof());
         merger_node.write_to_self(1, DataMessage::from(right_df));
@@ -377,7 +316,8 @@ mod tests {
             "left_col" => Vec::<String>::new(),
             "col" => Vec::<String>::new(),
             "right_col" => Vec::<String>::new(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         loop {
@@ -397,17 +337,20 @@ mod tests {
         let left_df = df!(
             "left_col" => vec!["hello"],
             "col" => vec!["world"],
-        ).unwrap();
+        )
+        .unwrap();
         let right_df = df!(
             "col" => Vec::<String>::new(),
             "right_col" => Vec::<String>::new(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df));
         merger_node.write_to_self(0, DataMessage::eof());
         merger_node.write_to_self(1, DataMessage::from(right_df));
@@ -419,7 +362,8 @@ mod tests {
             "left_col" => Vec::<String>::new(),
             "col" => Vec::<String>::new(),
             "right_col" => Vec::<String>::new(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         loop {
@@ -442,8 +386,9 @@ mod tests {
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df));
         merger_node.write_to_self(0, DataMessage::eof());
         merger_node.write_to_self(1, DataMessage::from(right_df));
@@ -455,7 +400,8 @@ mod tests {
             "left_col" => vec!["hello"],
             "col" => vec![1],
             "right_col" => vec!["world"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         loop {
@@ -478,8 +424,9 @@ mod tests {
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df));
         merger_node.write_to_self(0, DataMessage::eof());
         merger_node.write_to_self(1, DataMessage::from(right_df));
@@ -491,7 +438,8 @@ mod tests {
             "left_col" => vec!["hello"],
             "col" => vec![1],
             "right_col" => vec!["world"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         loop {
@@ -508,24 +456,25 @@ mod tests {
 
     #[test]
     fn left_df_is_taller() {
-        let left_df = 
-            df!(
-                "left_col" => vec!["hello1", "hello2"], 
-                "col" => vec![1, 2]).unwrap();
-        let right_df1 = 
-            df!(
-                "right_col" => vec!["world1"], 
-                "col" => vec![1]).unwrap();
-        let right_df2 = 
-            df!(
-                "right_col" => vec!["world2"], 
-                "col" => vec![2]).unwrap();
+        let left_df = df!(
+                "left_col" => vec!["hello1", "hello2"],
+                "col" => vec![1, 2])
+        .unwrap();
+        let right_df1 = df!(
+                "right_col" => vec!["world1"],
+                "col" => vec![1])
+        .unwrap();
+        let right_df2 = df!(
+                "right_col" => vec!["world2"],
+                "col" => vec![2])
+        .unwrap();
 
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df));
         merger_node.write_to_self(0, DataMessage::eof());
         merger_node.write_to_self(1, DataMessage::from(right_df1));
@@ -538,7 +487,8 @@ mod tests {
             "left_col" => vec!["hello1", "hello2"],
             "col" => vec![1, 2],
             "right_col" => vec!["world1", "world2"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         let mut stacked_df = DataFrame::default();
@@ -557,24 +507,25 @@ mod tests {
 
     #[test]
     fn right_df_is_taller() {
-        let left_df1 = 
-            df!(
-                "left_col" => vec!["hello1"], 
-                "col" => vec![1]).unwrap();
-        let left_df2 = 
-            df!(
-                "left_col" => vec!["hello2"], 
-                "col" => vec![2]).unwrap();
-        let right_df = 
-            df!(
-                "right_col" => vec!["world1", "world2"], 
-                "col" => vec![1, 2]).unwrap();
+        let left_df1 = df!(
+                "left_col" => vec!["hello1"],
+                "col" => vec![1])
+        .unwrap();
+        let left_df2 = df!(
+                "left_col" => vec!["hello2"],
+                "col" => vec![2])
+        .unwrap();
+        let right_df = df!(
+                "right_col" => vec!["world1", "world2"],
+                "col" => vec![1, 2])
+        .unwrap();
 
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df1));
         merger_node.write_to_self(0, DataMessage::from(left_df2));
         merger_node.write_to_self(0, DataMessage::eof());
@@ -587,7 +538,8 @@ mod tests {
             "left_col" => vec!["hello1", "hello2"],
             "col" => vec![1, 2],
             "right_col" => vec!["world1", "world2"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         let mut stacked_df = DataFrame::default();
@@ -606,28 +558,29 @@ mod tests {
 
     #[test]
     fn left_right_dfs_of_two_chunks() {
-        let left_df1 = 
-            df!(
-                "left_col" => vec!["hello1"], 
-                "col" => vec![1]).unwrap();
-        let left_df2 = 
-            df!(
-                "left_col" => vec!["hello2"], 
-                "col" => vec![2]).unwrap();
-        let right_df1 = 
-            df!(
-                "right_col" => vec!["world1"], 
-                "col" => vec![1]).unwrap();
-        let right_df2 = 
-            df!(
-                "right_col" => vec!["world2"], 
-                "col" => vec![2]).unwrap();
+        let left_df1 = df!(
+                "left_col" => vec!["hello1"],
+                "col" => vec![1])
+        .unwrap();
+        let left_df2 = df!(
+                "left_col" => vec!["hello2"],
+                "col" => vec![2])
+        .unwrap();
+        let right_df1 = df!(
+                "right_col" => vec!["world1"],
+                "col" => vec![1])
+        .unwrap();
+        let right_df2 = df!(
+                "right_col" => vec!["world2"],
+                "col" => vec![2])
+        .unwrap();
 
         let mut merger = SortedDfMerger::new();
         merger.set_left_on(vec!["col".into()]);
         merger.set_right_on(vec!["col".into()]);
-        let merger_node = 
-            MergerNode::<DataFrame, SortedDfMerger>::new().merger(merger).build();
+        let merger_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+            .merger(merger)
+            .build();
         merger_node.write_to_self(0, DataMessage::from(left_df1));
         merger_node.write_to_self(0, DataMessage::from(left_df2));
         merger_node.write_to_self(0, DataMessage::eof());
@@ -641,7 +594,8 @@ mod tests {
             "left_col" => vec!["hello1", "hello2"],
             "col" => vec![1, 2],
             "right_col" => vec!["world1", "world2"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut result_count = 0;
         let mut stacked_df = DataFrame::default();
@@ -657,5 +611,4 @@ mod tests {
         assert_eq!(result_count, 2);
         assert_eq!(stacked_df, expected_joined_df);
     }
-
 }
