@@ -1,0 +1,5 @@
+[workspace]
+members = [
+   "wake",
+   "wake/examples/tpch_polars",
+]
