@@ -11,10 +11,14 @@ mod q10;
 mod q11;
 mod q12;
 mod q14;
+mod q15;
+mod q16;
 mod q17;
 mod q18;
 mod q19;
 mod q2;
+mod q20;
+mod q21;
 mod q3;
 mod q4;
 mod q5;
@@ -67,7 +71,7 @@ fn run_query(args: Vec<String>) {
     let mut output_reader = NodeReader::empty();
     let mut query_service = get_query_service(query_no, scale, data_directory, &mut output_reader);
     log::info!("Running Query: {}", query_no);
-    utils::run_query(&mut query_service, &mut output_reader);
+    utils::run_query(query_no, &mut query_service, &mut output_reader);
 }
 
 pub fn get_query_service(
@@ -83,10 +87,14 @@ pub fn get_query_service(
         "q11" => q11::query(table_input, output_reader),
         "q12" => q12::query(table_input, output_reader),
         "q14" => q14::query(table_input, output_reader),
+        "q15" => q15::query(table_input, output_reader),
+        "q16" => q16::query(table_input, output_reader),
         "q17" => q17::query(table_input, output_reader),
         "q18" => q18::query(table_input, output_reader),
         "q19" => q19::query(table_input, output_reader),
         "q2" => q2::query(table_input, output_reader),
+        "q20" => q20::query(table_input, output_reader),
+        "q21" => q21::query(table_input, output_reader),
         "q3" => q3::query(table_input, output_reader),
         "q4" => q4::query(table_input, output_reader),
         "q5" => q5::query(table_input, output_reader),
