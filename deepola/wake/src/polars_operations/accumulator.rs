@@ -145,7 +145,15 @@ impl AggAccumulator {
         let mut acc_aggs = vec![];
         for agg in self.aggregates() {
             for agg_op in &agg.1 {
-                acc_aggs.push((format!("{}_{}", agg.0, agg_op), vec![format!("{}", agg_op)]));
+                let modified_agg_op = if agg_op.as_str() == "count" {
+                    "sum" // To join count from two aggregates, need to perform sum.
+                } else {
+                    agg_op.as_str()
+                };
+                acc_aggs.push((
+                    format!("{}_{}", agg.0, agg_op),
+                    vec![format!("{}", modified_agg_op)],
+                ));
             }
         }
         acc_aggs

@@ -1,13 +1,13 @@
 extern crate wake;
+use glob::glob;
 use polars::prelude::*;
+use std::collections::HashMap;
+use std::error::Error;
+use std::fs::File;
+use std::time::Instant;
 use wake::data::*;
 use wake::graph::*;
 use wake::polars_operations::*;
-
-use glob::glob;
-use std::collections::HashMap;
-use std::error::Error;
-use std::time::Instant;
 
 #[derive(Debug)]
 pub struct TableInput {
@@ -55,7 +55,16 @@ pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput>
     table_input
 }
 
+pub fn save_df_to_csv(df: &mut DataFrame, file_path: String) {
+    let mut output_file: File = File::create(file_path).unwrap();
+    CsvWriter::new(&mut output_file)
+        .has_header(true)
+        .finish(df)
+        .unwrap();
+}
+
 pub fn run_query(
+    query_no: &str,
     query_service: &mut ExecutionService<DataFrame>,
     output_reader: &mut NodeReader<DataFrame>,
 ) -> Vec<DataFrame> {
@@ -76,9 +85,12 @@ pub fn run_query(
     }
     query_service.join();
     let end_time = Instant::now();
+    let num_results = query_result.len();
+    let last_df = &mut query_result[num_results - 1];
     log::info!("Query Result");
-    log::info!("{:?}", query_result[query_result.len() - 1]);
+    log::info!("{:?}", last_df);
     log::info!("Query Took: {:.2?}", end_time - start_time);
+    save_df_to_csv(last_df, format!("outputs/{}.csv", query_no));
     query_result
 }
 

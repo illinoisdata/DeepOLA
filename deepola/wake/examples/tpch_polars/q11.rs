@@ -121,8 +121,7 @@ pub fn query(
         let value_sum = left_df.column("value_sum").unwrap();
         let percent_value = right_df.column("value_percent_sum").unwrap();
         let mask = (value_sum.gt(percent_value)).unwrap();
-        let filtered_df = left_df.filter(&mask).unwrap();
-        filtered_df
+        left_df.filter(&mask).unwrap()
     }));
     let having_node = MergerNode::<DataFrame, MapperDfMerger>::new()
         .merger(having_merger)
