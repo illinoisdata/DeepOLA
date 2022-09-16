@@ -9,6 +9,8 @@ use crate::processor::StreamProcessor;
 pub struct HashJoinBuilder {
     left_on: Vec<String>,
     right_on: Vec<String>,
+    join_type: Option<JoinType>,
+    swap: bool,
 }
 
 impl HashJoinBuilder {
@@ -26,8 +28,22 @@ impl HashJoinBuilder {
         self
     }
 
+    pub fn join_type(&mut self, join_type: JoinType) -> &mut Self {
+        self.join_type = Some(join_type);
+        self
+    }
+
+    pub fn swap(&mut self, swap: bool) -> &mut Self {
+        self.swap = swap;
+        self
+    }
+
     pub fn build(&self) -> ExecutionNode<DataFrame> {
-        let hash_join_node = HashJoinNode::new(&self.left_on, &self.right_on);
+        let join_type = match &self.join_type {
+            Some(a) => a,
+            None => &JoinType::Inner,
+        };
+        let hash_join_node = HashJoinNode::new(&self.left_on, &self.right_on, join_type, self.swap);
         ExecutionNode::<DataFrame>::new(Box::new(hash_join_node), 2)
     }
 }
@@ -37,16 +53,20 @@ struct HashJoinNode {
     left_on: Vec<String>,
     right_on: Vec<String>,
     right_df: DataFrame,
+    join_type: JoinType,
+    swap: bool,
 }
 
 /// A factory method for creating the custom SetProcessor<Series> type for
 /// reading csv files
 impl HashJoinNode {
-    pub fn new(left_on: &[String], right_on: &[String]) -> Self {
+    pub fn new(left_on: &[String], right_on: &[String], join_type: &JoinType, swap: bool) -> Self {
         HashJoinNode {
             left_on: left_on.to_owned(),
             right_on: right_on.to_owned(),
             right_df: DataFrame::default(),
+            join_type: join_type.to_owned(),
+            swap,
         }
     }
 
@@ -61,12 +81,23 @@ impl HashJoinNode {
 
     // Compute Hash Join given left and right df.
     pub fn process(&self, left_df: &DataFrame) -> DataFrame {
-        left_df
+        let mut final_left_df = left_df;
+        let mut final_right_df = &self.right_df;
+        let mut left_on = self.left_on.clone();
+        let mut right_on = self.right_on.clone();
+
+        // swap is added to enable running equivalent of (right outer join)
+        // using left outer join and smaller table on the right channel.
+        if self.swap {
+            std::mem::swap(&mut final_left_df, &mut final_right_df);
+            std::mem::swap(&mut left_on, &mut right_on);
+        }
+        final_left_df
             .join(
-                &self.right_df,
-                self.left_on.clone(),
-                self.right_on.clone(),
-                JoinType::Inner,
+                final_right_df,
+                left_on,
+                right_on,
+                self.join_type.clone(),
                 None,
             )
             .unwrap()

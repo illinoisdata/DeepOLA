@@ -10,6 +10,7 @@ mod q1;
 mod q10;
 mod q11;
 mod q12;
+mod q13;
 mod q14;
 mod q15;
 mod q16;
@@ -86,6 +87,7 @@ pub fn get_query_service(
         "q10" => q10::query(table_input, output_reader),
         "q11" => q11::query(table_input, output_reader),
         "q12" => q12::query(table_input, output_reader),
+        "q13" => q13::query(table_input, output_reader),
         "q14" => q14::query(table_input, output_reader),
         "q15" => q15::query(table_input, output_reader),
         "q16" => q16::query(table_input, output_reader),
