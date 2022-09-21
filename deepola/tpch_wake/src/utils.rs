@@ -1,4 +1,3 @@
-extern crate wake;
 use glob::glob;
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -63,12 +62,18 @@ pub fn save_df_to_csv(df: &mut DataFrame, file_path: String) {
         .unwrap();
 }
 
-pub fn run_query(
-    query_no: &str,
+#[derive(Debug)]
+pub struct QueryResult {
+    df: DataFrame,
+    duration: std::time::Duration,
+}
+
+pub fn run_query_with_query_service(
+    _query_no: &str,
     query_service: &mut ExecutionService<DataFrame>,
     output_reader: &mut NodeReader<DataFrame>,
-) -> Vec<DataFrame> {
-    let mut query_result: Vec<DataFrame> = vec![];
+) -> Vec<QueryResult> {
+    let mut query_result: Vec<QueryResult> = vec![];
     let start_time = Instant::now();
     query_service.run();
     loop {
@@ -77,20 +82,20 @@ pub fn run_query(
             break;
         }
         let data = message.datablock().data();
-        if query_result.is_empty() {
-            let end_time = Instant::now();
-            log::info!("First Query Result Took: {:.2?}", end_time - start_time);
-        }
-        query_result.push(data.clone());
+        let end_time = Instant::now();
+        let duration = end_time - start_time;
+        query_result.push(QueryResult {
+            df: data.clone(),
+            duration,
+        });
     }
     query_service.join();
-    let end_time = Instant::now();
     let num_results = query_result.len();
-    let last_df = &mut query_result[num_results - 1];
+    let last_result = &mut query_result[num_results - 1];
     log::info!("Query Result");
-    log::info!("{:?}", last_df);
-    log::info!("Query Took: {:.2?}", end_time - start_time);
-    save_df_to_csv(last_df, format!("outputs/{}.csv", query_no));
+    log::info!("{:?}", last_result.df);
+    log::info!("Query Took: {:.2?}", last_result.duration);
+    // save_df_to_csv(&mut last_result.df, format!("outputs/{}.csv", _query_no));
     query_result
 }
 

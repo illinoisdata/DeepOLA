@@ -1,11 +1,3 @@
-#[global_allocator]
-static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
-
-extern crate wake;
-use polars::prelude::DataFrame;
-use std::env;
-use wake::graph::*;
-
 mod q1;
 mod q10;
 mod q11;
@@ -28,32 +20,13 @@ mod q6;
 mod q7;
 mod q8;
 mod q9;
-mod utils;
 
-fn main() {
-    // Arguments:
-    // 0: Whether to run query or test. Required. query/test.
-    // 1: Query Number. Required.
-    // 2: Scale of the TPC-H Dataset. Optional. Default: 1.
-    // 3: Directory containing the dataset. Optional. Default: resources/tpc-h/data/scale=1/partition=1/
+use polars::prelude::DataFrame;
+use wake::graph::{ExecutionService, NodeReader};
 
-    env_logger::Builder::from_default_env()
-        .format_timestamp_micros()
-        .init();
+use crate::{utils, QueryResult};
 
-    let args = env::args().skip(1).collect::<Vec<String>>();
-    match args[0].as_str() {
-        // "test" => tests::test_tpch_query(args[1].as_str()),
-        "query" => run_query(args.into_iter().skip(1).collect::<Vec<String>>()),
-        _ => panic!(
-            "Invalid Argument to the cargo run command.
-        Run: `cargo run --release --example tpch_polars -- query q1` to run query q1.
-        Run `cargo run --release --example tpch_polars -- test` to run test for query q1."
-        ),
-    }
-}
-
-fn run_query(args: Vec<String>) {
+pub fn run_query_with_args(args: Vec<String>) -> Vec<QueryResult> {
     if args.is_empty() {
         panic!(
             "Query not specified. Run like: cargo run --release --example tpch_polars -- query q1"
@@ -73,7 +46,7 @@ fn run_query(args: Vec<String>) {
     let mut output_reader = NodeReader::empty();
     let mut query_service = get_query_service(query_no, scale, data_directory, &mut output_reader);
     log::info!("Running Query: {}", query_no);
-    utils::run_query(query_no, &mut query_service, &mut output_reader);
+    utils::run_query_with_query_service(query_no, &mut query_service, &mut output_reader)
 }
 
 pub fn get_query_service(
