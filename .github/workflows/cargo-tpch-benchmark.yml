@@ -12,7 +12,5 @@ jobs:
         with:
           cwd: "deepola/tpch_wake"
           benchName: "tpch_polars"
-          defaultFeatures: false
-          features: "async,tokio-support"
           branchName: ${{ github.base_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
