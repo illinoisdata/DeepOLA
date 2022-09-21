@@ -5,6 +5,10 @@ use super::StreamProcessor;
 /// StreamProcessor for a single channel input.
 pub trait MessageProcessor<T> {
     fn process_msg(&self, input: &T) -> Option<T>;
+
+    fn post_process_msg(&self) -> Option<T> {
+        None
+    }
 }
 
 /// Implements [StreamProcessor] for a type R of trait [MessageProcessor]
@@ -19,6 +23,10 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
             let message = input_stream.read(channel_seq);
             match message.payload() {
                 Payload::EOF => {
+                    if let Some(df_acc) = self.post_process_msg() {
+                        let post_process_msg = DataMessage::from(df_acc);
+                        output_stream.write(post_process_msg)
+                    }
                     output_stream.write(message);
                     break;
                 }
