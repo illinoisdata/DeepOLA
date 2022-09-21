@@ -8,6 +8,13 @@ use getset::{Getters, Setters};
 use polars::prelude::DataFrame;
 use std::{borrow::Borrow, cell::RefCell, sync::Arc};
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum MapperDfMergerMode {
+    BothOnline,
+    LeftOnline,
+    RightOnline,
+}
+
 /// Runs the provided mapper on the dataframes obtained from
 /// the two streams.
 #[derive(Getters, Setters, Clone)]
@@ -21,6 +28,10 @@ pub struct MapperDfMerger {
     needs_left: RefCell<bool>,
 
     needs_right: RefCell<bool>,
+
+    #[set = "pub"]
+    #[get = "pub"]
+    mode: MapperDfMergerMode,
 }
 
 unsafe impl Send for MapperDfMerger {}
@@ -33,6 +44,7 @@ impl MapperDfMerger {
             right_df: RefCell::new(None),
             needs_left: RefCell::new(true),
             needs_right: RefCell::new(true),
+            mode: MapperDfMergerMode::BothOnline,
         }
     }
 
@@ -51,8 +63,14 @@ impl MergerOp<DataFrame> for MapperDfMerger {
         let right = self.right_df.borrow();
         let left_df: &DataFrame = left.as_ref().unwrap();
         let right_df: &DataFrame = right.as_ref().unwrap();
-        *self.needs_left.borrow_mut() = true;
-        *self.needs_right.borrow_mut() = true;
+        if self.mode == MapperDfMergerMode::BothOnline {
+            *self.needs_left.borrow_mut() = true;
+            *self.needs_right.borrow_mut() = true;
+        } else if self.mode == MapperDfMergerMode::LeftOnline {
+            *self.needs_left.borrow_mut() = true;
+        } else if self.mode == MapperDfMergerMode::RightOnline {
+            *self.needs_right.borrow_mut() = true;
+        }
         (self.mapper)(left_df, right_df)
     }
 
