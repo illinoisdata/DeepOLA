@@ -3,9 +3,29 @@ name = "tpch_polars"
 version = "0.1.0"
 edition = "2021"
 
+# ======================
+#  pyo3 configuration:
+# ======================
+
+# You can safely remove the code below to let rustimport define your
+# pyo3-configuration automatically. It's still possible to add other
+# configuration or dependencies, or overwrite specific parts here.
+# rustimport will merge your Cargo.toml file into it's generated
+# default configuration.
+[lib]
+# The name of the native library. This is the name which will be used in Python to import the
+# library (i.e. `import tpch_polars`).
+name = "tpch_polars"
+#
+# "cdylib" is necessary to produce a shared library for Python to import from.
+# Downstream Rust code (including code in `bin/`, `examples/`, and `examples/`) will not be able
+# to `use tpch_polars;` unless the "rlib" or "lib" crate type is also included, e.g.:
+crate-type = ["cdylib", "rlib"]
+
 
 [dependencies]
 wake = { path = "../../../wake" }
+pyo3 = "~0.17"
 itertools = "0.10"
 log = "0.4.14"
 jemallocator = "0.3.2"
@@ -13,3 +33,7 @@ glob = "0.3.0"
 polars = "0.23.2"
 alphanumeric-sort = "1.4.4"
 env_logger = "0.9.0"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
