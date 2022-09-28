@@ -136,9 +136,10 @@ impl StreamProcessor<DataFrame> for HashJoinNode {
                 }
                 Payload::Signal(_) => break,
                 Payload::Some(dblock) => {
-                    let df = self.process(dblock.data());
-                    let message = DataMessage::from(DataBlock::from(df));
-                    output_stream.write(message);
+                    let output_df = self.process(dblock.data());
+                    let output_dblock = DataBlock::new(output_df, dblock.metadata().clone());
+                    let output_message = DataMessage::from(output_dblock);
+                    output_stream.write(output_message);
                 }
             }
         }

@@ -1,4 +1,11 @@
-use crate::data::{DataMessage, Payload};
+use std::collections::HashMap;
+use crate::data::{
+    DATABLOCK_CARDINALITY,
+    DataBlock,
+    DataMessage,
+    MetaCell,
+    Payload,
+};
 
 use super::StreamProcessor;
 
@@ -18,22 +25,34 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
         input_stream: crate::channel::MultiChannelReader<T>,
         output_stream: crate::channel::MultiChannelBroadcaster<T>,
     ) {
+        let mut last_metadata: Option<HashMap<String, MetaCell>> = None;
         loop {
             let channel_seq = 0;
             let message = input_stream.read(channel_seq);
             match message.payload() {
                 Payload::EOF => {
                     if let Some(df_acc) = self.post_process_msg() {
-                        let post_process_msg = DataMessage::from(df_acc);
+                        let mut eof_metadata = last_metadata.as_ref()
+                            .expect("No metadata to clone at post process")
+                            .clone();
+                        if let Some(cardinality) = eof_metadata.get_mut(DATABLOCK_CARDINALITY) {
+                            *cardinality = MetaCell::from(1.0);
+                        }
+                        let post_process_dblock = DataBlock::new(df_acc, eof_metadata);
+                        let post_process_msg = DataMessage::from(post_process_dblock);
                         output_stream.write(post_process_msg)
                     }
                     output_stream.write(message);
                     break;
                 }
-                Payload::Some(data_block) => {
-                    if let Some(df_acc) = self.process_msg(data_block.data()) {
-                        let message = DataMessage::from(df_acc);
-                        output_stream.write(message);
+                Payload::Some(dblock) => {
+                    last_metadata = Some(dblock.metadata().clone());
+                    if let Some(output_df) = self.process_msg(dblock.data()) {
+                        let output_dblock = DataBlock::new(
+                            output_df,
+                            last_metadata.as_ref().unwrap().clone());
+                        let output_message = DataMessage::from(output_dblock);
+                        output_stream.write(output_message);
                     }
                 }
                 Payload::Signal(_) => {

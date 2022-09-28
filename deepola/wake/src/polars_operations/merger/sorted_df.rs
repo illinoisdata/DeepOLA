@@ -1,5 +1,9 @@
 use super::base::MergerOp;
-use crate::data::{DataMessage, Payload};
+use crate::data::DataBlock;
+use crate::data::DATABLOCK_CARDINALITY;
+use crate::data::DataMessage;
+use crate::data::MetaCell;
+use crate::data::Payload;
 use crate::{
     channel::{MultiChannelBroadcaster, MultiChannelReader},
     processor::StreamProcessor,
@@ -8,6 +12,7 @@ use getset::{Getters, Setters};
 use polars::{prelude::DataFrame, series::Series};
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 /// Inner-joins two dataframes, both of which sorted on their join keys. Assumes that the next data
 /// frame (each for left and right) does not contain the same key values appearing in the current
@@ -25,14 +30,18 @@ pub struct SortedDfMerger {
     right_on: Vec<String>,
 
     // will be used v2
-    left_df: RefCell<Option<DataFrame>>,
+    left_dblock: RefCell<Option<DataBlock<DataFrame>>>,
 
     // will be used v2
-    right_df: RefCell<Option<DataFrame>>,
+    right_dblock: RefCell<Option<DataBlock<DataFrame>>>,
 
     needs_left: RefCell<bool>,
 
     needs_right: RefCell<bool>,
+
+    left_progress: RefCell<f64>,
+
+    right_progress: RefCell<f64>,
 }
 
 impl SortedDfMerger {
@@ -40,10 +49,12 @@ impl SortedDfMerger {
         SortedDfMerger {
             left_on: Vec::new(),
             right_on: Vec::new(),
-            left_df: RefCell::new(None),
-            right_df: RefCell::new(None),
+            left_dblock: RefCell::new(None),
+            right_dblock: RefCell::new(None),
             needs_left: RefCell::new(true),
             needs_right: RefCell::new(true),
+            left_progress: RefCell::new(0.0),
+            right_progress: RefCell::new(0.0),
         }
     }
 
@@ -73,6 +84,16 @@ impl SortedDfMerger {
                 .unwrap()
         }
     }
+
+    fn current_metadata(&self) -> HashMap<String, MetaCell> {
+        // Returns metadata from slow side.
+        // TODO: Better?
+        if *self.left_progress.borrow() <= *self.right_progress.borrow() {
+            self.left_dblock.borrow().as_ref().unwrap().metadata().clone()
+        } else {
+            self.right_dblock.borrow().as_ref().unwrap().metadata().clone()
+        }
+    }
 }
 
 impl MergerOp<DataFrame> for SortedDfMerger {
@@ -85,10 +106,10 @@ impl MergerOp<DataFrame> for SortedDfMerger {
             panic!("Empty join columns are not expected.");
         }
 
-        let left = self.left_df.borrow();
-        let right = self.right_df.borrow();
-        let left_df: &DataFrame = left.as_ref().unwrap();
-        let right_df: &DataFrame = right.as_ref().unwrap();
+        let left = self.left_dblock.borrow();
+        let right = self.right_dblock.borrow();
+        let left_df: &DataFrame = left.as_ref().unwrap().data();
+        let right_df: &DataFrame = right.as_ref().unwrap().data();
 
         // checks which side of the dataframes (left or right) ends first.
         // we needs more dataframes from that side.
@@ -129,13 +150,23 @@ impl MergerOp<DataFrame> for SortedDfMerger {
         self.inner_join_possibly_empty(left_df, right_df)
     }
 
-    fn supply_left(&self, df_left: &DataFrame) {
-        *self.left_df.borrow_mut() = Some(df_left.clone());
+    fn supply_left(&self, data_block: DataBlock<DataFrame>) {
+        if let Some(progress) = data_block.metadata().get(DATABLOCK_CARDINALITY) {
+            *self.left_progress.borrow_mut() = f64::from(progress);
+        } else {
+            *self.left_progress.borrow_mut() = 1.0;
+        }
+        *self.left_dblock.borrow_mut() = Some(data_block);
         *self.needs_left.borrow_mut() = false;
     }
 
-    fn supply_right(&self, df_right: &DataFrame) {
-        *self.right_df.borrow_mut() = Some(df_right.clone());
+    fn supply_right(&self, data_block: DataBlock<DataFrame>) {
+        if let Some(progress) = data_block.metadata().get(DATABLOCK_CARDINALITY) {
+            *self.right_progress.borrow_mut() = f64::from(progress);
+        } else {
+            *self.right_progress.borrow_mut() = 1.0;
+        }
+        *self.right_dblock.borrow_mut() = Some(data_block);
         *self.needs_right.borrow_mut() = false;
     }
 
@@ -162,8 +193,11 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
             if !self.needs_left().borrow() && !self.needs_right().borrow() {
                 // merge will set needs_left or needs_right to true; thus, in the next iteration,
                 // this condition won't be satisfied.
-                let df = self.merge();
-                output_stream.write(DataMessage::from(df));
+                let output_df = self.merge();
+                let output_metadata = self.current_metadata();
+                let output_dblock = DataBlock::new(output_df, output_metadata);
+                let output_message = DataMessage::from(output_dblock);
+                output_stream.write(output_message);
                 continue;
             }
 
@@ -178,8 +212,7 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
                         break;
                     }
                     Payload::Some(data_block) => {
-                        let df = data_block.data();
-                        self.supply_left(df);
+                        self.supply_left(data_block);
                         continue;
                     }
                 }
@@ -196,8 +229,7 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
                         break;
                     }
                     Payload::Some(data_block) => {
-                        let df = data_block.data();
-                        self.supply_right(df);
+                        self.supply_right(data_block);
                         continue;
                     }
                 }

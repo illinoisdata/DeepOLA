@@ -118,17 +118,36 @@ impl StreamProcessor<DataFrame> for CSVReader {
                 }
                 Payload::Signal(_) => break,
                 Payload::Some(dblock) => {
+                    let mut metadata = dblock.metadata().clone();
+                    let expected_total_records = 
+                        if let Some(count) = metadata.get(DATABLOCK_TOTAL_RECORDS) {
+                            f64::from(count)
+                        } else {
+                            log::warn!("Missing {} in metadata", DATABLOCK_TOTAL_RECORDS);
+                            1.0
+                        };
+                    let mut currect_total_records = 0.0;
                     for series in dblock.data().iter() {
                         // This must be a length-one Polars series containing
                         // file names in its rows
                         let rows = series.utf8().unwrap();
 
                         // each file name produces multiple Series (each is a column)
-                        rows.into_iter().for_each(|filename| {
-                            let df = self.dataframe_from_filename(filename.unwrap());
-                            let message = DataMessage::from(DataBlock::from(df));
-                            output_stream.write(message);
-                        });
+                        for filename in rows {
+                            let output_df = self.dataframe_from_filename(filename.unwrap());
+
+                            // Update record count
+                            currect_total_records += output_df.height() as f64;
+                            if let Some(cardinality) = metadata.get_mut(DATABLOCK_CARDINALITY) {
+                                *cardinality = MetaCell::from(f64::min(1.0, 
+                                    currect_total_records / expected_total_records));  
+                            }
+
+                            // Compose and write output message
+                            let output_dblock = DataBlock::new(output_df, metadata.clone());
+                            let output_message = DataMessage::from(output_dblock);
+                            output_stream.write(output_message);
+                        }
                     }
                 }
             }
