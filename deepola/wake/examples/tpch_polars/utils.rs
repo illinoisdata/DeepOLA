@@ -1,9 +1,12 @@
 extern crate wake;
 use glob::glob;
 use polars::prelude::*;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
+use std::io::Write;
+use std::path::Path;
 use std::time::Instant;
 use wake::data::*;
 use wake::graph::*;
@@ -55,12 +58,47 @@ pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput>
     table_input
 }
 
-pub fn save_df_to_csv(df: &mut DataFrame, file_path: String) {
-    let mut output_file: File = File::create(file_path).unwrap();
+pub fn save_df_to_csv(df: &mut DataFrame, file_path: &Path) {
+    let mut output_file: File = File::create(&file_path)
+        .unwrap_or_else(|_| panic!("Failed to create {:?}", &file_path));
     CsvWriter::new(&mut output_file)
         .has_header(true)
         .finish(df)
         .unwrap();
+}
+
+fn save_dfs_to_csv(dfs: &mut [DataFrame], dir_path: &Path) {
+    // Prepare parent directory.
+    std::fs::create_dir_all(dir_path)
+        .unwrap_or_else(|_| panic!("Failed to mkdir {:?}", dir_path));
+
+    // Write each df one by one.
+    for (idx, df) in dfs.iter_mut().enumerate() {
+        let file_path = dir_path.join(format!("{}.csv", idx));
+        save_df_to_csv(df, &file_path)
+    }
+    log::info!("Wrote {} dfs under {}", dfs.len(), dir_path.to_str().unwrap())
+}
+
+#[derive(Serialize)]
+pub struct MetaQueryResult<'a> {
+    result_dir: &'a str,
+    time_measures_ns: &'a [u128],
+}
+
+fn save_meta_result(
+    result_dir: &Path,
+    time_measures_ns: &[u128]
+) -> std::result::Result<(), Box<dyn Error>> {
+  let meta_json = serde_json::to_string(&MetaQueryResult {
+    result_dir: result_dir.to_str().unwrap(),
+    time_measures_ns,
+  })?;
+  let meta_path = result_dir.join("meta.json");
+  let mut meta_file: File = File::create(&meta_path)?;
+  meta_file.write_all(meta_json.as_bytes())?;
+  log::info!("Wrote meta query result to {}", meta_path.to_str().unwrap());
+  Ok(())
 }
 
 pub fn run_query(
@@ -69,6 +107,7 @@ pub fn run_query(
     output_reader: &mut NodeReader<DataFrame>,
 ) -> Vec<DataFrame> {
     let mut query_result: Vec<DataFrame> = vec![];
+    let mut query_result_time_ns = Vec::new();
     let start_time = Instant::now();
     query_service.run();
     loop {
@@ -77,20 +116,29 @@ pub fn run_query(
             break;
         }
         let data = message.datablock().data();
+        let duration = Instant::now() - start_time;
+        query_result_time_ns.push(duration.as_nanos());
         if query_result.is_empty() {
-            let end_time = Instant::now();
-            log::info!("First Query Result Took: {:.2?}", end_time - start_time);
+            log::info!("First Query Result Took: {:.2?}", duration);
         }
         query_result.push(data.clone());
     }
     query_service.join();
     let end_time = Instant::now();
-    let num_results = query_result.len();
-    let last_df = &mut query_result[num_results - 1];
-    log::info!("Query Result");
-    log::info!("{:?}", last_df);
+    if !query_result.is_empty() {
+        let last_df = query_result.last_mut().unwrap();
+        log::info!("Query Result");
+        log::info!("{:?}", last_df);
+
+        // Save all results and timestamps
+        let result_dir = Path::new(".").join("outputs").join(format!("{}", query_no));
+        save_dfs_to_csv(&mut query_result, &result_dir);
+        save_meta_result(&result_dir, &query_result_time_ns)
+            .expect("Failed to write meta result");
+    } else {
+        log::error!("Empty Query Result");
+    }
     log::info!("Query Took: {:.2?}", end_time - start_time);
-    save_df_to_csv(last_df, format!("outputs/{}.csv", query_no));
     query_result
 }
 

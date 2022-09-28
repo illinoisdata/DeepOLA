@@ -27,6 +27,8 @@ jemallocator = "0.3.2"
 polars = "0.23.2"
 glob = "0.3.0"
 alphanumeric-sort = "1.4.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.85"
 
 [dev-dependencies]
 ctor = "0.1.21"
