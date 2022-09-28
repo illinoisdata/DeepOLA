@@ -1,5 +1,7 @@
+use crate::data::DataBlock;
 use crate::{graph::ExecutionNode, processor::StreamProcessor};
 use getset::{Getters, Setters};
+use polars::frame::DataFrame;
 use std::marker::PhantomData;
 
 /// Factory for creating an [ExecutionNode] that merge-joins two frames already sorted
@@ -49,9 +51,9 @@ pub trait MergerOp<T>: Send {
     where
         Self: Sized;
 
-    fn supply_left(&self, df_left: &T);
+    fn supply_left(&self, data_block: DataBlock<DataFrame>);
 
-    fn supply_right(&self, df_right: &T);
+    fn supply_right(&self, data_block: DataBlock<DataFrame>);
 
     fn needs_left(&self) -> bool;
 
