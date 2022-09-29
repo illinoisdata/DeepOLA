@@ -6,6 +6,7 @@ use polars::prelude::NamedFrom;
 use polars::series::ChunkCompare;
 use polars::series::Series;
 use wake::graph::*;
+use wake::inference::AggregateScaler;
 use wake::polars_operations::*;
 
 use std::collections::HashMap;
@@ -62,21 +63,29 @@ pub fn query(
 
     // GROUP BY Aggregate Node
     let mut agg_accumulator = AggAccumulator::new();
-    agg_accumulator.set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
+    agg_accumulator
+        .set_aggregates(vec![("disc_price".into(), vec!["sum".into()])])
+        .set_add_count_column(true);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
+    let scaler_node = AggregateScaler::new_growing()
+        .remove_count_column()  // Remove added group count column
+        .scale_sum("disc_price_sum".into())
+        .into_node();
 
     // Connect nodes with subscription
     where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     expression_node.subscribe_to_node(&where_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
+    scaler_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
-    output_reader.subscribe_to_node(&groupby_node, 0);
+    output_reader.subscribe_to_node(&scaler_node, 0);
 
     // Add all the nodes to the service
     let mut service = ExecutionService::<polars::prelude::DataFrame>::create();
+    service.add(scaler_node);
     service.add(groupby_node);
     service.add(expression_node);
     service.add(where_node);
