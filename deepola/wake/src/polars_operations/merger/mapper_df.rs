@@ -107,14 +107,20 @@ impl StreamProcessor<DataFrame> for MapperDfMerger {
     ) {
         let channel_left = 0;
         let channel_right = 1;
-
         loop {
+            let start_time = std::time::Instant::now();
+
             // if both sides don't need any more inputs, we can merge and produce an output.
             if !self.needs_left().borrow() && !self.needs_right().borrow() {
                 // merge will set needs_left or needs_right to true; thus, in the next iteration,
                 // this condition won't be satisfied.
                 let df = self.merge();
                 output_stream.write(DataMessage::from(df));
+                log::info!(
+                    "[logging] type=execution thread={:?} action=process time={:?}",
+                    std::thread::current().id(),
+                    start_time.elapsed().as_micros()
+                );
                 continue;
             }
 

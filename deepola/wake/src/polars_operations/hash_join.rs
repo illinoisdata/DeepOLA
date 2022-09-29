@@ -106,9 +106,16 @@ impl HashJoinNode {
 
 impl StreamProcessor<DataFrame> for HashJoinNode {
     fn pre_process(&mut self, input_stream: crate::channel::MultiChannelReader<DataFrame>) {
+        let mut start_time = std::time::Instant::now();
         loop {
             let channel_seq = 1;
             let message = input_stream.read(channel_seq);
+            log::info!(
+                "[logging] type=execution thread={:?} action=pre-read time={:?}",
+                std::thread::current().id(),
+                start_time.elapsed().as_micros()
+            );
+            start_time = std::time::Instant::now();
             match message.payload() {
                 Payload::EOF => {
                     break;
@@ -118,7 +125,18 @@ impl StreamProcessor<DataFrame> for HashJoinNode {
                     self.pre_process(dblock.data());
                 }
             }
+            log::info!(
+                "[logging] type=execution thread={:?} action=pre-process time={:?}",
+                std::thread::current().id(),
+                start_time.elapsed().as_micros()
+            );
+            start_time = std::time::Instant::now();
         }
+        log::info!(
+            "[logging] type=execution thread={:?} action=pre-process time={:?}",
+            std::thread::current().id(),
+            start_time.elapsed().as_micros()
+        );
     }
 
     fn process_stream(
@@ -126,9 +144,16 @@ impl StreamProcessor<DataFrame> for HashJoinNode {
         input_stream: crate::channel::MultiChannelReader<DataFrame>,
         output_stream: crate::channel::MultiChannelBroadcaster<DataFrame>,
     ) {
+        let mut start_time = std::time::Instant::now();
         loop {
             let channel_seq = 0;
             let message = input_stream.read(channel_seq);
+            log::info!(
+                "[logging] type=execution thread={:?} action=read time={:?}",
+                std::thread::current().id(),
+                start_time.elapsed().as_micros()
+            );
+            start_time = std::time::Instant::now();
             match message.payload() {
                 Payload::EOF => {
                     output_stream.write(message);
@@ -141,7 +166,18 @@ impl StreamProcessor<DataFrame> for HashJoinNode {
                     output_stream.write(message);
                 }
             }
+            log::info!(
+                "[logging] type=execution thread={:?} action=process time={:?}",
+                std::thread::current().id(),
+                start_time.elapsed().as_micros()
+            );
+            start_time = std::time::Instant::now();
         }
+        log::info!(
+            "[logging] type=execution thread={:?} action=process time={:?}",
+            std::thread::current().id(),
+            start_time.elapsed().as_micros()
+        );
     }
 }
 
