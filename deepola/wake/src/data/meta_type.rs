@@ -10,6 +10,10 @@ pub const DATABLOCK_TOTAL_RECORDS: &str = "reserved.total_blocks";
 pub const DATABLOCK_TYPE_DM: &str = "dm";
 pub const DATABLOCK_TYPE_DA: &str = "da";
 
+pub const DEFAULT_GROUPBY_KEY: &str = "_default_groupby_key";
+pub const DEFAULT_GROUP_COLUMN: &str = "_default_group_column";
+pub const DEFAULT_GROUP_COLUMN_COUNT: &str = "_default_group_column_count";
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum MetaCell {
     Schema(Schema),

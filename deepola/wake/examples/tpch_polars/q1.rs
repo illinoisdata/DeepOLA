@@ -111,7 +111,8 @@ pub fn query(
         .accumulator(sum_accumulator)
         .build();
 
-    let scaler_node = AggregateScaler::new_growing("l_orderkey_count".into())
+    let scaler_node = AggregateScaler::new_growing()
+        .count_column("l_orderkey_count".into())
         .scale_count("l_orderkey_count".into())
         .scale_sum("l_quantity_sum".into())
         .scale_sum("l_extendedprice_sum".into())

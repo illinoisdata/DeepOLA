@@ -1,6 +1,8 @@
 use crate::graph::ExecutionNode;
 use crate::data::DATABLOCK_CARDINALITY;
+use crate::data::DEFAULT_GROUP_COLUMN_COUNT;
 use crate::data::DataBlock;
+use polars::datatypes::DataType;
 use polars::frame::DataFrame;
 use polars::series::Series;
 
@@ -11,9 +13,8 @@ use crate::data::Payload;
 use crate::processor::StreamProcessor;
 
 
-/// Primitive types
+/// Primitive types and consts
 type CountType = u32;
-
 enum AggregationType {
     Sum,
     Count,
@@ -67,30 +68,44 @@ pub struct AggregateScaler {
 
     /// Column name for group count
     count_col: String,
+
+    /// Whether to remove group count column after scaling
+    remove_count_col: bool,
 }
 
 unsafe impl Send for AggregateScaler {}
 
 /// Creation methods
 impl AggregateScaler {
-    fn new(count_estimator: PowerCardinalityEstimator, count_col: String) -> AggregateScaler {
+    fn new(count_estimator: PowerCardinalityEstimator) -> AggregateScaler {
         AggregateScaler {
             aggregates: vec![],
             count_estimator,
-            count_col,
+            count_col: DEFAULT_GROUP_COLUMN_COUNT.into(),
+            remove_count_col: false,
         }
     }
 
-    pub fn new_complete(count_col: String) -> AggregateScaler {
-        AggregateScaler::new(PowerCardinalityEstimator::constant(), count_col)
+    pub fn new_complete() -> AggregateScaler {
+        AggregateScaler::new(PowerCardinalityEstimator::constant())
     }
 
-    pub fn new_converging(count_col: String, power: f64) -> AggregateScaler {
-        AggregateScaler::new(PowerCardinalityEstimator::with_power(power), count_col)
+    pub fn new_converging(power: f64) -> AggregateScaler {
+        AggregateScaler::new(PowerCardinalityEstimator::with_power(power))
     }
 
-    pub fn new_growing(count_col: String) -> AggregateScaler {
-        AggregateScaler::new(PowerCardinalityEstimator::linear(), count_col)
+    pub fn new_growing() -> AggregateScaler {
+        AggregateScaler::new(PowerCardinalityEstimator::linear())
+    }
+
+    pub fn count_column(mut self, count_col: String) -> Self {
+        self.count_col = count_col;
+        self
+    }
+
+    pub fn remove_count_column(mut self) -> Self {
+        self.remove_count_col = true;
+        self
     }
 
     pub fn scale_sum(mut self, column: String) -> Self {
@@ -126,13 +141,16 @@ impl AggregateScaler {
             match aggregate_type {
                 AggregationType::Sum => df.apply(aggregate_col, |aggregate_val| {
                     log::trace!("{:?} ---> {:?}", &aggregate_val, &(aggregate_val / &x0) * &xhat);
-                    &(aggregate_val / &x0) * &xhat
+                    &(&aggregate_val.cast(&DataType::Float64).unwrap() / &x0) * &xhat
                 }).unwrap_or_else(|_| panic!("Failed to scale count at {}", aggregate_col)),
                 AggregationType::Count => df.apply(aggregate_col, |aggregate_val| {
                     log::trace!("{:?} ---> {:?}", &aggregate_val, &xhat);
                     xhat.clone()
                 }).unwrap_or_else(|_| panic!("Failed to scale count at {}", aggregate_col)),
             };
+        }
+        if self.remove_count_col {
+            let _ = df.drop_in_place(&self.count_col).unwrap();
         }
         df
     }

@@ -4,6 +4,7 @@ extern crate wake;
 use polars::prelude::DataFrame;
 use polars::series::ChunkCompare;
 use wake::graph::*;
+use wake::inference::AggregateScaler;
 use wake::polars_operations::*;
 
 use std::collections::HashMap;
@@ -97,10 +98,15 @@ pub fn query(
     let mut agg_accumulator = AggAccumulator::new();
     agg_accumulator
         .set_group_key(vec!["o_orderpriority".into()])
-        .set_aggregates(vec![("l_orderkey_count".into(), vec!["sum".into()])]);
+        .set_aggregates(vec![("l_orderkey_count".into(), vec!["sum".into()])])
+        .set_add_count_column(true);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
+    let scaler_node = AggregateScaler::new_growing()
+        .remove_count_column()  // Remove added group count column
+        .scale_sum("l_orderkey_count_sum".into())
+        .into_node();
 
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -116,7 +122,8 @@ pub fn query(
     lo_merge_join_node.subscribe_to_node(&orders_where_node, 1); // Right Node
     expression_node.subscribe_to_node(&lo_merge_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
-    select_node.subscribe_to_node(&groupby_node, 0);
+    scaler_node.subscribe_to_node(&groupby_node, 0);
+    select_node.subscribe_to_node(&scaler_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);
@@ -130,6 +137,7 @@ pub fn query(
     service.add(lo_merge_join_node);
     service.add(expression_node);
     service.add(groupby_node);
+    service.add(scaler_node);
     service.add(select_node);
     service
 }

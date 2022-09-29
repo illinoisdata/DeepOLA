@@ -4,6 +4,9 @@ use getset::{Getters, Setters};
 use polars::prelude::*;
 
 use super::AccumulatorOp;
+use crate::data::DEFAULT_GROUPBY_KEY;
+use crate::data::DEFAULT_GROUP_COLUMN;
+use crate::data::DEFAULT_GROUP_COLUMN_COUNT;
 use crate::processor::MessageProcessor;
 
 /// Accumulates the result of aggregation based on grouping keys. A common use case is to
@@ -27,6 +30,11 @@ pub struct AggAccumulator {
     #[set = "pub"]
     #[get = "pub"]
     accumulated: RefCell<DataFrame>,
+
+    /// Whether to add group count column
+    #[set = "pub"]
+    #[get = "pub"]
+    add_count_column: bool,
 }
 
 /// Needed to be sent to different threads.
@@ -44,6 +52,7 @@ impl AggAccumulator {
             group_key: vec![],
             accumulated: RefCell::new(DataFrame::empty()),
             aggregates: vec![],
+            add_count_column: false,
         }
     }
 
@@ -57,7 +66,9 @@ impl AggAccumulator {
         // Add a column with value 0 to support both empty and non-empty groupby key with same syntax and column name mechanism.
         let num_of_rows = df.height();
         let mut raw_df = df
-            .hstack(&[Series::new("_default_groupby_key", vec![0; num_of_rows])])
+            .hstack(&[Series::new(DEFAULT_GROUPBY_KEY, vec![0; num_of_rows])])
+            .unwrap()
+            .hstack(&[Series::new(DEFAULT_GROUP_COLUMN, vec![0; num_of_rows])])
             .unwrap();
 
         // Arrow raises an error if the Chunks gets misaligned.
@@ -65,20 +76,20 @@ impl AggAccumulator {
             raw_df.rechunk();
         }
         let mut group_keys = self.group_key().clone();
-        group_keys.push("_default_groupby_key".into());
+        group_keys.push(DEFAULT_GROUPBY_KEY.into());
 
         // Perform the group-by-agg operation and drop the extra column.
         let aggregates = if accumulator {
             self.get_accumulator_aggregates()
         } else {
-            self.aggregates().clone()
+            self.get_aggregates()
         };
         let mut df_agg = raw_df
             .groupby(&group_keys)
             .unwrap()
             .agg(&aggregates)
             .unwrap();
-        let _ = df_agg.drop_in_place("_default_groupby_key").unwrap();
+        let _ = df_agg.drop_in_place(DEFAULT_GROUPBY_KEY).unwrap();
         if accumulator {
             df_agg.set_column_names(&df.get_column_names()).unwrap();
         }
@@ -100,7 +111,24 @@ impl AggAccumulator {
                 ));
             }
         }
+        if self.add_count_column {
+            acc_aggs.push((
+                DEFAULT_GROUP_COLUMN_COUNT.into(),
+                vec!["sum".into()],  // To join counts, meed to perform sum
+            ))
+        }
         acc_aggs
+    }
+
+    fn get_aggregates(&self) -> Vec<(String, Vec<String>)> {
+        let mut aggregates = self.aggregates().clone();
+        if self.add_count_column {
+            aggregates.push((
+                DEFAULT_GROUP_COLUMN.into(),
+                vec!["count".into()],
+            ))
+        }
+        aggregates
     }
 }
 
