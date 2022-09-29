@@ -29,10 +29,16 @@ impl<T: Send + 'static> ExecutionService<T> {
 
         self.thread_handles.clear();
         while let Some(node) = self.nodes.pop() {
+            let node_id = node.node_id().clone();
             let handle = thread::spawn(move || {
                 node.run();
                 node
             });
+            log::info!(
+                "[logging] type=node-thread-map node={} thread={:?}",
+                node_id,
+                handle.thread().id()
+            );
             self.thread_handles.push(handle);
         }
     }

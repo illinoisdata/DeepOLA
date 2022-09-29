@@ -2,6 +2,7 @@
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 extern crate wake;
+use env_logger::Target;
 use polars::prelude::DataFrame;
 use std::env;
 use wake::graph::*;
@@ -39,6 +40,7 @@ fn main() {
 
     env_logger::Builder::from_default_env()
         .format_timestamp_micros()
+        .target(Target::Stdout)
         .init();
 
     let args = env::args().skip(1).collect::<Vec<String>>();
