@@ -1,6 +1,7 @@
 pub mod channel;
 pub mod data;
 pub mod graph;
+pub mod inference;
 pub mod polars_operations;
 pub mod processor;
 // pub mod forecast;

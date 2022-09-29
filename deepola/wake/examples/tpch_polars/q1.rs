@@ -6,6 +6,7 @@ use polars::prelude::NamedFrom;
 use polars::series::ChunkCompare;
 use polars::series::Series;
 use wake::graph::*;
+use wake::inference::AggregateScaler;
 use wake::polars_operations::*;
 
 use std::collections::HashMap;
@@ -99,9 +100,9 @@ pub fn query(
         .set_group_key(vec!["l_returnflag".to_string(), "l_linestatus".to_string()])
         .set_aggregates(vec![
             ("l_orderkey".into(), vec!["count".into()]),
-            ("l_quantity".into(), vec!["sum".into(), "count".into()]),
-            ("l_extendedprice".into(), vec!["sum".into(), "count".into()]),
-            ("l_discount".into(), vec!["sum".into(), "count".into()]),
+            ("l_quantity".into(), vec!["sum".into()]),
+            ("l_extendedprice".into(), vec!["sum".into()]),
+            ("l_discount".into(), vec!["sum".into()]),
             ("disc_price".into(), vec!["sum".into()]),
             ("charge".into(), vec!["sum".into()]),
         ]);
@@ -109,6 +110,15 @@ pub fn query(
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(sum_accumulator)
         .build();
+
+    let scaler_node = AggregateScaler::new_growing("l_orderkey_count".into())
+        .scale_count("l_orderkey_count".into())
+        .scale_sum("l_quantity_sum".into())
+        .scale_sum("l_extendedprice_sum".into())
+        .scale_sum("l_discount_sum".into())
+        .scale_sum("disc_price_sum".into())
+        .scale_sum("charge_sum".into())
+        .into_node();
 
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -128,7 +138,7 @@ pub fn query(
                         .cast(&polars::datatypes::DataType::Float64)
                         .unwrap())
                         / (df
-                            .column("l_quantity_count")
+                            .column("l_orderkey_count")
                             .unwrap()
                             .cast(&polars::datatypes::DataType::Float64)
                             .unwrap()),
@@ -136,11 +146,11 @@ pub fn query(
                 Series::new(
                     "avg_price",
                     df.column("l_extendedprice_sum").unwrap()
-                        / df.column("l_extendedprice_count").unwrap(),
+                        / df.column("l_orderkey_count").unwrap(),
                 ),
                 Series::new(
                     "avg_disc",
-                    df.column("l_discount_sum").unwrap() / df.column("l_discount_count").unwrap(),
+                    df.column("l_discount_sum").unwrap() / df.column("l_orderkey_count").unwrap(),
                 ),
                 Series::new("count_order", df.column("l_orderkey_count").unwrap()),
             ];
@@ -155,7 +165,8 @@ pub fn query(
     where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     expression_node.subscribe_to_node(&where_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
-    select_node.subscribe_to_node(&groupby_node, 0);
+    scaler_node.subscribe_to_node(&groupby_node, 0);
+    select_node.subscribe_to_node(&scaler_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);
@@ -163,6 +174,7 @@ pub fn query(
     // Add all the nodes to the service
     let mut service = ExecutionService::<polars::prelude::DataFrame>::create();
     service.add(select_node);
+    service.add(scaler_node);
     service.add(groupby_node);
     service.add(expression_node);
     service.add(where_node);
