@@ -109,21 +109,19 @@ pub fn query(
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
+    let cdistinct_scaler_node = MM0CountDistinct::new(
+        vec!["p_brand".into(), "p_type".into(), "p_size".into()],  // groupby
+        "supplier_cnt".into(),  // output_col
+        "ps_partkey_count".into(),  // count_col
+    ).into_node();
 
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df| {
-            let grouped_df = df
-                .groupby(["p_brand", "p_type", "p_size"])
-                .unwrap()
-                .agg(&[("ps_suppkey", vec!["count"])])
-                .unwrap();
-            grouped_df
-                .sort(
-                    vec!["ps_suppkey_count", "p_brand", "p_type", "p_size"],
-                    vec![true, false, false, false],
-                )
-                .unwrap()
+            df.sort(
+                vec!["supplier_cnt", "p_brand", "p_type", "p_size"],
+                vec![true, false, false, false],
+            ).unwrap()
         })))
         .build();
 
@@ -135,7 +133,8 @@ pub fn query(
     psp_hash_join_node.subscribe_to_node(&pss_hash_join_node, 0);
     psp_hash_join_node.subscribe_to_node(&part_where_node, 1);
     groupby_node.subscribe_to_node(&psp_hash_join_node, 0);
-    select_node.subscribe_to_node(&groupby_node, 0);
+    cdistinct_scaler_node.subscribe_to_node(&groupby_node, 0);
+    select_node.subscribe_to_node(&cdistinct_scaler_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);
@@ -150,6 +149,7 @@ pub fn query(
     service.add(pss_hash_join_node);
     service.add(psp_hash_join_node);
     service.add(groupby_node);
+    service.add(cdistinct_scaler_node);
     service.add(select_node);
     service
 }
