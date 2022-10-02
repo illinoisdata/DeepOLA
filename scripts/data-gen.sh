@@ -1,7 +1,8 @@
 scale=$1
 partition=$2
 cd ../
-export DSS_PATH=$PWD/resources/tpc-h/data/scale=$scale/partition=$partition
+BASE_DIR=$3
+export DSS_PATH=$BASE_DIR/resources/tpc-h/data/scale=$scale/partition=$partition/tbl/
 mkdir -p $DSS_PATH
 echo $DSS_PATH
 cd tpch-kit/dbgen/

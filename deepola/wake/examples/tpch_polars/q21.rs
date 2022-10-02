@@ -67,12 +67,10 @@ pub fn query(
     ]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node =
-        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
-    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node = build_reader_node("supplier".into(), &tableinput, &table_columns);
+    let nation_csvreader_node = build_reader_node("nation".into(), &tableinput, &table_columns);
 
     // WHERE Node
     // o_orderstatus = 'F'

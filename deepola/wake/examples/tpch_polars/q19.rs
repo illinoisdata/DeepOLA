@@ -71,9 +71,8 @@ pub fn query(
     ]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let part_csvreader_node = build_reader_node("part".into(), &tableinput, &table_columns);
 
     // HASH JOIN Node
     let hash_join_node = HashJoinBuilder::new()
@@ -96,8 +95,8 @@ pub fn query(
                 & l_shipmode
                     .utf8()
                     .unwrap()
-                    .into_iter()
-                    .map(|opt_v| opt_v.map(|v| vec!["AIR", "AIR REG"].contains(&v) as bool))
+                    .into_no_null_iter()
+                    .map(|v| vec!["AIR", "AIR REG"].contains(&v) as bool)
                     .collect();
 
             let mask1 = p_brand.equal("Brand#12").unwrap()
@@ -107,12 +106,8 @@ pub fn query(
                 & p_container
                     .utf8()
                     .unwrap()
-                    .into_iter()
-                    .map(|opt_v| {
-                        opt_v.map(|v| {
-                            vec!["SM CASE", "SM BOX", "SM PACK", "SM PKG"].contains(&v) as bool
-                        })
-                    })
+                    .into_no_null_iter()
+                    .map(|v| vec!["SM CASE", "SM BOX", "SM PACK", "SM PKG"].contains(&v) as bool)
                     .collect();
 
             let mask2 = p_brand.equal("Brand#23").unwrap()
@@ -122,12 +117,8 @@ pub fn query(
                 & p_container
                     .utf8()
                     .unwrap()
-                    .into_iter()
-                    .map(|opt_v| {
-                        opt_v.map(|v| {
-                            vec!["MED BAG", "MED BOX", "MED PKG", "MED PACK"].contains(&v) as bool
-                        })
-                    })
+                    .into_no_null_iter()
+                    .map(|v| vec!["MED BAG", "MED BOX", "MED PKG", "MED PACK"].contains(&v) as bool)
                     .collect();
 
             let mask3 = p_brand.equal("Brand#34").unwrap()
@@ -137,12 +128,8 @@ pub fn query(
                 & p_container
                     .utf8()
                     .unwrap()
-                    .into_iter()
-                    .map(|opt_v| {
-                        opt_v.map(|v| {
-                            vec!["LG CASE", "LG BOX", "LG PACK", "LG PKG"].contains(&v) as bool
-                        })
-                    })
+                    .into_no_null_iter()
+                    .map(|v| vec!["LG CASE", "LG BOX", "LG PACK", "LG PKG"].contains(&v) as bool)
                     .collect();
 
             let mask = common_mask & (mask1 | mask2 | mask3);

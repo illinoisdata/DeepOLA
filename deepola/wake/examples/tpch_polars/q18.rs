@@ -49,11 +49,9 @@ pub fn query(
     ]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let customer_csvreader_node =
-        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_reader_node("customer".into(), &tableinput, &table_columns);
 
     let oc_hash_join_node = HashJoinBuilder::new()
         .left_on(vec!["o_custkey".into()])

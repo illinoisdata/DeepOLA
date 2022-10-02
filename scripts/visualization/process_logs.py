@@ -22,9 +22,9 @@ def parse_log_file(log_file = "output.log"):
     df = pd.DataFrame(collect_logs)
     return df
 
-def generate_query_graph(df, query_no, output_dir = 'outputs/', display=False):
+def generate_query_graph(df, query, output_dir = 'outputs/', display=False):
     graph_edges = df[df['type'] == 'node-edge']
-    g = graphviz.Digraph(name = f'q{query_no}', format='png')
+    g = graphviz.Digraph(name = f'graph', format='png')
     for index,edge in graph_edges.iterrows():
         source = edge['source']
         dest = edge['dest']
@@ -33,6 +33,23 @@ def generate_query_graph(df, query_no, output_dir = 'outputs/', display=False):
         return g
     else:
         g.render(directory=output_dir).replace('\\', '/')
+        return g
+
+def generate_execution_query_graph(df, query, output_dir = 'outputs/', display=False):
+    g = generate_query_graph(df, query, output_dir, display)
+    execution_df = get_execution_log_df(df)
+    process_time = execution_df[execution_df['action'] == 'process']
+    nodes_by_process_time = process_time[['node','duration']].groupby(['node']).sum().sort_values('duration', ascending=False).reset_index()
+    maximum_duration = nodes_by_process_time['duration'].max()
+    minimum_duration = nodes_by_process_time['duration'].min()
+    print(nodes_by_process_time)
+    for index,row in nodes_by_process_time.iterrows():
+        relative_duration = min(9,int((10*row['duration'])/maximum_duration))
+        g.node(row['node'], style='filled', fillcolor=f"/oranges9/{1 if relative_duration <= 0 else relative_duration}")
+    if display:
+        return g
+    else:
+        g.render(directory=output_dir).replace('\\','/')
         return g
 
 def get_node_thread_map(df):
@@ -70,11 +87,11 @@ def get_execution_log_df(df):
     return execution_log_df.sort_values(['start_time', 'end_time'])
 
 if __name__ == "__main__":
-    query_no = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    log_dir = '../../deepola/wake/logs'
-    output_dir = '../../deepola/wake/outputs/queries/'
-    log_file = f'{log_dir}/q{query_no}.log'
+    query = sys.argv[1] if len(sys.argv) > 1 else 1
+    scale = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    partition = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+    log_dir = f'../../deepola/wake/logs'
+    output_dir = f'../../deepola/wake/outputs/{query}/'
+    log_file = f'{log_dir}/scale={scale}/partition={partition}/{query}.log'
     df = parse_log_file(log_file)
-    generate_query_graph(df, query_no, output_dir)
-    execution_df = get_execution_log_df(df)
-    print(execution_df)
+    g = generate_execution_query_graph(df, query, output_dir)

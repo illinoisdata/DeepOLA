@@ -83,16 +83,13 @@ pub fn query(
     ]);
 
     // CSV Reader Nodes.
-    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
-    let region_csvreader_node = build_csv_reader_node("region".into(), &tableinput, &table_columns);
-    let customer_csvreader_node =
-        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
-    let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node =
-        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let nation_csvreader_node = build_reader_node("nation".into(), &tableinput, &table_columns);
+    let region_csvreader_node = build_reader_node("region".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_reader_node("customer".into(), &tableinput, &table_columns);
+    let part_csvreader_node = build_reader_node("part".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node = build_reader_node("supplier".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
 
     // WHERE Nodes
     let region_where_node = AppenderNode::<DataFrame, MapAppender>::new()

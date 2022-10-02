@@ -75,10 +75,8 @@ pub fn query(
     ]);
 
     // CSV Reader Nodes.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node =
-        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node = build_reader_node("supplier".into(), &tableinput, &table_columns);
 
     // WHERE Nodes
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
