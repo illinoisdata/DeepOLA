@@ -18,6 +18,10 @@ pub struct TableInput {
     pub scale: usize,
 }
 
+pub const FILE_FORMAT_CSV: &str = ".tbl";
+pub const FILE_FORMAT_PARQUET: &str = ".parquet";
+pub const FILE_FORMAT_DEFAULT: &str = FILE_FORMAT_PARQUET;
+
 pub fn total_number_of_records(table: &str, scale: usize) -> usize {
     match table {
         "lineitem" => 6_000_000 * scale,
@@ -41,8 +45,8 @@ pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput>
     let mut table_input = HashMap::new();
     for tpch_table in tpch_tables {
         let mut input_files = vec![];
-        for entry in glob(&format!("{}/{}.tbl*", directory, tpch_table))
-            .expect("Failed to read glob pattern")
+        for entry in
+            glob(&format!("{}/{}.*", directory, tpch_table)).expect("Failed to read glob pattern")
         {
             match entry {
                 Ok(path) => input_files.push(path.to_str().unwrap().to_string()),
@@ -59,8 +63,8 @@ pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput>
 }
 
 pub fn save_df_to_csv(df: &mut DataFrame, file_path: &Path) {
-    let mut output_file: File = File::create(&file_path)
-        .unwrap_or_else(|_| panic!("Failed to create {:?}", &file_path));
+    let mut output_file: File =
+        File::create(&file_path).unwrap_or_else(|_| panic!("Failed to create {:?}", &file_path));
     CsvWriter::new(&mut output_file)
         .has_header(true)
         .finish(df)
@@ -69,15 +73,18 @@ pub fn save_df_to_csv(df: &mut DataFrame, file_path: &Path) {
 
 fn save_dfs_to_csv(dfs: &mut [DataFrame], dir_path: &Path) {
     // Prepare parent directory.
-    std::fs::create_dir_all(dir_path)
-        .unwrap_or_else(|_| panic!("Failed to mkdir {:?}", dir_path));
+    std::fs::create_dir_all(dir_path).unwrap_or_else(|_| panic!("Failed to mkdir {:?}", dir_path));
 
     // Write each df one by one.
     for (idx, df) in dfs.iter_mut().enumerate() {
         let file_path = dir_path.join(format!("{}.csv", idx));
         save_df_to_csv(df, &file_path)
     }
-    log::info!("Wrote {} dfs under {}", dfs.len(), dir_path.to_str().unwrap())
+    log::info!(
+        "Wrote {} dfs under {}",
+        dfs.len(),
+        dir_path.to_str().unwrap()
+    )
 }
 
 #[derive(Serialize)]
@@ -88,17 +95,17 @@ pub struct MetaQueryResult<'a> {
 
 fn save_meta_result(
     result_dir: &Path,
-    time_measures_ns: &[u128]
+    time_measures_ns: &[u128],
 ) -> std::result::Result<(), Box<dyn Error>> {
-  let meta_json = serde_json::to_string(&MetaQueryResult {
-    result_dir: result_dir.to_str().unwrap(),
-    time_measures_ns,
-  })?;
-  let meta_path = result_dir.join("meta.json");
-  let mut meta_file: File = File::create(&meta_path)?;
-  meta_file.write_all(meta_json.as_bytes())?;
-  log::info!("Wrote meta query result to {}", meta_path.to_str().unwrap());
-  Ok(())
+    let meta_json = serde_json::to_string(&MetaQueryResult {
+        result_dir: result_dir.to_str().unwrap(),
+        time_measures_ns,
+    })?;
+    let meta_path = result_dir.join("meta.json");
+    let mut meta_file: File = File::create(&meta_path)?;
+    meta_file.write_all(meta_json.as_bytes())?;
+    log::info!("Wrote meta query result to {}", meta_path.to_str().unwrap());
+    Ok(())
 }
 
 pub fn run_query(
@@ -133,8 +140,7 @@ pub fn run_query(
         // Save all results and timestamps
         let result_dir = Path::new(".").join("outputs").join(format!("{}", query_no));
         save_dfs_to_csv(&mut query_result, &result_dir);
-        save_meta_result(&result_dir, &query_result_time_ns)
-            .expect("Failed to write meta result");
+        save_meta_result(&result_dir, &query_result_time_ns).expect("Failed to write meta result");
     } else {
         log::error!("Empty Query Result");
     }
@@ -142,13 +148,28 @@ pub fn run_query(
     query_result
 }
 
-pub fn build_csv_reader_node(
+pub fn check_file_format(file_names: &Vec<String>) -> &str {
+    // Check whether the first file name contains FILE_FORMAT_PARQUET.
+    if file_names.is_empty() {
+        FILE_FORMAT_DEFAULT
+    } else {
+        let file = file_names.get(0).unwrap();
+        if file.contains(FILE_FORMAT_PARQUET) {
+            FILE_FORMAT_PARQUET
+        } else {
+            FILE_FORMAT_CSV
+        }
+    }
+}
+
+pub fn build_reader_node(
     table: String,
     tableinput: &HashMap<String, TableInput>,
     table_columns: &HashMap<String, Vec<&str>>,
 ) -> ExecutionNode<polars::prelude::DataFrame> {
     // Get batch size and file names from tableinput tables;
     let raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
+    let file_format = check_file_format(&raw_input_files);
     let scale = tableinput.get(&table as &str).unwrap().scale;
     let schema = tpch_schema(&table).unwrap();
 
@@ -172,12 +193,21 @@ pub fn build_csv_reader_node(
     }
     let input_files = df!("col" => &raw_input_files).unwrap();
 
-    let csvreader = CSVReaderBuilder::new()
-        .delimiter('|')
-        .has_headers(false)
-        .column_names(projected_cols_names)
-        .projected_cols(projected_cols_index)
-        .build();
+    let reader = match file_format {
+        FILE_FORMAT_CSV => CSVReaderBuilder::new()
+            .delimiter('|')
+            .has_headers(false)
+            .column_names(projected_cols_names)
+            .projected_cols(projected_cols_index)
+            .build(),
+        FILE_FORMAT_PARQUET => ParquetReaderBuilder::new()
+            .column_names(projected_cols_names)
+            .projected_cols(projected_cols_index)
+            .build(),
+        _ => {
+            panic!("Invalid file format specified. Supported formats are tbl and parquet.")
+        }
+    };
 
     let mut metadata = MetaCell::Schema(schema).into_meta_map();
     *metadata
@@ -186,9 +216,9 @@ pub fn build_csv_reader_node(
         MetaCell::Float(total_number_of_records(&table, scale) as f64);
 
     let dblock = DataBlock::new(input_files, metadata);
-    csvreader.write_to_self(0, DataMessage::from(dblock));
-    csvreader.write_to_self(0, DataMessage::eof());
-    csvreader
+    reader.write_to_self(0, DataMessage::from(dblock));
+    reader.write_to_self(0, DataMessage::eof());
+    reader
 }
 
 pub fn tpch_schema(table: &str) -> std::result::Result<wake::data::Schema, Box<dyn Error>> {

@@ -43,9 +43,8 @@ pub fn query(
     ]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let part_csvreader_node = build_csv_reader_node("part".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let part_csvreader_node = build_reader_node("part".into(), &tableinput, &table_columns);
 
     // FIRST GROUP BY AGGREGATE NODE.
     let mut sum_accumulator = AggAccumulator::new();
