@@ -17,7 +17,7 @@ pub use polars::prelude::DataType;
 
 extern crate wake;
 pub use wake::graph::*;
-pub use wake::inference::AggregateScaler;
+pub use wake::inference::*;
 pub use wake::polars_operations::*;
 
 pub use std::collections::HashMap;
