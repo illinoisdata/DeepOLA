@@ -10,13 +10,13 @@ LOG_TIMINGS = bool(os.environ.get("LOG_TIMINGS", False))
 SCALE_FACTOR = os.environ.get("SCALE_FACTOR", "1")
 WRITE_PLOT = bool(os.environ.get("WRITE_PLOT", False))
 FILE_TYPE = os.environ.get("FILE_TYPE", "parquet")
+DATA_BASE_DIR = os.environ.get("DATA_BASE_DIR", "../../../")
 print("include io:", INCLUDE_IO)
 print("show results:", SHOW_RESULTS)
 print("log timings:", LOG_TIMINGS)
 print("file type:", FILE_TYPE)
 
 CWD = os.path.dirname(os.path.realpath(__file__))
-DATA_BASE_DIR = "/mnt/DeepOLA/"
 DATASET_BASE_DIR = os.path.join(DATA_BASE_DIR, f"resources/tpc-h/data/scale={SCALE_FACTOR}/partition=1/parquet/")
 ANSWERS_BASE_DIR = os.path.join(DATA_BASE_DIR, f"resources/tpc-h/data/scale={SCALE_FACTOR}/original/")
 TIMINGS_FILE = os.path.join(CWD, "timings.csv")
@@ -56,7 +56,7 @@ def on_second_call(func):
 
 def execute_all(solution: str):
     package_name = f"{solution}_queries"
-    num_queries = 7
+    num_queries = 22
 
     with CodeTimer(name=f"Overall execution of ALL {solution} queries", unit="s"):
         for i in range(1, num_queries + 1):

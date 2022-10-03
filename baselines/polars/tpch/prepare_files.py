@@ -89,7 +89,8 @@ comments""".split(
     "\n"
 )
 
-path_to_tpch_file = f"<BASE_DIR>/resources/tpc-h/data/scale={scale_fac}/partition=1"
+path_to_tpch_file = f"../../../resources/tpc-h/data/scale={scale_fac}/partition=1/tbl/"
+path_to_pqt_file = f"../../../resources/tpc-h/data/scale={scale_fac}/partition=1/parquet/"
 
 for name in [
     "nation",
@@ -111,5 +112,4 @@ for name in [
     )
     print(df.shape)
     df = df.with_columns([pl.col(pl.Date).cast(pl.Datetime)])
-    df.write_parquet(f"{path_to_tpch_file}/{name}.parquet", statistics=True)
-    df.write_ipc(f"{path_to_tpch_file}/{name}.feather")
+    df.write_parquet(f"{path_to_pqt_file}/{name}.parquet", statistics=True)
