@@ -8,6 +8,10 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::time::Instant;
 
+pub const FILE_FORMAT_CSV: &str = ".tbl";
+pub const FILE_FORMAT_PARQUET: &str = ".parquet";
+pub const FILE_FORMAT_DEFAULT: &str = FILE_FORMAT_PARQUET;
+
 #[derive(Debug)]
 pub struct TableInput {
     pub input_files: Vec<String>,
@@ -37,7 +41,17 @@ pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput>
     let mut table_input = HashMap::new();
     for tpch_table in tpch_tables {
         let mut input_files = vec![];
-        for entry in glob(&format!("{}/{}.tbl*", directory, tpch_table))
+        // Add all .tbl files
+        for entry in glob(&format!("{}/{}{FILE_FORMAT_CSV}*", directory, tpch_table))
+            .expect("Failed to read glob pattern")
+        {
+            match entry {
+                Ok(path) => input_files.push(path.to_str().unwrap().to_string()),
+                Err(e) => println!("{:?}", e),
+            }
+        }
+        // Add all .parquet files
+        for entry in glob(&format!("{}/{}{FILE_FORMAT_PARQUET}*", directory, tpch_table))
             .expect("Failed to read glob pattern")
         {
             match entry {
@@ -83,6 +97,20 @@ pub fn run_query(
     query_result
 }
 
+// A function to check whether the first file name from the input files contains FILE_FORMAT_PARQUET.
+pub fn check_file_format(file_names: &Vec<String>) -> &str {
+    if file_names.is_empty() {
+        FILE_FORMAT_DEFAULT
+    } else {
+        let file = file_names.get(0).unwrap();
+        if file.contains(FILE_FORMAT_PARQUET) {
+            FILE_FORMAT_PARQUET
+        } else {
+            FILE_FORMAT_CSV
+        }
+    }
+}
+
 pub fn build_csv_reader_node(
     table: String,
     tableinput: &HashMap<String, TableInput>,
@@ -90,6 +118,7 @@ pub fn build_csv_reader_node(
 ) -> ExecutionNode<polars::prelude::DataFrame> {
     // Get batch size and file names from tableinput tables;
     let raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
+    let file_format = check_file_format(&raw_input_files);
     let scale = tableinput.get(&table as &str).unwrap().scale.clone();
     let schema = tpch_schema(&table).unwrap();
 
@@ -107,12 +136,22 @@ pub fn build_csv_reader_node(
     }
     let input_files = df!("col" => &raw_input_files).unwrap();
 
-    let csvreader = CSVReaderBuilder::new()
-        .delimiter('|')
-        .has_headers(false)
-        .column_names(projected_cols_names)
-        .projected_cols(projected_cols_index)
-        .build();
+    /* Modify to create TBL reader or PARQUET reader */
+    let reader = match file_format {
+        FILE_FORMAT_CSV => CSVReaderBuilder::new()
+            .delimiter('|')
+            .has_headers(false)
+            .column_names(projected_cols_names)
+            .projected_cols(projected_cols_index)
+            .build(),
+        FILE_FORMAT_PARQUET => ParquetReaderBuilder::new()
+            .column_names(projected_cols_names)
+            .projected_cols(projected_cols_index)
+            .build(),
+        _ => {
+            panic!("Invalid file format specified. Supported formats are tbl and parquet.")
+        }
+    };
 
     let mut metadata = MetaCell::Schema(schema.clone()).into_meta_map();
     *metadata
@@ -121,9 +160,9 @@ pub fn build_csv_reader_node(
         MetaCell::Float(total_number_of_records(&table, scale) as f64);
 
     let dblock = DataBlock::new(input_files.clone(), metadata);
-    csvreader.write_to_self(0, DataMessage::from(dblock));
-    csvreader.write_to_self(0, DataMessage::eof());
-    csvreader
+    reader.write_to_self(0, DataMessage::from(dblock));
+    reader.write_to_self(0, DataMessage::eof());
+    reader
 }
 
 pub fn tpch_schema(table: &str) -> std::result::Result<wake::data::Schema, Box<dyn Error>> {
