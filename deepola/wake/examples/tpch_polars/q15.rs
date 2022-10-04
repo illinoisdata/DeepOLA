@@ -113,10 +113,15 @@ pub fn query(
             "s_address".into(),
             "s_phone".into(),
         ])
-        .set_aggregates(vec![("total_revenue".into(), vec!["sum".into()])]);
+        .set_aggregates(vec![("total_revenue".into(), vec!["sum".into()])])
+        .set_add_count_column(true);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
+    let scaler_node = AggregateScaler::new_growing()
+        .remove_count_column()  // Remove added group count column
+        .scale_sum("total_revenue_sum".into())
+        .into_node();
 
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -134,7 +139,8 @@ pub fn query(
     ls_hash_join_node.subscribe_to_node(&lineitem_expr_node, 0);
     ls_hash_join_node.subscribe_to_node(&supplier_csvreader_node, 1);
     groupby_node.subscribe_to_node(&ls_hash_join_node, 0);
-    select_node.subscribe_to_node(&groupby_node, 0);
+    scaler_node.subscribe_to_node(&groupby_node, 0);
+    select_node.subscribe_to_node(&scaler_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);
@@ -147,6 +153,7 @@ pub fn query(
     service.add(lineitem_expr_node);
     service.add(ls_hash_join_node);
     service.add(groupby_node);
+    service.add(scaler_node);
     service.add(select_node);
     service
 }
