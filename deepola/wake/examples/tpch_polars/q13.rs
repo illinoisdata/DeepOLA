@@ -75,20 +75,34 @@ pub fn query(
     let mut agg_accumulator = AggAccumulator::new();
     agg_accumulator
         .set_group_key(vec!["c_custkey".into()])
-        .set_aggregates(vec![("o_orderkey_unit".into(), vec!["sum".into()])]);
+        .set_aggregates(vec![("o_orderkey_unit".into(), vec!["sum".into()])])
+        .set_add_count_column(true);
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
+    let scaler_node = AggregateScaler::new_growing()
+        .remove_count_column()  // Remove added group count column
+        .scale_sum("o_orderkey_unit_sum".into())
+        .into_node();
+
 
     // Perform Repeated GROUP BY Again
     let final_groupby_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df| {
+            let mut df = df.clone();
+            df.apply("o_orderkey_unit_sum", |column| {
+                column.cast(&polars::datatypes::DataType::UInt32).unwrap()
+            }).expect("Failed to cast to integer");
             df.groupby(vec!["o_orderkey_unit_sum"])
                 .unwrap()
                 .agg(&[("c_custkey", &vec!["count"])])
                 .unwrap()
         })))
         .build();
+    // let final_scaler_node = AggregateScaler::new_complete()
+    //     .count_column("c_custkey_count".into())
+    //     .scale_count("c_custkey_count".into())
+    //     .into_node();  // no-op
 
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
@@ -106,7 +120,8 @@ pub fn query(
     oc_hash_join_node.subscribe_to_node(&customer_csvreader_node, 1);
     expression_node.subscribe_to_node(&oc_hash_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
-    final_groupby_node.subscribe_to_node(&groupby_node, 0);
+    scaler_node.subscribe_to_node(&groupby_node, 0);
+    final_groupby_node.subscribe_to_node(&scaler_node, 0);
     select_node.subscribe_to_node(&final_groupby_node, 0);
 
     // Output reader subscribe to output node.
@@ -120,6 +135,7 @@ pub fn query(
     service.add(oc_hash_join_node);
     service.add(expression_node);
     service.add(groupby_node);
+    service.add(scaler_node);
     service.add(final_groupby_node);
     service.add(select_node);
     service
