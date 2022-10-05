@@ -25,10 +25,17 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
         input_stream: crate::channel::MultiChannelReader<T>,
         output_stream: crate::channel::MultiChannelBroadcaster<T>,
     ) {
+        let mut start_time = std::time::Instant::now();
         let mut last_metadata: Option<HashMap<String, MetaCell>> = None;
         loop {
             let channel_seq = 0;
             let message = input_stream.read(channel_seq);
+            log::info!(
+                "[logging] type=execution thread={:?} action=read time={:?}",
+                std::thread::current().id(),
+                start_time.elapsed().as_micros()
+            );
+            start_time = std::time::Instant::now();
             match message.payload() {
                 Payload::EOF => {
                     if let Some(df_acc) = self.post_process_msg() {
@@ -59,7 +66,18 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
                     break;
                 }
             }
+            log::info!(
+                "[logging] type=execution thread={:?} action=process time={:?}",
+                std::thread::current().id(),
+                start_time.elapsed().as_micros()
+            );
+            start_time = std::time::Instant::now();
         }
+        log::info!(
+            "[logging] type=execution thread={:?} action=process time={:?}",
+            std::thread::current().id(),
+            start_time.elapsed().as_micros()
+        );
     }
 }
 

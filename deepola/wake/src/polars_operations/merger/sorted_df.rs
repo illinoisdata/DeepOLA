@@ -189,6 +189,8 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
         let channel_right = 1;
 
         loop {
+            let start_time = std::time::Instant::now();
+
             // if both sides don't need any more inputs, we can merge and produce an output.
             if !self.needs_left().borrow() && !self.needs_right().borrow() {
                 // merge will set needs_left or needs_right to true; thus, in the next iteration,
@@ -198,6 +200,11 @@ impl StreamProcessor<DataFrame> for SortedDfMerger {
                 let output_dblock = DataBlock::new(output_df, output_metadata);
                 let output_message = DataMessage::from(output_dblock);
                 output_stream.write(output_message);
+                log::info!(
+                    "[logging] type=execution thread={:?} action=process time={:?}",
+                    std::thread::current().id(),
+                    start_time.elapsed().as_micros()
+                );
                 continue;
             }
 
