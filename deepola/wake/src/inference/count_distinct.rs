@@ -1,14 +1,12 @@
 use polars::frame::DataFrame;
 use polars::series::Series;
 use statrs::function::gamma::ln_gamma;
+use std::rc::Rc;
 
 use crate::channel::MultiChannelBroadcaster;
 use crate::channel::MultiChannelReader;
-use crate::data::DataBlock;
-use crate::data::DATABLOCK_CARDINALITY;
-use crate::data::DataMessage;
-use crate::data::Payload;
 use crate::graph::ExecutionNode;
+use crate::processor::MessageFractionProcessor;
 use crate::processor::StreamProcessor;
 
 
@@ -43,7 +41,7 @@ fn mm0_scale(current_count: f64, sample_size: f64, fraction: f64) -> f64 {
         return current_count
     }
     let (f, dfdx) = generate_mm0_fn(current_count, sample_size);
-    let estimated_count = newton_raphson(f, dfdx, current_count, 100, 1e-3);
+    let estimated_count = newton_raphson(f, dfdx, current_count, 20, 1e-3);
     f64::min(estimated_count, sample_size / fraction)
 }
 
@@ -77,6 +75,10 @@ impl MM0CountDistinct {
     pub fn into_node(self) -> ExecutionNode<DataFrame> {
         ExecutionNode::<DataFrame>::new(Box::new(self), 1)
     }
+
+    pub fn into_rc(self) -> Rc<dyn MessageFractionProcessor<DataFrame>> {
+        Rc::new(self)
+    }
 }
 
 /// Scaling methods
@@ -109,8 +111,8 @@ impl MM0CountDistinct {
         stats_df
     }
 }
-impl CountDistinctProcessor for MM0CountDistinct {
-    fn estimate(&self, df: &DataFrame, fraction: f64) -> DataFrame {
+impl MessageFractionProcessor<DataFrame> for MM0CountDistinct {
+    fn process(&self, df: &DataFrame, fraction: f64) -> DataFrame {
         if fraction == 1.0 {
             // Exact count distinct.
             let mut stats_df = df.groupby(&self.groupby)
@@ -175,6 +177,10 @@ impl HorvitzThompsonCountDistinct {
     pub fn into_node(self) -> ExecutionNode<DataFrame> {
         ExecutionNode::<DataFrame>::new(Box::new(self), 1)
     }
+
+    pub fn into_rc(self) -> Rc<dyn MessageFractionProcessor<DataFrame>> {
+        Rc::new(self)
+    }
 }
 
 /// Scaling methods
@@ -217,8 +223,8 @@ impl HorvitzThompsonCountDistinct {
         stats_df
     }
 }
-impl CountDistinctProcessor for HorvitzThompsonCountDistinct {
-    fn estimate(&self, df: &DataFrame, fraction: f64) -> DataFrame {
+impl MessageFractionProcessor<DataFrame> for HorvitzThompsonCountDistinct {
+    fn process(&self, df: &DataFrame, fraction: f64) -> DataFrame {
         if fraction == 1.0 {
             // Exact count distinct.
             let mut stats_df = df.groupby(&self.groupby)
@@ -233,41 +239,6 @@ impl CountDistinctProcessor for HorvitzThompsonCountDistinct {
         } else {
             // Use method-of-moment estimator.
             self.df_ht(df, fraction)
-        }
-    }
-}
-
-
-/// Explicit trait implementation, a workaround for conflict with MessageProcessor
-trait CountDistinctProcessor: Send {
-    fn estimate(&self, df: &DataFrame, fraction: f64) -> DataFrame;
-
-    fn process_stream_inner(
-        &self,
-        input_stream: MultiChannelReader<DataFrame>,
-        output_stream: MultiChannelBroadcaster<DataFrame>,
-    ) {
-        loop {
-            let channel_seq = 0;
-            let message = input_stream.read(channel_seq);
-            match message.payload() {
-                Payload::EOF => {
-                    output_stream.write(message);
-                    break;
-                }
-                Payload::Some(dblock) => {
-                    let fraction = f64::from(dblock.metadata()
-                        .get(DATABLOCK_CARDINALITY)
-                        .expect("CountDistinctProcessor requires cardinality fraction"));
-                    let output_df = self.estimate(dblock.data(), fraction);
-                    let output_dblock = DataBlock::new(output_df, dblock.metadata().clone());
-                    let output_message = DataMessage::from(output_dblock);
-                    output_stream.write(output_message);
-                }
-                Payload::Signal(_) => {
-                    break;
-                }
-            }
         }
     }
 }

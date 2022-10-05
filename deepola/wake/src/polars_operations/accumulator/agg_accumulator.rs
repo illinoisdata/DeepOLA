@@ -1,13 +1,17 @@
+use std::rc::Rc;
 use std::cell::RefCell;
 
 use getset::{Getters, Setters};
 use polars::prelude::*;
 
-use super::AccumulatorOp;
-use crate::data::DEFAULT_GROUPBY_KEY;
+use crate::channel::MultiChannelBroadcaster;
+use crate::channel::MultiChannelReader;
 use crate::data::DEFAULT_GROUP_COLUMN;
 use crate::data::DEFAULT_GROUP_COLUMN_COUNT;
-use crate::processor::MessageProcessor;
+use crate::data::DEFAULT_GROUPBY_KEY;
+use crate::processor::MessageFractionProcessor;
+use crate::processor::StreamProcessor;
+use super::AccumulatorOp;
 
 /// Accumulates the result of aggregation based on grouping keys. A common use case is to
 /// compute the up-to-date aggregate results from a series of data. The supported set of aggregates
@@ -35,6 +39,9 @@ pub struct AggAccumulator {
     #[set = "pub"]
     #[get = "pub"]
     add_count_column: bool,
+
+    /// Use this scaler before writing to output stream
+    scaler: Option<Rc<dyn MessageFractionProcessor<DataFrame>>>,
 }
 
 /// Needed to be sent to different threads.
@@ -53,7 +60,13 @@ impl AggAccumulator {
             accumulated: RefCell::new(DataFrame::empty()),
             aggregates: vec![],
             add_count_column: false,
+            scaler: None,
         }
+    }
+
+    pub fn set_scaler(&mut self, scaler: Rc<dyn MessageFractionProcessor<DataFrame>>) -> &mut Self {
+        self.scaler = Some(scaler);
+        self
     }
 
     /// Aggregates a single dataframe itself without considering the past observations. Used
@@ -158,18 +171,37 @@ impl AccumulatorOp<DataFrame> for AggAccumulator {
 /// Note: [MessageProcessor] cannot be implemented for a generic type [AccumulatorOp] because
 /// if so, there are multiple generic types implementing [MessageProcessor], which is not allowed
 /// in Rust.
-impl MessageProcessor<DataFrame> for AggAccumulator {
-    fn process_msg(&self, input: &DataFrame) -> Option<DataFrame> {
-        Some(self.accumulate(input))
+impl MessageFractionProcessor<DataFrame> for AggAccumulator {
+    fn process(&self, df: &DataFrame, fraction: f64) -> DataFrame {
+        let mut accumulated = self.accumulate(&df);
+        if let Some(scaler) = &self.scaler {
+            accumulated = scaler.process(&accumulated, fraction)
+        }
+        accumulated
     }
 }
+
+impl StreamProcessor<DataFrame> for AggAccumulator {
+    fn process_stream(
+        &self,
+        input_stream: MultiChannelReader<DataFrame>,
+        output_stream: MultiChannelBroadcaster<DataFrame>,
+    ) {
+        self.process_stream_inner(input_stream, output_stream)
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
     use polars::prelude::*;
 
     use crate::{
-        data::DataMessage, graph::NodeReader, polars_operations::accumulator::AccumulatorNode,
+        data::DataBlock,
+        data::DataMessage,
+        data::MetaCell,
+        graph::NodeReader,
+        polars_operations::accumulator::AccumulatorNode,
         polars_operations::util::tests::truncate_df,
     };
 
@@ -209,7 +241,8 @@ mod tests {
             .accumulator(sum_acc)
             .build();
         let input_df = get_example_df().select(["temp", "rain"]).unwrap();
-        sum_node.write_to_self(0, DataMessage::from(input_df));
+        let input_dblock = DataBlock::new(input_df, MetaCell::from("meta").into_meta_map());
+        sum_node.write_to_self(0, DataMessage::from(input_dblock));
         sum_node.write_to_self(0, DataMessage::eof());
         let reader_node = NodeReader::new(&sum_node);
         sum_node.run();

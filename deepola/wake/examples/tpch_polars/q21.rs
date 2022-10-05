@@ -196,14 +196,15 @@ pub fn query(
     let mut accumulator1 = AggAccumulator::new();
     accumulator1
         .set_group_key(vec!["s_name".into()])
-        .set_aggregates(vec![("l_orderkey".into(), vec!["count".into()])]);
+        .set_aggregates(vec![("l_orderkey".into(), vec!["count".into()])])
+        .set_scaler(AggregateScaler::new_growing()
+            .count_column("l_orderkey_count".into())
+            .scale_count("l_orderkey_count".into())
+            .into_rc()
+        );
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(accumulator1)
         .build();
-    let scaler_node = AggregateScaler::new_growing()
-        .count_column("l_orderkey_count".into())
-        .scale_count("l_orderkey_count".into())
-        .into_node();
 
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -228,8 +229,7 @@ pub fn query(
     supplier_merger_node.subscribe_to_node(&ls_hash_join_node, 0);
     supplier_merger_node.subscribe_to_node(&orderkey_merger_node, 1);
     groupby_node.subscribe_to_node(&supplier_merger_node, 0);
-    scaler_node.subscribe_to_node(&groupby_node, 0);
-    select_node.subscribe_to_node(&scaler_node, 0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);
@@ -249,7 +249,6 @@ pub fn query(
     service.add(orderkey_merger_node);
     service.add(supplier_merger_node);
     service.add(groupby_node);
-    service.add(scaler_node);
     service.add(select_node);
     service
 }

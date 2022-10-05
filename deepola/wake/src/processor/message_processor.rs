@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+
+use crate::channel::MultiChannelReader;
+use crate::channel::MultiChannelBroadcaster;
 use crate::data::{
     DATABLOCK_CARDINALITY,
     DataBlock,
@@ -121,6 +124,42 @@ impl<T: Send> MessageProcessor<T> for SimpleMapper<T> {
         (self.data_map)(data)
     }
 }
+
+
+/// Explicit trait implementation, a workaround for conflict with MessageProcessor
+pub trait MessageFractionProcessor<T: Clone + Send>: Send {
+    fn process(&self, df: &T, fraction: f64) -> T;
+
+    fn process_stream_inner(
+        &self,
+        input_stream: MultiChannelReader<T>,
+        output_stream: MultiChannelBroadcaster<T>,
+    ) {
+        loop {
+            let channel_seq = 0;
+            let message = input_stream.read(channel_seq);
+            match message.payload() {
+                Payload::EOF => {
+                    output_stream.write(message);
+                    break;
+                }
+                Payload::Some(dblock) => {
+                    let fraction = f64::from(dblock.metadata()
+                        .get(DATABLOCK_CARDINALITY)
+                        .expect("MessageFractionProcessor requires cardinality fraction"));
+                    let output_df = self.process(dblock.data(), fraction);
+                    let output_dblock = DataBlock::new(output_df, dblock.metadata().clone());
+                    let output_message = DataMessage::from(output_dblock);
+                    output_stream.write(output_message);
+                }
+                Payload::Signal(_) => {
+                    break;
+                }
+            }
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
