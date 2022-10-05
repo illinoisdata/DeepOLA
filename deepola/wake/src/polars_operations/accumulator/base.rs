@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 
 use getset::{Getters, Setters};
 
-use crate::{graph::ExecutionNode, processor::MessageProcessor};
+use crate::graph::ExecutionNode;
+use crate::processor::StreamProcessor;
 
 /// Factory class for creating an ExecutionNode that can perform AccumulatorOp.
 #[derive(Getters, Setters)]
@@ -26,7 +27,7 @@ impl<T, P: AccumulatorOp<T> + Clone> Default for AccumulatorNode<T, P> {
 
 impl<T: 'static + Send, P> AccumulatorNode<T, P>
 where
-    P: 'static + AccumulatorOp<T> + MessageProcessor<T> + Clone,
+    P: 'static + AccumulatorOp<T> + StreamProcessor<T> + Clone,
 {
     pub fn new() -> Self {
         AccumulatorNode::default()

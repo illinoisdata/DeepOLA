@@ -76,14 +76,15 @@ pub fn query(
     agg_accumulator
         .set_group_key(vec!["c_custkey".into()])
         .set_aggregates(vec![("o_orderkey_unit".into(), vec!["sum".into()])])
-        .set_add_count_column(true);
+        .set_add_count_column(true)
+        .set_scaler(AggregateScaler::new_growing()
+            .remove_count_column()  // Remove added group count column
+            .scale_sum("o_orderkey_unit_sum".into())
+            .into_rc()
+        );
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
-    let scaler_node = AggregateScaler::new_growing()
-        .remove_count_column()  // Remove added group count column
-        .scale_sum("o_orderkey_unit_sum".into())
-        .into_node();
 
 
     // Perform Repeated GROUP BY Again
@@ -120,8 +121,7 @@ pub fn query(
     oc_hash_join_node.subscribe_to_node(&customer_csvreader_node, 1);
     expression_node.subscribe_to_node(&oc_hash_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
-    scaler_node.subscribe_to_node(&groupby_node, 0);
-    final_groupby_node.subscribe_to_node(&scaler_node, 0);
+    final_groupby_node.subscribe_to_node(&groupby_node, 0);
     select_node.subscribe_to_node(&final_groupby_node, 0);
 
     // Output reader subscribe to output node.
@@ -135,7 +135,6 @@ pub fn query(
     service.add(oc_hash_join_node);
     service.add(expression_node);
     service.add(groupby_node);
-    service.add(scaler_node);
     service.add(final_groupby_node);
     service.add(select_node);
     service

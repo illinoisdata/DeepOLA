@@ -171,14 +171,15 @@ pub fn query(
             "l_year".into(),
         ])
         .set_aggregates(vec![("disc_price".into(), vec!["sum".into()])])
-        .set_add_count_column(true);
+        .set_add_count_column(true)
+        .set_scaler(AggregateScaler::new_growing()
+            .remove_count_column()  // Remove added group count column
+            .scale_sum("disc_price_sum".into())
+            .into_rc()
+        );
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
-    let scaler_node = AggregateScaler::new_growing()
-        .remove_count_column()  // Remove added group count column
-        .scale_sum("disc_price_sum".into())
-        .into_node();
 
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
@@ -211,8 +212,7 @@ pub fn query(
     lineitem_expression_node.subscribe_to_node(&lo_merge_join_node, 0);
 
     groupby_node.subscribe_to_node(&lineitem_expression_node, 0);
-    scaler_node.subscribe_to_node(&groupby_node, 0);
-    select_node.subscribe_to_node(&scaler_node, 0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);
@@ -235,7 +235,6 @@ pub fn query(
     service.add(lo_merge_join_node);
     service.add(lineitem_expression_node);
     service.add(groupby_node);
-    service.add(scaler_node);
     service.add(select_node);
     service
 }
