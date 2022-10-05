@@ -77,9 +77,14 @@ impl<T: Send + 'static> ExecutionNode<T> {
         (&self.self_writers[channel_no]).write(message)
     }
 
-    pub fn subscribe_to_node(&self, source_node: &dyn Subscribable<T>, for_channel: usize) {
+    pub fn subscribe_to_node(&self, source_node: &ExecutionNode<T>, for_channel: usize) {
         let writer = &self.self_writers[for_channel];
         source_node.add(writer.clone());
+        log::info!(
+            "[logging] type=node-edge source={} dest={}",
+            source_node.node_id(),
+            self.node_id()
+        );
     }
 
     /// Processes the data from input stream until we see EOF from all input channels.
@@ -110,16 +115,28 @@ impl<T: Send + 'static> ExecutionNode<T> {
 
         // Pre-processing (if needed)
         log::debug!("Starts Pre-Processing for Node: [{}]", self.node_id());
+        let start_time = std::time::Instant::now();
         self.stream_processor
             .borrow_mut()
             .pre_process(input_reader.clone());
+        log::info!(
+            "[logging] type=pre-process node={} duration={} unit=micros",
+            self.node_id(),
+            start_time.elapsed().as_micros()
+        );
         log::debug!("Finished Pre-Processing for Node: [{}]", self.node_id());
 
         // Actual data processing
         log::debug!("Starts Data Processing for Node: [{}]", self.node_id());
+        let start_time = std::time::Instant::now();
         self.stream_processor()
             .borrow()
             .process_stream(input_reader.clone(), output_writer.clone());
+        log::info!(
+            "[logging] type=process-stream node={} duration={} unit=micros",
+            self.node_id(),
+            start_time.elapsed().as_micros()
+        );
         log::debug!("Finished Data Processing for Node: [{}]", self.node_id());
 
         log::debug!("Terminating Node: [{}]", self.node_id());
