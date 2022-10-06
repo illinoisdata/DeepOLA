@@ -80,7 +80,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
     pub fn subscribe_to_node(&self, source_node: &ExecutionNode<T>, for_channel: usize) {
         let writer = &self.self_writers[for_channel];
         source_node.add(writer.clone());
-        log::info!(
+        log::debug!(
             "[logging] type=node-edge source={} dest={}",
             source_node.node_id(),
             self.node_id()
@@ -119,7 +119,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
         self.stream_processor
             .borrow_mut()
             .pre_process(input_reader.clone());
-        log::info!(
+        log::debug!(
             "[logging] type=pre-process node={} duration={} unit=micros",
             self.node_id(),
             start_time.elapsed().as_micros()
@@ -132,7 +132,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
         self.stream_processor()
             .borrow()
             .process_stream(input_reader.clone(), output_writer.clone());
-        log::info!(
+        log::debug!(
             "[logging] type=process-stream node={} duration={} unit=micros",
             self.node_id(),
             start_time.elapsed().as_micros()

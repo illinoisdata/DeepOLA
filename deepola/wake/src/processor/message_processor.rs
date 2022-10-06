@@ -33,7 +33,7 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
         loop {
             let channel_seq = 0;
             let message = input_stream.read(channel_seq);
-            log::info!(
+            log::debug!(
                 "[logging] type=execution thread={:?} action=read time={:?}",
                 std::thread::current().id(),
                 start_time.elapsed().as_micros()
@@ -69,14 +69,14 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
                     break;
                 }
             }
-            log::info!(
+            log::debug!(
                 "[logging] type=execution thread={:?} action=process time={:?}",
                 std::thread::current().id(),
                 start_time.elapsed().as_micros()
             );
             start_time = std::time::Instant::now();
         }
-        log::info!(
+        log::debug!(
             "[logging] type=execution thread={:?} action=process time={:?}",
             std::thread::current().id(),
             start_time.elapsed().as_micros()

@@ -115,7 +115,7 @@ pub fn query(
         ])
         .set_aggregates(vec![("total_revenue".into(), vec!["sum".into()])])
         .set_add_count_column(true)
-        .set_scaler(AggregateScaler::new_growing()
+        .set_scaler(AggregateScaler::new_converging(0.5)
             .remove_count_column()  // Remove added group count column
             .scale_sum("total_revenue_sum".into())
             .into_rc()

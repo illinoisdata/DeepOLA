@@ -77,7 +77,7 @@ pub fn query(
         .set_group_key(vec!["c_custkey".into()])
         .set_aggregates(vec![("o_orderkey_unit".into(), vec!["sum".into()])])
         .set_add_count_column(true)
-        .set_scaler(AggregateScaler::new_growing()
+        .set_scaler(AggregateScaler::new_converging(0.5)
             .remove_count_column()  // Remove added group count column
             .scale_sum("o_orderkey_unit_sum".into())
             .into_rc()

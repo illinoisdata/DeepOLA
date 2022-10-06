@@ -199,7 +199,7 @@ pub fn query(
         .set_group_key(vec!["s_name".into()])
         .set_aggregates(vec![("l_suppkey_count".into(), vec!["sum".into()])])
         .set_add_count_column(true)
-        .set_scaler(AggregateScaler::new_growing()
+        .set_scaler(AggregateScaler::new_converging(0.5)
             .remove_count_column()  // Remove added group count column
             .scale_sum("l_suppkey_count_sum".into())
             .into_rc()
