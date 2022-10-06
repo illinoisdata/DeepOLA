@@ -87,11 +87,15 @@ def get_execution_log_df(df):
     return execution_log_df.sort_values(['start_time', 'end_time'])
 
 if __name__ == "__main__":
-    query = sys.argv[1] if len(sys.argv) > 1 else 1
-    scale = int(sys.argv[2]) if len(sys.argv) > 2 else 1
-    partition = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+    if len(sys.argv) < 4:
+        print("Usage: python3 process_logs.py <query> <scale> <partition>")
+    query = sys.argv[1]
+    scale = int(sys.argv[2])
+    partition = sys.argv[3]
     log_dir = f'../../deepola/wake/logs'
-    output_dir = f'../../deepola/wake/outputs/queries/{query}/'
-    log_file = f'{log_dir}/scale={scale}/partition={partition}/{query}.log'
+    output_dir = f'../../deepola/wake/outputs/scale={scale}/partition={partition}/{query}/'
+    log_file = f'{log_dir}/scale={scale}/partition={partition}/{query}-INFO.log'
     df = parse_log_file(log_file)
     g = generate_execution_query_graph(df, query, output_dir)
+    execution_df = get_execution_log_df(df)
+    print(execution_df)
