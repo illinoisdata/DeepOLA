@@ -1,3 +1,7 @@
+if [ "$#" -ne 3 ]; then
+	echo "Usage: ./data-gen.sh <scale> <partition> <base-dir>. Example: ./data-gen.sh 1 10 $PWD/.."
+	exit
+fi
 scale=$1
 partition=$2
 BASE_DIR=$3
