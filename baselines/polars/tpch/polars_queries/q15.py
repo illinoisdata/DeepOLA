@@ -4,29 +4,25 @@ import polars as pl
 
 from polars_queries import utils
 
+#CORRECT OUTPUT
 Q_NUM = 15
-
-#INCOMPLETE 
 
 def q():
     var_date = datetime(1996, 1, 1)
     var_date_interval_3mon = datetime(1996, 4, 1)
 
-    part_ds = utils.get_part_ds()
     supplier_ds = utils.get_supplier_ds()
     line_item_ds = utils.get_line_item_ds()
-    part_supp_ds = utils.get_part_supp_ds()
-    orders_ds = utils.get_orders_ds()
-    nation_ds = utils.get_nation_ds()
-    
+
     final_cols = [
-        "s_suppkey", 
+        "s_suppkey",
         "s_name",
         "s_address",
         "s_phone",
         "total_revenue"
     ]
-    result_q1 = (
+
+    revenue0 = (
         line_item_ds
         .filter((pl.col("l_shipdate") >= var_date) & (pl.col("l_shipdate") < var_date_interval_3mon))
         .with_column((pl.col("l_extendedprice") * (1 - pl.col("l_discount"))).alias("revenue"))
@@ -34,12 +30,13 @@ def q():
         .agg(pl.sum("revenue").alias('total_revenue'))
         .select(["l_suppkey", "total_revenue"])
         .rename({"l_suppkey": "supplier_no"})
-        .filter(pl.col("supplier_no") == pl.col("supplier_no").max())
     )
- 
+
+    max_total_revenue = revenue0.max().collect().get_column("total_revenue")
+
     q_final = (
         supplier_ds
-        .join(result_q1, left_on="s_suppkey", right_on="supplier_no")
+        .join(revenue0.filter(pl.col("total_revenue") == max_total_revenue), left_on="s_suppkey", right_on="supplier_no")
         .select(final_cols)
         .sort("s_suppkey")
     )
