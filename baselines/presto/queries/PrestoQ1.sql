@@ -2,7 +2,6 @@
 -- TPC-H/TPC-R Pricing Summary Report Query (Q1)
 -- Functional Query Definition
 -- Approved February 1998
-\timing on
 select
 	l_returnflag,
 	l_linestatus,
