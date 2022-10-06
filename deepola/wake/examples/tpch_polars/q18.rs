@@ -1,6 +1,7 @@
 use crate::utils::*;
 extern crate wake;
 use polars::prelude::DataFrame;
+use polars::prelude::JoinType;
 use polars::series::ChunkCompare;
 use wake::graph::*;
 use wake::polars_operations::*;
@@ -49,16 +50,9 @@ pub fn query(
     ]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let customer_csvreader_node =
-        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
-
-    let oc_hash_join_node = HashJoinBuilder::new()
-        .left_on(vec!["o_custkey".into()])
-        .right_on(vec!["c_custkey".into()])
-        .build();
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_reader_node("customer".into(), &tableinput, &table_columns);
 
     // Merge JOIN Node
     let mut merger = SortedDfMerger::new();
@@ -66,6 +60,32 @@ pub fn query(
     merger.set_right_on(vec!["o_orderkey".into()]);
     let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
         .merger(merger)
+        .build();
+
+    // ORDER KEY where_node
+    let where_node = AppenderNode::<DataFrame, MapAppender>::new()
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let agg_df = df
+                .groupby(vec!["l_orderkey"])
+                .unwrap()
+                .agg(&[("l_quantity", ["sum"])])
+                .unwrap();
+            let mask = agg_df.column("l_quantity_sum").unwrap().gt(300).unwrap();
+            let filtered_agg_df = agg_df.filter(&mask).unwrap();
+            df.join(
+                &filtered_agg_df,
+                ["l_orderkey"],
+                ["l_orderkey"],
+                JoinType::Inner,
+                None,
+            )
+            .unwrap()
+        })))
+        .build();
+
+    let oc_hash_join_node = HashJoinBuilder::new()
+        .left_on(vec!["o_custkey".into()])
+        .right_on(vec!["c_custkey".into()])
         .build();
 
     // FIRST GROUP BY AGGREGATE NODE.
@@ -83,26 +103,24 @@ pub fn query(
         .accumulator(sum_accumulator)
         .build();
 
-    let where_node = AppenderNode::<DataFrame, MapAppender>::new()
+    let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let mask = df.column("l_quantity_sum").unwrap().gt(300).unwrap();
-            df.filter(&mask)
-                .unwrap()
-                .sort(vec!["o_totalprice", "o_orderdate"], vec![true, false])
+            df.sort(vec!["o_totalprice", "o_orderdate"], vec![true, false])
                 .unwrap()
         })))
         .build();
 
     // Connect nodes with subscription
-    oc_hash_join_node.subscribe_to_node(&orders_csvreader_node, 0);
-    oc_hash_join_node.subscribe_to_node(&customer_csvreader_node, 1);
     lo_merge_join_node.subscribe_to_node(&lineitem_csvreader_node, 0);
-    lo_merge_join_node.subscribe_to_node(&oc_hash_join_node, 1);
-    groupby_node.subscribe_to_node(&lo_merge_join_node, 0);
-    where_node.subscribe_to_node(&groupby_node, 0);
+    lo_merge_join_node.subscribe_to_node(&orders_csvreader_node, 1);
+    where_node.subscribe_to_node(&lo_merge_join_node, 0);
+    oc_hash_join_node.subscribe_to_node(&where_node, 0);
+    oc_hash_join_node.subscribe_to_node(&customer_csvreader_node, 1);
+    groupby_node.subscribe_to_node(&oc_hash_join_node, 0);
+    select_node.subscribe_to_node(&groupby_node, 0);
 
     // Output reader subscribe to output node.
-    output_reader.subscribe_to_node(&where_node, 0);
+    output_reader.subscribe_to_node(&select_node, 0);
 
     // Add all the nodes to the service
     let mut service = ExecutionService::<polars::prelude::DataFrame>::create();
@@ -113,5 +131,6 @@ pub fn query(
     service.add(oc_hash_join_node);
     service.add(groupby_node);
     service.add(where_node);
+    service.add(select_node);
     service
 }

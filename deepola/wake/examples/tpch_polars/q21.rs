@@ -67,12 +67,10 @@ pub fn query(
     ]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let supplier_csvreader_node =
-        build_csv_reader_node("supplier".into(), &tableinput, &table_columns);
-    let nation_csvreader_node = build_csv_reader_node("nation".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
+    let supplier_csvreader_node = build_reader_node("supplier".into(), &tableinput, &table_columns);
+    let nation_csvreader_node = build_reader_node("nation".into(), &tableinput, &table_columns);
 
     // WHERE Node
     // o_orderstatus = 'F'
@@ -85,16 +83,16 @@ pub fn query(
         .build();
 
     // Merge JOIN Node
-    // let mut merger = SortedDfMerger::new();
-    // merger.set_left_on(vec!["l_orderkey".into()]);
-    // merger.set_right_on(vec!["o_orderkey".into()]);
-    // let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
-    //     .merger(merger)
-    //     .build();
-    let lo_merge_join_node = HashJoinBuilder::new()
-        .left_on(vec!["l_orderkey".into()])
-        .right_on(vec!["o_orderkey".into()])
+    let mut merger = SortedDfMerger::new();
+    merger.set_left_on(vec!["l_orderkey".into()]);
+    merger.set_right_on(vec!["o_orderkey".into()]);
+    let lo_merge_join_node = MergerNode::<DataFrame, SortedDfMerger>::new()
+        .merger(merger)
         .build();
+    // let lo_merge_join_node = HashJoinBuilder::new()
+    //     .left_on(vec!["l_orderkey".into()])
+    //     .right_on(vec!["o_orderkey".into()])
+    //     .build();
 
     // WHERE Node
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()

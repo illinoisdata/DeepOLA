@@ -178,7 +178,7 @@ impl DataCell {
 impl PartialEq<String> for DataCell {
     fn eq(&self, other: &String) -> bool {
         match self {
-            DataCell::Text(a) => (a.as_ref() == other),
+            DataCell::Text(a) => a.as_ref() == other,
             _ => false,
         }
     }
@@ -187,7 +187,7 @@ impl PartialEq<String> for DataCell {
 impl PartialEq<&str> for DataCell {
     fn eq(&self, other: &&str) -> bool {
         match self {
-            DataCell::Text(a) => (a.as_ref() == *other),
+            DataCell::Text(a) => a.as_ref() == *other,
             _ => false,
         }
     }
@@ -196,8 +196,8 @@ impl PartialEq<&str> for DataCell {
 impl PartialEq<i32> for DataCell {
     fn eq(&self, other: &i32) -> bool {
         match self {
-            DataCell::Integer(a) => (a == other),
-            DataCell::Float(a) => (*a == f64::from(*other)),
+            DataCell::Integer(a) => a == other,
+            DataCell::Float(a) => *a == f64::from(*other),
             _ => false,
         }
     }
@@ -206,8 +206,8 @@ impl PartialEq<i32> for DataCell {
 impl PartialEq<f64> for DataCell {
     fn eq(&self, other: &f64) -> bool {
         match self {
-            DataCell::Integer(a) => (f64::from(*a) == *other),
-            DataCell::Float(a) => (a == other),
+            DataCell::Integer(a) => f64::from(*a) == *other,
+            DataCell::Float(a) => a == other,
             _ => false,
         }
     }
