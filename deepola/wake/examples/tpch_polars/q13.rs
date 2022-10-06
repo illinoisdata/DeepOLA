@@ -46,9 +46,8 @@ pub fn query(
     ]);
 
     // CSV Reader Nodes.
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let customer_csvreader_node =
-        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_reader_node("customer".into(), &tableinput, &table_columns);
 
     // WHERE Nodes
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()

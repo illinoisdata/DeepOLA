@@ -52,11 +52,9 @@ pub fn query(
     ]);
 
     // CSVReaderNode would be created for this table.
-    let lineitem_csvreader_node =
-        build_csv_reader_node("lineitem".into(), &tableinput, &table_columns);
-    let orders_csvreader_node = build_csv_reader_node("orders".into(), &tableinput, &table_columns);
-    let customer_csvreader_node =
-        build_csv_reader_node("customer".into(), &tableinput, &table_columns);
+    let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
+    let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
+    let customer_csvreader_node = build_reader_node("customer".into(), &tableinput, &table_columns);
 
     // WHERE Node
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -128,9 +126,9 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let cols = vec![
                 "l_orderkey",
+                "disc_price_sum",
                 "o_orderdate",
                 "o_shippriority",
-                "disc_price_sum",
             ];
             df.select(cols)
                 .unwrap()

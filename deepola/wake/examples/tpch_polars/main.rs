@@ -68,7 +68,7 @@ fn run_query(args: Vec<String>) {
         args[1].parse::<usize>().unwrap()
     };
     let data_directory = if args.len() <= 2 {
-        "resources/tpc-h/data/scale=1/partition=10"
+        "resources/tpc-h/data/scale=1/partition=10/tbl"
     } else {
         args[2].as_str()
     };
