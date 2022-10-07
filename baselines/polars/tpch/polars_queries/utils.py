@@ -33,7 +33,7 @@ def _scan_ds(path: str):
 
 def get_query_answer(query: int, base_dir: str = ANSWERS_BASE_DIR) -> pl.LazyFrame:
     answer_ldf = pl.scan_csv(
-        join(base_dir, f"q{query}.out"), sep="|", has_header=True, parse_dates=True
+        join(base_dir, f"{query}.csv"), sep=",", has_header=True, parse_dates=True
     )
     cols = answer_ldf.columns
     answer_ldf = answer_ldf.select(
@@ -46,6 +46,8 @@ def get_query_answer(query: int, base_dir: str = ANSWERS_BASE_DIR) -> pl.LazyFra
 def test_results(q_num: int, result_df: pl.DataFrame):
     with CodeTimer(name=f"Testing result of polars Query {q_num}", unit="s"):
         answer = get_query_answer(q_num).collect()
+        # String string columns of result_df to match with stripping done in answer.
+        result_df = result_df.lazy().with_columns([pl.col(pl.datatypes.Utf8).str.strip().keep_name()]).collect()
         pl.testing.assert_frame_equal(left=result_df, right=answer, check_dtype=False)
 
 

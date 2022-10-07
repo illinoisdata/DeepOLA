@@ -1,4 +1,4 @@
-import os
+from datetime import datetime
 
 import polars as pl
 
@@ -6,7 +6,6 @@ from polars_queries import utils
 
 Q_NUM = 9
 
-#CORRECT OUTPUT
 def q():
     var_color = 'green' #LIKE GREEN
 
