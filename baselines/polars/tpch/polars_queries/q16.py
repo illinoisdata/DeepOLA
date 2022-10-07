@@ -1,11 +1,11 @@
-import os
 from datetime import datetime
+
 import polars as pl
 
 from polars_queries import utils
 
-#CORRECT OUTPUT
 Q_NUM = 16
+
 
 def q():
     part_ds = utils.get_part_ds()

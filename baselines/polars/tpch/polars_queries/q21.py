@@ -1,11 +1,11 @@
-import os
+from datetime import datetime
 
 import polars as pl
 
 from polars_queries import utils
 
-#CORRECT OUTPUT
 Q_NUM = 21
+
 
 def q():
     var_nation = 'SAUDI ARABIA'

@@ -35,7 +35,6 @@ def q():
             ]
         )
         .sort(by=["revenue", "o_orderdate"], reverse=[True, False])
-        .limit(10)
     )
 
     utils.run_query(Q_NUM, q_final)

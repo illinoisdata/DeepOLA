@@ -1,11 +1,11 @@
-import os
 from datetime import datetime
+
 import polars as pl
 
 from polars_queries import utils
 
-#CORRECT OUTPUT
 Q_NUM = 18
+
 
 def q():
     var_quantity = 300
@@ -20,13 +20,13 @@ def q():
         "o_orderkey",
         "o_orderdate",
         "o_totalprice",
-        "sum_l_quantity"
+        "sum"
     ]
     filtered_line_item_ds = (line_item_ds.groupby("l_orderkey")
         .agg(pl.sum("l_quantity").alias("sum_l_quantity"))
         .select(["l_orderkey", "sum_l_quantity"])
         .filter(pl.col("sum_l_quantity") > var_quantity)
-        .with_column(pl.col("sum_l_quantity").cast(pl.datatypes.Float64)))
+        .with_column(pl.col("sum_l_quantity").cast(pl.datatypes.Float64).alias("sum")))
 
     q_final = (
         customer_ds.join(orders_ds, left_on="c_custkey", right_on="o_custkey")

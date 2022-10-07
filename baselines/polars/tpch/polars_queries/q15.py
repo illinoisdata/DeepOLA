@@ -1,11 +1,11 @@
-import os
 from datetime import datetime
+
 import polars as pl
 
 from polars_queries import utils
 
-#CORRECT OUTPUT
 Q_NUM = 15
+
 
 def q():
     var_date = datetime(1996, 1, 1)

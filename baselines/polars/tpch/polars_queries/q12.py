@@ -1,12 +1,11 @@
-import os
+from datetime import datetime
 
 import polars as pl
-from datetime import datetime
+
 from polars_queries import utils
 
 Q_NUM = 12
 
-#CORRECT OUTPUT
 
 def q():
     var_ship_mode1 = 'MAIL'

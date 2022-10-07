@@ -1,12 +1,11 @@
 from datetime import datetime
-# from turtle import left
 
 import polars as pl
 
 from polars_queries import utils
 
 Q_NUM = 10
-
+# Note: Q10's answer verification has flakiness due to randomness in sorting on equal revenue values.
 
 def q():
     var1 = datetime(1993, 10, 1)
@@ -44,7 +43,6 @@ def q():
         )
         .sort(by="revenue", reverse=True)
         .with_column(pl.col(pl.datatypes.Utf8).str.strip().keep_name())
-        .limit(20)
     )
 
     utils.run_query(Q_NUM, q_final)

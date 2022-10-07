@@ -1,11 +1,11 @@
-import os
 from datetime import datetime
+
 import polars as pl
 
 from polars_queries import utils
 
-#CORRECT OUTPUT
 Q_NUM = 17
+
 
 def q():
     lineitem_ds = utils.get_line_item_ds()
