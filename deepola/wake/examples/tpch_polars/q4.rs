@@ -54,8 +54,8 @@ pub fn query(
         .build();
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let var_date_1 = days_since_epoch(1993,07,01);
-            let var_date_2 = days_since_epoch(1993,10,01);
+            let var_date_1 = days_since_epoch(1993,7,1);
+            let var_date_2 = days_since_epoch(1993,10,1);
             let o_orderdate = df.column("o_orderdate").unwrap();
             let mask =
                 o_orderdate.gt_eq(var_date_1).unwrap() & o_orderdate.lt(var_date_2).unwrap();
