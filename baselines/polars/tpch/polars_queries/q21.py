@@ -15,24 +15,6 @@ def q():
     orders_ds = utils.get_orders_ds()
     nation_ds = utils.get_nation_ds()
 
-    def result_q1(l1_l_orderkey, l1_l_suppkey) -> pl.Expr:
-        print(type(l1_l_orderkey))
-        r_count = len((line_item_ds
-                    .filter((pl.col("l_orderkey") == l1_l_orderkey)
-                        & (pl.col("l_suppkey") != l1_l_suppkey))).collect())
-        print('r_count', r_count)
-        if r_count == 0:
-            return True
-        return False
-    def result_q2(l1_l_orderkey, l1_l_suppkey) -> pl.Expr:
-        r_count = len((line_item_ds
-                    .filter((pl.col("l_orderkey") == l1_l_orderkey)
-                     & (pl.col("l_suppkey") != l1_l_suppkey)
-                     & (pl.col("l_receiptdate") > pl.col("l_commitdate")))).collect())
-        if r_count == 0:
-            return True
-        return False
-
     line_item_order_ds = (
         line_item_ds
         .join(orders_ds.filter(pl.col("o_orderstatus") == "F"), left_on="l_orderkey", right_on="o_orderkey")

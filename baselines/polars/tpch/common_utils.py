@@ -8,19 +8,24 @@ INCLUDE_IO = bool(os.environ.get("INCLUDE_IO", False))
 SHOW_RESULTS = bool(os.environ.get("SHOW_RESULTS", False))
 LOG_TIMINGS = bool(os.environ.get("LOG_TIMINGS", False))
 SCALE_FACTOR = os.environ.get("SCALE_FACTOR", "1")
+PARTITION = os.environ.get("PARTITION", "1")
 WRITE_PLOT = bool(os.environ.get("WRITE_PLOT", False))
 FILE_TYPE = os.environ.get("FILE_TYPE", "parquet")
 DATA_BASE_DIR = os.environ.get("DATA_BASE_DIR", "../../../")
+TEST_RESULTS = os.environ.get("TEST_RESULTS", False)
 print("include io:", INCLUDE_IO)
 print("show results:", SHOW_RESULTS)
 print("log timings:", LOG_TIMINGS)
 print("file type:", FILE_TYPE)
 
 CWD = os.path.dirname(os.path.realpath(__file__))
-DATASET_BASE_DIR = os.path.join(DATA_BASE_DIR, f"resources/tpc-h/data/scale={SCALE_FACTOR}/partition=1/parquet/")
+DATASET_BASE_DIR = os.path.join(DATA_BASE_DIR, f"resources/tpc-h/data/scale={SCALE_FACTOR}/partition={PARTITION}/parquet/")
 ANSWERS_BASE_DIR = os.path.join(DATA_BASE_DIR, f"resources/tpc-h/data/scale={SCALE_FACTOR}/original/")
-TIMINGS_FILE = os.path.join(CWD, "timings.csv")
-DEFAULT_PLOTS_DIR = os.path.join(CWD, "plots")
+OUTPUT_BASE_DIR = os.path.join(CWD, f"outputs/scale={SCALE_FACTOR}/partition={PARTITION}")
+if not os.path.exists(OUTPUT_BASE_DIR):
+    os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
+TIMINGS_FILE = os.path.join(CWD, f"{OUTPUT_BASE_DIR}/timings.csv")
+DEFAULT_PLOTS_DIR = os.path.join(CWD, f"{OUTPUT_BASE_DIR}/plots")
 
 
 def append_row(solution: str, q: str, secs: float, version: str, success=True):
