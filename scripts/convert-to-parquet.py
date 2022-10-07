@@ -9,8 +9,7 @@ def convert_file_to_parquet(file_name):
     target_file_name = file_name.replace('tbl','parquet')
     if os.path.exists(target_file_name):
         return target_file_name
-    df = pl.read_csv(file_name, has_header = False, sep = "|")
-    # TODO: Enable parse_dates by modifying queries that compare on dates. Parquet change: parse_dates=True.
+    df = pl.read_csv(file_name, has_header = False, sep = "|", parse_dates=True)
     df.write_parquet(target_file_name, statistics=True)
     return target_file_name
 

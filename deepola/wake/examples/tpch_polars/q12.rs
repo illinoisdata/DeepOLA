@@ -60,11 +60,13 @@ pub fn query(
             let l_commitdate = df.column("l_commitdate").unwrap();
             let l_receiptdate = df.column("l_receiptdate").unwrap();
             let l_shipdate = df.column("l_shipdate").unwrap();
+            let var_date_1 = days_since_epoch(1994,01,01);
+            let var_date_2 = days_since_epoch(1995,01,01);
             let mask = (l_shipmode.equal("MAIL").unwrap() | l_shipmode.equal("SHIP").unwrap())
                 & l_commitdate.lt(l_receiptdate).unwrap()
                 & l_shipdate.lt(l_commitdate).unwrap()
-                & l_receiptdate.gt_eq("1994-01-01").unwrap()
-                & l_receiptdate.lt("1995-01-01").unwrap();
+                & l_receiptdate.gt_eq(var_date_1).unwrap()
+                & l_receiptdate.lt(var_date_2).unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();

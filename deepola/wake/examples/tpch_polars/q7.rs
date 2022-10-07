@@ -81,9 +81,11 @@ pub fn query(
 
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let var_date_1 = days_since_epoch(1995,01,01);
+            let var_date_2 = days_since_epoch(1996,12,31);
             let l_shipdate = df.column("l_shipdate").unwrap();
             let mask =
-                l_shipdate.gt_eq("1995-01-01").unwrap() & l_shipdate.lt_eq("1996-12-31").unwrap();
+                l_shipdate.gt_eq(var_date_1).unwrap() & l_shipdate.lt_eq(var_date_2).unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -155,16 +157,7 @@ pub fn query(
                     * (discount * -1f64 + 1f64),
             );
             let l_shipdate = df.column("l_shipdate").unwrap();
-            let l_year = Series::new(
-                "l_year",
-                l_shipdate
-                    .utf8()
-                    .unwrap()
-                    .as_date(Some("%Y-%m-%d"))
-                    .unwrap()
-                    .strftime("%Y")
-                    .into_series(),
-            );
+            let l_year = Series::new("l_year", l_shipdate.year().unwrap().into_series());
             df.hstack(&[disc_price, l_year]).unwrap()
         })))
         .build();

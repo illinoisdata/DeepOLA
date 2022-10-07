@@ -1,5 +1,6 @@
 extern crate wake;
 use glob::glob;
+use polars::export::chrono::NaiveDate;
 use polars::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -21,6 +22,13 @@ pub struct TableInput {
 pub const FILE_FORMAT_CSV: &str = ".tbl";
 pub const FILE_FORMAT_PARQUET: &str = ".parquet";
 pub const FILE_FORMAT_DEFAULT: &str = FILE_FORMAT_PARQUET;
+
+// Helper function to compute number of days since epoch
+pub fn days_since_epoch(year: i32, month: u32, day: u32) -> i32 {
+    let given_date = NaiveDate::from_ymd(year, month, day);
+    let epoch_date = NaiveDate::from_ymd(1970,1,1);
+    NaiveDate::signed_duration_since(given_date, epoch_date).num_days().try_into().unwrap()
+}
 
 pub fn total_number_of_records(table: &str, scale: usize) -> usize {
     match table {

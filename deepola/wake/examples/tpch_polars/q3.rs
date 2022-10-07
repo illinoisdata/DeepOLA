@@ -49,15 +49,17 @@ pub fn query(
     // WHERE Node
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let var_date = days_since_epoch(1995,03,15);
             let a = df.column("l_shipdate").unwrap();
-            let mask = a.gt("1995-03-15").unwrap();
+            let mask = a.gt(var_date).unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let var_date = days_since_epoch(1995,03,15);
             let a = df.column("o_orderdate").unwrap();
-            let mask = a.lt("1995-03-15").unwrap();
+            let mask = a.lt(var_date).unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
