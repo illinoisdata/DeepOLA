@@ -4,6 +4,8 @@ import polars as pl
 
 from polars_queries import utils
 
+from linetimer import CodeTimer, linetimer
+
 Q_NUM = 20
 
 
@@ -35,9 +37,8 @@ def q():
         .join(part_subquery, left_on="ps_partkey", right_on="p_partkey")
         .join(lineitem_group_ds, left_on=["ps_partkey","ps_suppkey"], right_on=["l_partkey","l_suppkey"])
         .filter(pl.col("ps_availqty") > pl.col("l_quantity_sum"))
-        .select("ps_suppkey").unique(False, "ps_suppkey")
+        .select("ps_suppkey")
     ).collect()
-
 
     q_final = (
         supp_ds
