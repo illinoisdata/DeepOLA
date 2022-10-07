@@ -152,7 +152,7 @@ pub fn run_query(
         log::warn!("Query Took: {:.2?}", end_time - start_time);
 
         // Save all results and timestamps
-        let result_dir = Path::new(".").join("outputs").join(format!("{}", query_no));
+        let result_dir = Path::new(".").join("outputs").join(query_no);
         save_dfs_to_csv(&mut query_result, &result_dir);
         save_meta_result(&result_dir, &query_result_time_ns).expect("Failed to write meta result");
     } else {
@@ -161,7 +161,7 @@ pub fn run_query(
     query_result
 }
 
-pub fn check_file_format(file_names: &Vec<String>) -> &str {
+pub fn check_file_format(file_names: &[String]) -> &str {
     // Check whether the first file name contains FILE_FORMAT_PARQUET.
     if file_names.is_empty() {
         FILE_FORMAT_DEFAULT
