@@ -99,18 +99,20 @@ pub fn query(
 
     // GROUP BY Node
     let mut avg_accumulator = AggAccumulator::new();
-    avg_accumulator.set_aggregates(vec![(
-        "c_acctbal".into(),
-        vec!["sum".into(), "count".into()],
-    )]);
+    avg_accumulator
+        .set_aggregates(vec![(
+            "c_acctbal".into(),
+            vec!["sum".into(), "count".into()],
+        )])
+        .set_scaler(AggregateScaler::new_growing()
+            .count_column("c_acctbal_count".into())
+            .scale_sum("c_acctbal_sum".into())
+            .scale_count("c_acctbal_count".into())
+            .into_rc()
+        );
     let avg_groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(avg_accumulator)
         .build();
-    let avg_scaler_node = AggregateScaler::new_growing()
-        .count_column("c_acctbal_count".into())
-        .scale_sum("c_acctbal_sum".into())
-        .scale_count("c_acctbal_count".into())
-        .into_node();
 
     // Filter by ACCTBAL
     let mut customer_acctbal_merger = MapperDfMerger::new();
@@ -134,14 +136,15 @@ pub fn query(
     let mut o_custkey_accumulator = AggAccumulator::new();
     o_custkey_accumulator
         .set_group_key(vec!["o_custkey".into()])
-        .set_aggregates(vec![("o_orderkey".into(), vec!["count".into()])]);
+        .set_aggregates(vec![("o_orderkey".into(), vec!["count".into()])])
+        .set_scaler(AggregateScaler::new_growing()
+            .count_column("o_orderkey_count".into())
+            .scale_count("o_orderkey_count".into())
+            .into_rc()
+        );
     let o_custkey_groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(o_custkey_accumulator)
         .build();
-    let o_custkey_scaler_node = AggregateScaler::new_growing()
-        .count_column("o_orderkey_count".into())
-        .scale_count("o_orderkey_count".into())
-        .into_node();
 
     // Remove c_custkey from the current order partition.
     let mut orders_customer_merger = MapperDfMerger::new();
@@ -183,12 +186,10 @@ pub fn query(
     customer_where_node.subscribe_to_node(&customer_csvreader_node, 0); // Left Node
     customer_combine_node.subscribe_to_node(&customer_where_node, 0); // Right Node
     avg_groupby_node.subscribe_to_node(&customer_combine_node, 0);
-    avg_scaler_node.subscribe_to_node(&avg_groupby_node, 0);
     customer_acctbal_merger_node.subscribe_to_node(&customer_combine_node, 0);
-    customer_acctbal_merger_node.subscribe_to_node(&avg_scaler_node, 1);
+    customer_acctbal_merger_node.subscribe_to_node(&avg_groupby_node, 1);
     o_custkey_groupby_node.subscribe_to_node(&orders_csvreader_node, 0);
-    o_custkey_scaler_node.subscribe_to_node(&o_custkey_groupby_node, 0);
-    orders_customer_merger_node.subscribe_to_node(&o_custkey_scaler_node, 0);
+    orders_customer_merger_node.subscribe_to_node(&o_custkey_groupby_node, 0);
     orders_customer_merger_node.subscribe_to_node(&customer_acctbal_merger_node, 1);
     select_node.subscribe_to_node(&orders_customer_merger_node, 0);
 
@@ -201,9 +202,7 @@ pub fn query(
     service.add(orders_customer_merger_node);
     service.add(customer_acctbal_merger_node);
     service.add(avg_groupby_node);
-    service.add(avg_scaler_node);
     service.add(o_custkey_groupby_node);
-    service.add(o_custkey_scaler_node);
     service.add(customer_combine_node);
     service.add(customer_where_node);
     service.add(orders_csvreader_node);

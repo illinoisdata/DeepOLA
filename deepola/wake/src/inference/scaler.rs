@@ -1,15 +1,13 @@
-use crate::graph::ExecutionNode;
-use crate::data::DATABLOCK_CARDINALITY;
-use crate::data::DEFAULT_GROUP_COLUMN_COUNT;
-use crate::data::DataBlock;
 use polars::datatypes::DataType;
 use polars::frame::DataFrame;
 use polars::series::Series;
+use std::rc::Rc;
 
 use crate::channel::MultiChannelBroadcaster;
 use crate::channel::MultiChannelReader;
-use crate::data::DataMessage;
-use crate::data::Payload;
+use crate::data::DEFAULT_GROUP_COLUMN_COUNT;
+use crate::graph::ExecutionNode;
+use crate::processor::MessageFractionProcessor;
 use crate::processor::StreamProcessor;
 
 
@@ -121,11 +119,16 @@ impl AggregateScaler {
     pub fn into_node(self) -> ExecutionNode<DataFrame> {
         ExecutionNode::<DataFrame>::new(Box::new(self), 1)
     }
+
+    pub fn into_rc(self) -> Rc<dyn MessageFractionProcessor<DataFrame>> {
+        Rc::new(self)
+    }
 }
 
 /// Application methods
-impl AggregateScaler {
-    pub fn scale(&self, mut df: DataFrame, fraction: f64) -> DataFrame {
+impl MessageFractionProcessor<DataFrame> for AggregateScaler {
+    fn process(&self, df: &DataFrame, fraction: f64) -> DataFrame {
+        let mut df = df.clone();
         let x0 = df.column(&self.count_col)
             .unwrap_or_else(|_| panic!("Count column {} not found", self.count_col))
             .clone();
@@ -163,27 +166,6 @@ impl StreamProcessor<DataFrame> for AggregateScaler {
         input_stream: MultiChannelReader<DataFrame>,
         output_stream: MultiChannelBroadcaster<DataFrame>,
     ) {
-        loop {
-            let channel_seq = 0;
-            let message = input_stream.read(channel_seq);
-            match message.payload() {
-                Payload::EOF => {
-                    output_stream.write(message);
-                    break;
-                }
-                Payload::Some(dblock) => {
-                    let fraction = f64::from(dblock.metadata()
-                        .get(DATABLOCK_CARDINALITY)
-                        .expect("AggregateScaler requires cardinality fraction"));
-                    let output_df = self.scale(dblock.data().clone(), fraction);
-                    let output_dblock = DataBlock::new(output_df, dblock.metadata().clone());
-                    let output_message = DataMessage::from(output_dblock);
-                    output_stream.write(output_message);
-                }
-                Payload::Signal(_) => {
-                    break;
-                }
-            }
-        }
+        self.process_stream_inner(input_stream, output_stream)
     }
 }

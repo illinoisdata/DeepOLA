@@ -103,14 +103,15 @@ pub fn query(
     let mut agg_accumulator = AggAccumulator::new();
     agg_accumulator
         .set_aggregates(vec![("l_extendedprice".into(), vec!["sum".into()])])
-        .set_add_count_column(true);
+        .set_add_count_column(true)
+        .set_scaler(AggregateScaler::new_growing()
+            .remove_count_column()  // Remove added group count column
+            .scale_sum("l_extendedprice_sum".into())
+            .into_rc()
+        );
     let final_groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(agg_accumulator)
         .build();
-    let scaler_node = AggregateScaler::new_growing()
-        .remove_count_column()  // Remove added group count column
-        .scale_sum("l_extendedprice_sum".into())
-        .into_node();
 
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -133,8 +134,7 @@ pub fn query(
     ll_hash_join_node.subscribe_to_node(&lp_hash_join_node, 1);
     lineitem_where_node.subscribe_to_node(&ll_hash_join_node, 0);
     final_groupby_node.subscribe_to_node(&lineitem_where_node, 0);
-    scaler_node.subscribe_to_node(&final_groupby_node, 0);
-    select_node.subscribe_to_node(&scaler_node, 0);
+    select_node.subscribe_to_node(&final_groupby_node, 0);
 
     // Output reader subscribe to output node.
     output_reader.subscribe_to_node(&select_node, 0);
@@ -150,7 +150,6 @@ pub fn query(
     service.add(ll_hash_join_node);
     service.add(lineitem_where_node);
     service.add(final_groupby_node);
-    service.add(scaler_node);
     service.add(select_node);
     service
 }
