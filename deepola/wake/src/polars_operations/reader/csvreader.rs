@@ -7,6 +7,7 @@ use crate::processor::StreamProcessor;
 pub struct CSVReaderBuilder {
     delimiter: char,
     has_headers: bool,
+    parse_dates: bool,
     column_names: Option<Vec<String>>,
     projected_cols: Option<Vec<usize>>,
 }
@@ -16,6 +17,7 @@ impl Default for CSVReaderBuilder {
         CSVReaderBuilder {
             delimiter: ',',
             has_headers: false,
+            parse_dates: true,
             column_names: Option::None,
             projected_cols: Option::None,
         }
@@ -47,10 +49,16 @@ impl CSVReaderBuilder {
         self
     }
 
+    pub fn parse_dates(&mut self, parse_dates: bool) -> &mut Self {
+        self.parse_dates = parse_dates;
+        self
+    }
+
     pub fn build(&self) -> ExecutionNode<DataFrame> {
         let data_processor = CSVReader::new(
             self.delimiter,
             self.has_headers,
+            self.parse_dates,
             self.column_names.clone(),
             self.projected_cols.clone(),
         );
@@ -62,6 +70,7 @@ impl CSVReaderBuilder {
 struct CSVReader {
     delimiter: char,
     has_headers: bool,
+    parse_dates: bool,
     column_names: Option<Vec<String>>,
     projected_cols: Option<Vec<usize>>,
 }
@@ -72,12 +81,14 @@ impl CSVReader {
     pub fn new(
         delimiter: char,
         has_headers: bool,
+        parse_dates: bool,
         column_names: Option<Vec<String>>,
         projected_cols: Option<Vec<usize>>,
     ) -> Self {
         CSVReader {
             delimiter,
             has_headers,
+            parse_dates,
             column_names,
             projected_cols,
         }
@@ -87,6 +98,7 @@ impl CSVReader {
         let mut reader = polars::prelude::CsvReader::from_path(filename)
             .unwrap()
             .has_header(self.has_headers)
+            .with_parse_dates(self.parse_dates)
             .with_delimiter(self.delimiter as u8);
         if self.projected_cols.is_some() {
             reader = reader.with_projection(self.projected_cols.clone());
@@ -125,7 +137,7 @@ impl StreamProcessor<DataFrame> for CSVReader {
                 Payload::Signal(_) => break,
                 Payload::Some(dblock) => {
                     let mut metadata = dblock.metadata().clone();
-                    let expected_total_records = 
+                    let expected_total_records =
                         if let Some(count) = metadata.get(DATABLOCK_TOTAL_RECORDS) {
                             f64::from(count)
                         } else {
@@ -145,8 +157,8 @@ impl StreamProcessor<DataFrame> for CSVReader {
                             // Update record count
                             currect_total_records += output_df.height() as f64;
                             if let Some(cardinality) = metadata.get_mut(DATABLOCK_CARDINALITY) {
-                                *cardinality = MetaCell::from(f64::min(1.0, 
-                                    currect_total_records / expected_total_records));  
+                                *cardinality = MetaCell::from(f64::min(1.0,
+                                    currect_total_records / expected_total_records));
                             }
 
                             // Compose and write output message

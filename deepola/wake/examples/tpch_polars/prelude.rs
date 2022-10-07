@@ -11,7 +11,9 @@ pub use polars::prelude::ChunkCast;
 pub use polars::prelude::JoinType;
 pub use polars::prelude::ChunkedArray;
 pub use polars::prelude::BooleanType;
-pub use polars::export::chrono::NaiveDate;
+pub use polars::export::chrono::NaiveDate; // For date
+pub use polars::prelude::TemporalMethods; // For year()
+pub use polars::prelude::DataType;
 
 extern crate wake;
 pub use wake::graph::*;

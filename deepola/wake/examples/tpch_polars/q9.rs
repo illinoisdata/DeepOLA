@@ -141,18 +141,7 @@ pub fn query(
     let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let nation = Series::new("nation", df.column("n_name").unwrap());
-            let o_orderdate = df.column("o_orderdate").unwrap();
-            let o_year = Series::new(
-                "o_year",
-                o_orderdate
-                    .utf8()
-                    .unwrap()
-                    .as_date(Some("%Y-%m-%d"))
-                    .unwrap()
-                    .strftime("%Y")
-                    .into_series(),
-            );
-
+            let o_year = Series::new("o_year", df.column("o_orderdate").unwrap().year().unwrap().into_series());
             let l_extendedprice = df.column("l_extendedprice").unwrap();
             let l_discount = df.column("l_discount").unwrap();
             let l_quantity = df.column("l_quantity").unwrap();

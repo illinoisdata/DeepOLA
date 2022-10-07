@@ -30,8 +30,10 @@ pub fn query(
             let l_shipdate = df.column("l_shipdate").unwrap();
             let l_discount = df.column("l_discount").unwrap();
             let l_quantity = df.column("l_quantity").unwrap();
-            let mask = l_shipdate.gt_eq("1994-01-01").unwrap()
-                & l_shipdate.lt("1995-01-01").unwrap()
+            let var_date_1 = days_since_epoch(1994,01,01);
+            let var_date_2 = days_since_epoch(1995,01,01);
+            let mask = l_shipdate.gt_eq(var_date_1).unwrap()
+                & l_shipdate.lt(var_date_2).unwrap()
                 & l_discount.gt_eq(0.05).unwrap()
                 & l_discount.lt_eq(0.07).unwrap()
                 & l_quantity.lt(24).unwrap();

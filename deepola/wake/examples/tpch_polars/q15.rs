@@ -73,9 +73,11 @@ pub fn query(
     // WHERE Nodes
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let var_date_1 = days_since_epoch(1996,01,01);
+            let var_date_2 = days_since_epoch(1996,04,01);
             let l_shipdate = df.column("l_shipdate").unwrap();
             let mask =
-                l_shipdate.gt_eq("1996-01-01").unwrap() & l_shipdate.lt("1996-04-01").unwrap();
+                l_shipdate.gt_eq(var_date_1).unwrap() & l_shipdate.lt(var_date_2).unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();

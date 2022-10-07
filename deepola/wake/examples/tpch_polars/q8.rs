@@ -97,9 +97,11 @@ pub fn query(
 
     let orders_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let var_date_1 = days_since_epoch(1995,01,01);
+            let var_date_2 = days_since_epoch(1996,12,31);
             let o_orderdate = df.column("o_orderdate").unwrap();
             let mask =
-                o_orderdate.gt_eq("1995-01-01").unwrap() & o_orderdate.lt_eq("1996-12-31").unwrap();
+                o_orderdate.gt_eq(var_date_1).unwrap() & o_orderdate.lt_eq(var_date_2).unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
@@ -171,16 +173,7 @@ pub fn query(
                 .unwrap();
             let masked_volume = Series::new("masked_volume", volume.clone() * mask);
             let o_orderdate = df.column("o_orderdate").unwrap();
-            let o_year = Series::new(
-                "o_year",
-                o_orderdate
-                    .utf8()
-                    .unwrap()
-                    .as_date(Some("%Y-%m-%d"))
-                    .unwrap()
-                    .strftime("%Y")
-                    .into_series(),
-            );
+            let o_year = Series::new("o_year", o_orderdate.year().unwrap().into_series());
             DataFrame::new(vec![o_year, volume, masked_volume]).unwrap()
         })))
         .build();

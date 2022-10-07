@@ -36,7 +36,9 @@ pub fn query(
     let where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let a = df.column("l_shipdate").unwrap();
-            let mask = a.gt_eq("1995-09-01").unwrap() & a.lt("1995-10-01").unwrap();
+            let var_date_1 = days_since_epoch(1995,09,01);
+            let var_date_2 = days_since_epoch(1995,10,01);
+            let mask = a.gt_eq(var_date_1).unwrap() & a.lt(var_date_2).unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
