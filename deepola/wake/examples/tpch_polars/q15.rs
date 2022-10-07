@@ -1,12 +1,4 @@
-use crate::utils::*;
-use polars::prelude::NamedFrom;
-use polars::series::ChunkCompare;
-extern crate wake;
-use polars::prelude::DataFrame;
-use polars::series::Series;
-use std::collections::HashMap;
-use wake::graph::*;
-use wake::polars_operations::*;
+use crate::prelude::*;
 
 /// This node implements the following SQL query
 // create view revenue0 (supplier_no, total_revenue) as
