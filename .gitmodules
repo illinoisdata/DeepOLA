@@ -1,3 +1,6 @@
 [submodule "tpch-kit"]
 	path = tpch-kit
 	url = https://github.com/gregrahn/tpch-kit/
+[submodule "baselines/wanderjoin/XDB"]
+	path = baselines/wanderjoin/XDB
+	url = https://github.com/InitialDLab/XDB
