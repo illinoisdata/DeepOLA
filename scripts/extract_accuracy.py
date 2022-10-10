@@ -58,7 +58,7 @@ def write_result(q_idx, dirpath, results, ts):
     for key, values in results.items():
         txt_path = f"{read_dir(q_idx, dirpath=dirpath)}/{key}.txt"
         with open(txt_path, "w") as f:
-            f.write("time_ms\tvalue\n")
+            f.write("time\tvalue\n")
             for t, v in zip(ts, values):
                 f.write(f"{t}\t{v}\n")
         print(f"Written {txt_path}")
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     q_results = read_all_results(q_idx, dirpath)
     q_meta = read_meta(q_idx, dirpath)
     q_accuracy = calculate_accuracy_all(q_results, on=on_dict[q_idx])
-    ts = np.array(q_meta['time_measures_ns']) / 1e6
+    ts = np.array(q_meta['time_measures_ns']) / 1e9
 
     # Write accuracy
     write_result(q_idx, dirpath, q_accuracy, ts)

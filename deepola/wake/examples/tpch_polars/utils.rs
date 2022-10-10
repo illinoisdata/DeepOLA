@@ -63,10 +63,9 @@ pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput>
         }
         // To sort slices correctly taking into account the partition numbers.
         alphanumeric_sort::sort_str_slice(&mut input_files);
+        log::warn!("Using {} files for {} table", input_files.len(), tpch_table);
         table_input.insert(tpch_table.to_string(), TableInput { input_files, scale });
     }
-    log::warn!("Evaluating On Files");
-    log::warn!("{:?}", table_input);
     table_input
 }
 
@@ -117,9 +116,10 @@ fn save_meta_result(
 }
 
 pub fn run_query(
-    query_no: &str,
+    _query_no: &str,
     query_service: &mut ExecutionService<DataFrame>,
     output_reader: &mut NodeReader<DataFrame>,
+    result_dir: String,
 ) -> Vec<DataFrame> {
     let mut query_result: Vec<DataFrame> = vec![];
     let mut query_result_time_ns = Vec::new();
@@ -152,9 +152,9 @@ pub fn run_query(
         log::warn!("Query Took: {:.2?}", end_time - start_time);
 
         // Save all results and timestamps
-        let result_dir = Path::new(".").join("outputs").join(query_no);
-        save_dfs_to_csv(&mut query_result, &result_dir);
-        save_meta_result(&result_dir, &query_result_time_ns).expect("Failed to write meta result");
+        let result_dir_path = Path::new(&result_dir);
+        save_dfs_to_csv(&mut query_result, &result_dir_path);
+        save_meta_result(&result_dir_path, &query_result_time_ns).expect("Failed to write meta result");
     } else {
         log::error!("Empty Query Result");
     }
