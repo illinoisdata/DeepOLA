@@ -1,4 +1,4 @@
-package progressive.query.skewed.one;
+package progressive.query.one;
 
 import javax.annotation.processing.SupportedSourceVersion;
 import java.sql.DriverManager;
@@ -6,6 +6,28 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.sql.ResultSet;
 import java.time.Instant;
+
+/*
+SELECT l_returnflag, l_linestatus,
+    sum(l_quantity) as sum_qty,
+    sum(l_extendedprice) as sum_base_price,
+    sum(l_extendedprice * (100 - l_discount)) as sum_disc_price,
+    sum(l_extendedprice * (100 - l_discount) * (100 + l_tax)) as sum_charge,
+    count(*) as count_order,
+    avg(l_quantity) as avg_qty,
+    avg(l_extendedprice) as avg_price,
+    avg(l_discount) as avg_disc
+FROM
+    lineitem
+WHERE
+    l_shipdate <= '1998-09-02'
+GROUP BY
+    l_returnflag, l_linestatus
+ORDER BY
+    l_returnflag, l_linestatus
+
+*/
+
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -25,12 +47,13 @@ public class Main {
                                 "avg(l_discount) as avg_disc," +
                                 "progressive_partition()," +
                                 "progressive_progress() " +
-                                "from skewed " +
-                                "where l_shipdate <= '1999-03-01' and l_shipdate >= '1998-09-02' " +
+                                "from lineitem " +
+                                "where l_shipdate <= '1998-09-02'" +
                                 "group by l_returnflag, l_linestatus " +
                                 "order by l_returnflag, l_linestatus "
                 )) {
-
+                    System.out.printf("CSV-STARTS\n");
+                    System.out.printf("partition,l_returnflag,l_linestatus,sum_qty,sum_base_price,sum_disc_price,sum_charge,count_order,avg_qty,avg_price,avg_disc,progress,timestamp\n");
                     System.out.printf("%d,%s,%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s\n",
                             0, "", "",
                             0.0, 0.0, 0.0, 0.0,
@@ -38,7 +61,6 @@ public class Main {
                             0.0, 0.0, Instant.now().toString());
 
                     while (result.next()) {
-
                         final String return_flag = result.getString(1);
                         final String line_status = result.getString(2);
                         final double sum_qty = result.getDouble(3);
@@ -51,17 +73,14 @@ public class Main {
                         final double avg_disc = result.getDouble(10);
                         final int partition = result.getInt(11);
                         final double progress = result.getDouble(12);
-
                         System.out.printf("%d,%s,%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%s\n",
                                 partition, return_flag, line_status,
                                 sum_qty, sum_base_price, sum_disc_price, sum_charge,
                                 avg_qty, avg_price, avg_disc,
                                 count_order, progress, Instant.now().toString());
-
                     }
-//                    System.out.println("");
+                    System.out.printf("CSV-ENDS\n");
                 }
-
             }
         }
     }
