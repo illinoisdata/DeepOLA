@@ -38,6 +38,7 @@ fn main() {
     // 1: Query Number. Required.
     // 2: Scale of the TPC-H Dataset. Optional. Default: 1.
     // 3: Directory containing the dataset. Optional. Default: resources/tpc-h/data/scale=1/partition=1/
+    // 4: Directory where we should write the output. Optional. Default: outputs/{query_no}
 
     env_logger::Builder::from_default_env()
         .format_timestamp_micros()
@@ -73,10 +74,16 @@ fn run_query(args: Vec<String>) {
     } else {
         args[2].as_str()
     };
+    let result_dir = if args.len() <= 3 {
+        format!("outputs/{query_no}")
+    } else {
+        args[3].to_string()
+    };
+    log::warn!("Saving outputs in {}", result_dir);
     let mut output_reader = NodeReader::empty();
     let mut query_service = get_query_service(query_no, scale, data_directory, &mut output_reader);
     log::info!("Running Query: {}", query_no);
-    utils::run_query(query_no, &mut query_service, &mut output_reader);
+    utils::run_query(query_no, &mut query_service, &mut output_reader, result_dir);
 }
 
 pub fn get_query_service(
