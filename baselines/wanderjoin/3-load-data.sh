@@ -1,5 +1,5 @@
 if [ "$#" -ne 2 ]; then
-   echo "Usage: ./3-load-data.sh <scale: 10/50/100> <variation: data/skewed-data>"
+   echo "Usage: ./3-load-data.sh <scale: 10/100> <variation: data/skewed-data>"
    exit
 fi
 set -o xtrace
