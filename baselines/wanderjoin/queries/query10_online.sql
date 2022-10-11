@@ -4,4 +4,4 @@ WHERE	c_custkey = o_custkey
 	AND	l_orderkey = o_orderkey
 	AND l_returnflag = 'R'
 	AND c_nationkey = n_nationkey
-WITHTIME 60000 CONFIDENCE 95 REPORTINTERVAL 1000;
+WITHTIME 6000 CONFIDENCE 95 REPORTINTERVAL 1000;
