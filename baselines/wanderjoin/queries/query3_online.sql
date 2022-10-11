@@ -1,4 +1,3 @@
-\timing on
 SELECT ONLINE SUM(l_extendedprice * (1 - l_discount))
 FROM customer, orders, lineitem
 WHERE   c_mktsegment = 'BUILDING'
