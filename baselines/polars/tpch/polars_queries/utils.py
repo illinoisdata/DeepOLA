@@ -8,18 +8,20 @@ from linetimer import CodeTimer, linetimer
 from common_utils import (
     ANSWERS_BASE_DIR,
     DATASET_BASE_DIR,
+    OUTPUT_BASE_DIR,
     FILE_TYPE,
     INCLUDE_IO,
     LOG_TIMINGS,
     SHOW_RESULTS,
+    TEST_RESULTS,
     append_row,
 )
 
 SHOW_PLAN = os.environ.get("SHOW_PLAN", False)
-
+SAVE_RESULTS = int(os.environ.get("SAVE_RESULTS", False))
 
 def _scan_ds(path: str):
-    path = f"{path}.{FILE_TYPE}"
+    path = f"{path}.{FILE_TYPE}*"
     if FILE_TYPE == "parquet":
         scan = pl.scan_parquet(path)
     elif FILE_TYPE == "feather":
@@ -92,17 +94,21 @@ def run_query(q_num: int, lp: pl.LazyFrame):
         with CodeTimer(name=f"Get result of polars Query {q_num}", unit="s"):
             t0 = timeit.default_timer()
             result = lp.collect()
-
             secs = timeit.default_timer() - t0
 
         if LOG_TIMINGS:
             append_row(
                 solution="polars", version=pl.__version__, q=f"q{q_num}", secs=secs
             )
-        else:
+
+        if TEST_RESULTS:
             test_results(q_num, result)
 
         if SHOW_RESULTS:
             print(result)
 
+        if SAVE_RESULTS:
+            output_file = f"{OUTPUT_BASE_DIR}/q{q_num}.csv"
+            print(f"Saving Results to {output_file}")
+            result.write_csv(output_file)
     query()

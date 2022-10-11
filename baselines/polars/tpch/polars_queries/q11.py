@@ -26,6 +26,7 @@ def q():
             right_on = "s_suppkey"
         )
         .with_column((pl.col("ps_supplycost") * pl.col("ps_availqty") * 0.0001).alias("value_limit"))
+        .select(["value_limit"])
         .sum()
     ).collect()
 
