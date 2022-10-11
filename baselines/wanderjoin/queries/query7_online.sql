@@ -6,4 +6,5 @@ WHERE   s_suppkey = l_suppkey
     AND c_custkey = o_custkey
     AND s_nationkey = n1.n_nationkey
     AND c_nationkey = n2.n_nationkey
-WITHTIME 60000 CONFIDENCE 95 REPORTINTERVAL 1000;
+	AND n1.n_name = 'CHINA'
+WITHTIME 240000 CONFIDENCE 95 REPORTINTERVAL 1000;
