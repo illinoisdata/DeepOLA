@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use polars::frame::DataFrame;
+use polars::prelude::ChunkAgg;
 use polars::series::Series;
 use statrs::function::gamma::digamma;
 use statrs::function::gamma::ln_gamma;
@@ -7,6 +9,7 @@ use std::rc::Rc;
 use crate::channel::MultiChannelBroadcaster;
 use crate::channel::MultiChannelReader;
 use crate::graph::ExecutionNode;
+use crate::inference::count::PowerCardinalityEstimator;
 use crate::processor::MessageFractionProcessor;
 use crate::processor::StreamProcessor;
 
@@ -37,13 +40,13 @@ fn newton_raphson(f: RealFn, dfdx: RealFn, mut x0: f64, max_iter: usize, tol: f6
 //     (Box::new(f), Box::new(dfdx))
 // }
 
-// fn mm0_scale(current_count: f64, sample_size: f64, fraction: f64) -> f64 {
+// fn mm0_scale(current_count: f64, sample_size: f64, total_size: f64) -> f64 {
 //     if current_count == sample_size {
 //         return current_count
 //     }
 //     let (f, dfdx) = generate_mm0_fn(current_count, sample_size);
 //     let estimated_count = newton_raphson(f, dfdx, current_count, 20, 1e-3);
-//     f64::min(estimated_count, sample_size / fraction)
+//     f64::min(estimated_count, total_size)
 // }
 
 fn partial_ln_h(x: f64, n: f64, n_total: f64) -> f64 {
@@ -68,15 +71,14 @@ fn generate_mm1_fn(current_count: f64, sample_size: f64, total_size: f64) -> (Re
     (Box::new(f), Box::new(dfdx))
 }
 
-fn mm1_scale(current_count: f64, sample_size: f64, fraction: f64) -> f64 {
-    let total_count = sample_size / fraction;  // TODO: use cardinality estimator
-    if current_count == sample_size || total_count.floor() == sample_size {
+fn mm1_scale(current_count: f64, sample_size: f64, total_size: f64) -> f64 {
+    if current_count == sample_size || total_size.floor() == sample_size {
         return current_count
     }
-    let (f, dfdx) = generate_mm1_fn(current_count, sample_size, total_count);
+    let (f, dfdx) = generate_mm1_fn(current_count, sample_size, total_size);
     let estimated_count = newton_raphson(f, dfdx, current_count, 20, 1e-3);
-    // log::error!("current_count= {}, sample_size= {}, fraction= {}: estimated_count= {}", current_count, sample_size, fraction, estimated_count);
-    f64::min(estimated_count, total_count)
+    // log::error!("current_count= {}, sample_size= {}, total_size= {}: estimated_count= {}", current_count, sample_size, total_size, estimated_count);
+    f64::min(estimated_count, total_size)
 }
 
 
@@ -92,6 +94,9 @@ pub struct MM0CountDistinct {
 
     /// Column name for group count
     count_col: String,
+
+    /// Cardinality estimator
+    count_estimator: RefCell<PowerCardinalityEstimator>,
 }
 
 unsafe impl Send for MM0CountDistinct {}
@@ -103,6 +108,7 @@ impl MM0CountDistinct {
             groupby,
             output_col,
             count_col,
+            count_estimator: RefCell::new(PowerCardinalityEstimator::linear()),
         }
     }
 
@@ -129,14 +135,19 @@ impl MM0CountDistinct {
             .u32()
             .expect("Total count column should be UInt32")
             .clone();
+        self.count_estimator.borrow_mut()
+            .update_power(count_total.sum().unwrap().into(), stats_df.height() as f64, fraction);
         stats_df.apply(&count_distinct_column, |count_distinct| {
             count_distinct.u32()
                 .expect("Count distinct column should be UInt32")
                 .into_iter()
                 .zip(count_total.into_iter())
                 .map(|(cd_opt, ct_opt)| {
-                    // mm0_scale(cd_opt.unwrap() as f64, ct_opt.unwrap() as f64, fraction)
-                    mm1_scale(cd_opt.unwrap() as f64, ct_opt.unwrap() as f64, fraction)
+                    let cd = cd_opt.unwrap() as f64;
+                    let ct = ct_opt.unwrap() as f64;
+                    let total_size = self.count_estimator.borrow().estimate(ct, fraction);
+                    // mm0_scale(cd, ct, total_size)
+                    mm1_scale(cd, ct, total_size)
                 })
                 .collect::<Series>()
         }).expect("Failed to apply mm0");

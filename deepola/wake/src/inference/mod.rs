@@ -1,3 +1,4 @@
+mod count;
 mod count_distinct;
 mod scaler;
 

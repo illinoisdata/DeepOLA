@@ -248,6 +248,17 @@ impl LeastSquareAffineEstimator {
         let intercept = self.mean_v - slope * self.mean_t;
         AffineForecast::new(slope, intercept)
     }
+
+    pub fn slope(&self) -> f64 {
+        if self.var_t == 0.0 {
+            return 0.0
+        }
+        self.cov_tv / self.var_t  // (X^T X)^{-1} X^T Y
+    }
+
+    pub fn intercept(&self) -> f64 {
+        self.mean_v - self.slope() * self.mean_t
+    }
 }
 
 impl CellConsumer for LeastSquareAffineEstimator {
