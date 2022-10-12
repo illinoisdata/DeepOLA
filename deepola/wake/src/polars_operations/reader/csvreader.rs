@@ -149,13 +149,19 @@ impl StreamProcessor<DataFrame> for CSVReader {
                         // This must be a length-one Polars series containing
                         // file names in its rows
                         let rows = series.utf8().unwrap();
+                        let num_files = rows.len();
 
                         // each file name produces multiple Series (each is a column)
-                        for filename in rows {
+                        for (index,filename) in rows.into_iter().enumerate() {
                             let output_df = self.dataframe_from_filename(filename.unwrap());
 
                             // Update record count
                             currect_total_records += output_df.height() as f64;
+                            if index == num_files - 1 {
+                                // lineitem's cardinality estimate of 6_000_000 * SF is approximate.
+                                // For some scales, this value is smaller than 6_000_000 * SF.
+                                currect_total_records = expected_total_records;
+                            }
                             if let Some(cardinality) = metadata.get_mut(DATABLOCK_CARDINALITY) {
                                 *cardinality = MetaCell::from(f64::min(1.0,
                                     currect_total_records / expected_total_records));
