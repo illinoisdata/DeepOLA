@@ -132,9 +132,9 @@ pub fn query(
             "o_custkey".into(),
             "c_name".into(),
             "c_acctbal".into(),
-            "c_phone".into(),
             "n_name".into(),
             "c_address".into(),
+            "c_phone".into(),
             "c_comment".into(),
         ])
         .set_aggregates(vec![("disc_price".into(), vec!["sum".into()])]);
@@ -150,9 +150,9 @@ pub fn query(
                 "c_name",
                 "disc_price_sum",
                 "c_acctbal",
-                "c_phone",
                 "n_name",
                 "c_address",
+                "c_phone",
                 "c_comment",
             ];
             df.select(cols)

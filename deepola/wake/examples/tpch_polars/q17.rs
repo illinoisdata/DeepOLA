@@ -36,40 +36,6 @@ pub fn query(
     let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
     let part_csvreader_node = build_reader_node("part".into(), &tableinput, &table_columns);
 
-    // FIRST GROUP BY AGGREGATE NODE.
-    let mut sum_accumulator = AggAccumulator::new();
-    sum_accumulator
-        .set_group_key(vec!["l_partkey".to_string()])
-        .set_aggregates(vec![(
-            "l_quantity".into(),
-            vec!["sum".into(), "count".into()],
-        )]);
-    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
-        .accumulator(sum_accumulator)
-        .build();
-
-    let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
-        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let cols = vec![
-                Series::new("l_partkey", df.column("l_partkey").unwrap()),
-                Series::new(
-                    "l_quantity_avg",
-                    (df.column("l_quantity_sum")
-                        .unwrap()
-                        .cast(&polars::datatypes::DataType::Float64)
-                        .unwrap())
-                        * 0.2f64
-                        / (df
-                            .column("l_quantity_count")
-                            .unwrap()
-                            .cast(&polars::datatypes::DataType::Float64)
-                            .unwrap()),
-                ),
-            ];
-            DataFrame::new(cols).unwrap()
-        })))
-        .build();
-
     let part_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let p_brand = df.column("p_brand").unwrap();
@@ -83,6 +49,46 @@ pub fn query(
     let lp_hash_join_node = HashJoinBuilder::new()
         .left_on(vec!["l_partkey".into()])
         .right_on(vec!["p_partkey".into()])
+        .build();
+
+    // FIRST GROUP BY AGGREGATE NODE.
+    let mut sum_accumulator = AggAccumulator::new();
+    sum_accumulator
+        .set_group_key(vec!["l_partkey".to_string()])
+        .set_aggregates(vec![(
+            "l_quantity".into(),
+            vec!["sum".into(), "count".into()],
+        )]);
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
+        .accumulator(sum_accumulator)
+        .build();
+
+    // NEED TO ADD A BLOCKING NODE HERE.
+    let mut merge_accumulator = MergeAccumulator::new();
+    merge_accumulator.set_merge_strategy(MergeAccumulatorStrategy::KeepLast);
+    let block_for_avg_groupby = AccumulatorNode::<DataFrame, MergeAccumulator>::new()
+        .accumulator(merge_accumulator)
+        .build();
+
+    let expression_node = AppenderNode::<DataFrame, MapAppender>::new()
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let cols = vec![
+                Series::new("l_partkey", df.column("l_partkey").unwrap()),
+                Series::new(
+                    "l_quantity_avg",
+                    (df.column("l_quantity_sum")
+                        .unwrap()
+                        .cast(&polars::datatypes::DataType::Float64)
+                        .unwrap() * 0.2f64 )
+                        / (df
+                            .column("l_quantity_count")
+                            .unwrap()
+                            .cast(&polars::datatypes::DataType::Float64)
+                            .unwrap()),
+                ),
+            ];
+            DataFrame::new(cols).unwrap()
+        })))
         .build();
 
     let ll_hash_join_node = HashJoinBuilder::new()
@@ -125,13 +131,14 @@ pub fn query(
         .build();
 
     // Connect nodes with subscription
-    groupby_node.subscribe_to_node(&lineitem_csvreader_node, 0);
-    expression_node.subscribe_to_node(&groupby_node, 0);
     part_where_node.subscribe_to_node(&part_csvreader_node, 0);
-    lp_hash_join_node.subscribe_to_node(&expression_node, 0);
+    lp_hash_join_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     lp_hash_join_node.subscribe_to_node(&part_where_node, 1);
-    ll_hash_join_node.subscribe_to_node(&lineitem_csvreader_node, 0);
-    ll_hash_join_node.subscribe_to_node(&lp_hash_join_node, 1);
+    groupby_node.subscribe_to_node(&lp_hash_join_node, 0);
+    block_for_avg_groupby.subscribe_to_node(&groupby_node, 0);
+    expression_node.subscribe_to_node(&block_for_avg_groupby, 0);
+    ll_hash_join_node.subscribe_to_node(&lp_hash_join_node, 0);
+    ll_hash_join_node.subscribe_to_node(&expression_node, 1);
     lineitem_where_node.subscribe_to_node(&ll_hash_join_node, 0);
     final_groupby_node.subscribe_to_node(&lineitem_where_node, 0);
     select_node.subscribe_to_node(&final_groupby_node, 0);
@@ -144,6 +151,7 @@ pub fn query(
     service.add(lineitem_csvreader_node);
     service.add(part_csvreader_node);
     service.add(groupby_node);
+    service.add(block_for_avg_groupby);
     service.add(expression_node);
     service.add(part_where_node);
     service.add(lp_hash_join_node);

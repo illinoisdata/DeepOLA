@@ -95,30 +95,6 @@ pub fn query(
         })))
         .build();
 
-    let nr_hash_join_node = HashJoinBuilder::new()
-        .left_on(vec!["n_regionkey".into()])
-        .right_on(vec!["r_regionkey".into()])
-        .build();
-
-    let sn_hash_join_node = HashJoinBuilder::new()
-        .left_on(vec!["s_nationkey".into()])
-        .right_on(vec!["n_nationkey".into()])
-        .build();
-
-    let pss_hash_join_node = HashJoinBuilder::new()
-        .left_on(vec!["ps_suppkey".into()])
-        .right_on(vec!["s_suppkey".into()])
-        .build();
-
-    // GROUP BY Aggregate Node
-    let mut min_accumulator = AggAccumulator::new();
-    min_accumulator
-        .set_group_key(vec!["ps_partkey".into()])
-        .set_aggregates(vec![("ps_supplycost".into(), vec!["min".into()])]);
-    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
-        .accumulator(min_accumulator)
-        .build();
-
     let part_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let p_size = df.column("p_size").unwrap();
@@ -134,9 +110,41 @@ pub fn query(
         })))
         .build();
 
+    let nr_hash_join_node = HashJoinBuilder::new()
+        .left_on(vec!["n_regionkey".into()])
+        .right_on(vec!["r_regionkey".into()])
+        .build();
+
+    let sn_hash_join_node = HashJoinBuilder::new()
+        .left_on(vec!["s_nationkey".into()])
+        .right_on(vec!["n_nationkey".into()])
+        .build();
+
+    let pss_hash_join_node = HashJoinBuilder::new()
+        .left_on(vec!["ps_suppkey".into()])
+        .right_on(vec!["s_suppkey".into()])
+        .build();
+
     let psp_hash_join_node = HashJoinBuilder::new()
         .left_on(vec!["ps_partkey".into()])
         .right_on(vec!["p_partkey".into()])
+        .build();
+
+    // NEED TO ADD A BLOCKING NODE HERE.
+    let mut merge_accumulator = MergeAccumulator::new();
+    merge_accumulator.set_merge_strategy(MergeAccumulatorStrategy::VStack);
+    let block_for_min_groupby = AccumulatorNode::<DataFrame, MergeAccumulator>::new()
+        .accumulator(merge_accumulator)
+        .build();
+
+    // GROUP BY Aggregate Node
+    // MIN KEEPS UPDATING. ONLY REDUCES. SO WE MIGHT HAVE MISSED PS WITH SUPPLYCOST NOT EQUAL TO FINAL MIN?
+    let mut min_accumulator = AggAccumulator::new();
+    min_accumulator
+        .set_group_key(vec!["ps_partkey".into()])
+        .set_aggregates(vec![("ps_supplycost".into(), vec!["min".into()])]); // MIN across suppliers
+    let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
+        .accumulator(min_accumulator)
         .build();
 
     let psps_hash_join_node = HashJoinBuilder::new()
@@ -176,10 +184,11 @@ pub fn query(
     sn_hash_join_node.subscribe_to_node(&nr_hash_join_node, 1);
     pss_hash_join_node.subscribe_to_node(&partsupp_csvreader_node, 0);
     pss_hash_join_node.subscribe_to_node(&sn_hash_join_node, 1);
-    groupby_node.subscribe_to_node(&pss_hash_join_node, 0);
     psp_hash_join_node.subscribe_to_node(&pss_hash_join_node, 0);
     psp_hash_join_node.subscribe_to_node(&part_where_node, 1);
-    psps_hash_join_node.subscribe_to_node(&psp_hash_join_node, 0);
+    block_for_min_groupby.subscribe_to_node(&psp_hash_join_node, 0);
+    groupby_node.subscribe_to_node(&block_for_min_groupby, 0);
+    psps_hash_join_node.subscribe_to_node(&block_for_min_groupby, 0);
     psps_hash_join_node.subscribe_to_node(&groupby_node, 1);
 
     select_node.subscribe_to_node(&psps_hash_join_node, 0);
@@ -199,6 +208,7 @@ pub fn query(
     service.add(sn_hash_join_node);
     service.add(pss_hash_join_node);
     service.add(groupby_node);
+    service.add(block_for_min_groupby);
     service.add(psps_hash_join_node);
     service.add(part_where_node);
     service.add(psp_hash_join_node);
