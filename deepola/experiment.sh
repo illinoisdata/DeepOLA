@@ -24,7 +24,7 @@ format=parquet
 cargo build --release --example tpch_polars
 
 # The experiment loop
-for qdx in {1..22}
+for qdx in {1..25}
 do
     for ((j = ${start_run}; j <= ${num_runs}; j++))
     do

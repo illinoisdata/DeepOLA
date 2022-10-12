@@ -139,21 +139,18 @@ pub fn run_query(
         }
         let data = message.datablock().data();
         let duration = Instant::now() - start_time;
-        match experiment {
-            "accuracy" => {
-                // Save the result dataframe
-                let file_path = results_dir_path.join(format!("{}.csv", epoch));
-                save_df_to_csv(&mut data.clone(), &file_path);
-                if epoch % 10 == 0 {
-                    log::warn!(
-                        "Query Result {} Took: {:.2?}",
-                        epoch + 1,
-                        duration
-                    );
-                }
-            },
-            "latency" => {},
-            _ => {panic!("Invalid experiment variation")}
+        if experiment == "accuracy" {
+            // Save the result dataframe
+            let file_path = results_dir_path.join(format!("{}.csv", epoch));
+            save_df_to_csv(&mut data.clone(), &file_path);
+            if epoch % 10 == 0 {
+                log::warn!(
+                    "Query Result {} Took: {:.2?}",
+                    epoch + 1,
+                    duration
+                );
+                log::warn!("Saved query result to {:?}", file_path);
+            }
         }
         query_result_time_ns.push(duration.as_nanos());
         last_df = data.clone();
@@ -167,6 +164,7 @@ pub fn run_query(
         log::warn!("Query Took: {:.2?}", end_time - start_time);
         let file_path = results_dir_path.join(format!("final.csv"));
         save_df_to_csv(&mut last_df, &file_path);
+        log::warn!("Saved final query result to {:?}", file_path);
         save_meta_result(&results_dir_path, &query_result_time_ns).expect("Failed to write meta result");
     } else {
         log::error!("Empty Query Result");

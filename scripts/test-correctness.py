@@ -27,9 +27,20 @@ if __name__ == "__main__":
     variation = sys.argv[3] if len(sys.argv) >=4 else "data"
 
     incorrect_queries = []
-    for qdx in range(1,23):
-        obtained_df = get_obtained_df(scale, results_dir, qdx)
-        baseline_df = get_baseline_df(scale, variation, qdx)
+    baseline_not_available = []
+    results_not_available = []
+    for qdx in range(1,26):
+        try:
+            obtained_df = get_obtained_df(scale, results_dir, qdx)
+        except:
+            results_not_available.append(qdx)
+            continue
+
+        try:
+            baseline_df = get_baseline_df(scale, variation, qdx)
+        except:
+            baseline_not_available.append(qdx)
+            continue
 
         # To avoid failure due to incorrect column names
         columns = baseline_df.columns
@@ -57,3 +68,5 @@ if __name__ == "__main__":
             incorrect_queries.append(qdx)
 
     print(f"Incorrect Queries: {incorrect_queries}")
+    print(f"Baseline not available: {baseline_not_available}")
+    print(f"Result not available: {results_not_available}")
