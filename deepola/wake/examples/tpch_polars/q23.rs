@@ -1,10 +1,11 @@
 use crate::prelude::*;
 
 /// WanderJoin's modified Q3 by dropping select and groupby.
+/// Refer: https://github.com/InitialDLab/XDB/blob/master/queries/query3_online_selection.sql
+
 /// This node implements the following SQL query
 // select
-//  sum(l_extendedprice * (1 - l_discount)) as revenue,
-//  COUNT(*)
+//  sum(l_extendedprice * (1 - l_discount)) as revenue
 // from
 //  customer,
 //  orders,
@@ -13,6 +14,7 @@ use crate::prelude::*;
 //  c_mktsegment = 'BUILDING'
 //  and c_custkey = o_custkey
 //  and l_orderkey = o_orderkey
+//  and l_shipdate > date '1995-06-01'
 
 pub fn query(
     tableinput: HashMap<String, TableInput>,
@@ -35,6 +37,16 @@ pub fn query(
     let lineitem_csvreader_node = build_reader_node("lineitem".into(), &tableinput, &table_columns);
     let orders_csvreader_node = build_reader_node("orders".into(), &tableinput, &table_columns);
     let customer_csvreader_node = build_reader_node("customer".into(), &tableinput, &table_columns);
+
+    // WHERE Node
+    let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
+        .appender(MapAppender::new(Box::new(|df: &DataFrame| {
+            let var_date_1 = days_since_epoch(1995,6,1);
+            let a = df.column("l_shipdate").unwrap();
+            let mask = a.gt(var_date_1).unwrap();
+            df.filter(&mask).unwrap()
+        })))
+        .build();
 
     // WHERE Node
     let customer_where_node = AppenderNode::<DataFrame, MapAppender>::new()
@@ -77,13 +89,10 @@ pub fn query(
     // GROUP BY AGGREGATE Node
     let mut agg_accumulator = AggAccumulator::new();
     agg_accumulator
-        .set_aggregates(vec![
-            ("disc_price".into(), vec!["sum".into()]),
-            ("l_orderkey".into(), vec!["count".into()]),
-        ])
+        .set_add_count_column(true)
+        .set_aggregates(vec![("disc_price".into(), vec!["sum".into()])])
         .set_scaler(AggregateScaler::new_growing()
-            .count_column("l_orderkey_count".into())
-            .scale_count("l_orderkey_count".into())
+            .remove_count_column()
             .scale_sum("disc_price_sum".into())
             .into_rc()
         );
@@ -93,9 +102,10 @@ pub fn query(
 
     // Connect nodes with subscription
     customer_where_node.subscribe_to_node(&customer_csvreader_node, 0);
+    lineitem_where_node.subscribe_to_node(&lineitem_csvreader_node, 0);
     oc_hash_join_node.subscribe_to_node(&orders_csvreader_node, 0); // Left Node
     oc_hash_join_node.subscribe_to_node(&customer_where_node, 1); // Right Node
-    lo_merge_join_node.subscribe_to_node(&lineitem_csvreader_node, 0); // Left Node
+    lo_merge_join_node.subscribe_to_node(&lineitem_where_node, 0); // Left Node
     lo_merge_join_node.subscribe_to_node(&oc_hash_join_node, 1); // Right Node
     expression_node.subscribe_to_node(&lo_merge_join_node, 0);
     groupby_node.subscribe_to_node(&expression_node, 0);
@@ -108,6 +118,7 @@ pub fn query(
     service.add(lineitem_csvreader_node);
     service.add(customer_csvreader_node);
     service.add(orders_csvreader_node);
+    service.add(lineitem_where_node);
     service.add(customer_where_node);
     service.add(oc_hash_join_node);
     service.add(lo_merge_join_node);
