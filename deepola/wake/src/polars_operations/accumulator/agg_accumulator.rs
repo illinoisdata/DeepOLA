@@ -79,9 +79,10 @@ impl AggAccumulator {
         // Add a column with value 0 to support both empty and non-empty groupby key with same syntax and column name mechanism.
         let num_of_rows = df.height();
         let mut raw_df = df
-            .hstack(&[Series::new(DEFAULT_GROUPBY_KEY, vec![0; num_of_rows])])
-            .unwrap()
-            .hstack(&[Series::new(DEFAULT_GROUP_COLUMN, vec![0; num_of_rows])])
+            .hstack(&[
+                Series::new(DEFAULT_GROUPBY_KEY, vec![0; num_of_rows]),
+                Series::new(DEFAULT_GROUP_COLUMN, vec![0; num_of_rows]),
+            ])
             .unwrap();
 
         // Arrow raises an error if the Chunks gets misaligned.

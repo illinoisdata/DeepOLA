@@ -4,7 +4,7 @@ pub mod graph;
 pub mod inference;
 pub mod polars_operations;
 pub mod processor;
-// pub mod forecast;
+pub mod forecast;
 
 #[cfg(test)]
 mod tests {

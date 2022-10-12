@@ -1,58 +1,22 @@
 use polars::datatypes::DataType;
 use polars::frame::DataFrame;
 use polars::series::Series;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::channel::MultiChannelBroadcaster;
 use crate::channel::MultiChannelReader;
 use crate::data::DEFAULT_GROUP_COLUMN_COUNT;
 use crate::graph::ExecutionNode;
+use crate::inference::count::PowerCardinalityEstimator;
 use crate::processor::MessageFractionProcessor;
 use crate::processor::StreamProcessor;
 
 
 /// Primitive types and consts
-type CountType = u32;
 enum AggregationType {
     Sum,
     Count,
-}
-
-
-/// Estimate cardinality given progress so far
-struct PowerCardinalityEstimator {
-    power: f64,
-}
-
-
-impl PowerCardinalityEstimator {
-    fn constant() -> PowerCardinalityEstimator {
-        PowerCardinalityEstimator {
-            power: 0.0,
-        }
-    }
-
-    fn with_power(power: f64) -> PowerCardinalityEstimator {
-        assert!((0.0..=1.0).contains(&power));
-        PowerCardinalityEstimator {
-            power,
-        }
-    }
-
-    fn linear() -> PowerCardinalityEstimator {
-        PowerCardinalityEstimator {
-            power: 1.0,
-        }
-    }
-
-    fn estimate(&self, count: CountType, fraction: f64) -> CountType {
-        assert!((0.0..=1.0).contains(&fraction));
-        if self.power == 0.0 || fraction == 0.0 {
-            count
-        } else {
-            ((count as f64) / fraction.powf(self.power)).round() as CountType
-        }
-    }
 }
 
 
@@ -62,7 +26,7 @@ pub struct AggregateScaler {
     aggregates: Vec<(String, AggregationType)>,
 
     /// Cardinality estimator
-    count_estimator: PowerCardinalityEstimator,
+    count_estimator: RefCell<PowerCardinalityEstimator>,
 
     /// Column name for group count
     count_col: String,
@@ -78,7 +42,7 @@ impl AggregateScaler {
     fn new(count_estimator: PowerCardinalityEstimator) -> AggregateScaler {
         AggregateScaler {
             aggregates: vec![],
-            count_estimator,
+            count_estimator: RefCell::new(count_estimator),
             count_col: DEFAULT_GROUP_COLUMN_COUNT.into(),
             remove_count_col: false,
         }
@@ -129,17 +93,25 @@ impl AggregateScaler {
 impl MessageFractionProcessor<DataFrame> for AggregateScaler {
     fn process(&self, df: &DataFrame, fraction: f64) -> DataFrame {
         let mut df = df.clone();
+
+        // Update scaling power.
         let x0 = df.column(&self.count_col)
             .unwrap_or_else(|_| panic!("Count column {} not found", self.count_col))
             .clone();
+        self.count_estimator.borrow_mut()
+            .update_power(x0.sum::<f64>().unwrap(), df.height() as f64, fraction);
+
+        // Estimate final counts
         let xhat: Series = x0
             .u32()
             .unwrap_or_else(|_| panic!("Count column {} is not u32", self.count_col))
             .into_iter()
             .map(|opt_count| opt_count.map(
-                |count| self.count_estimator.estimate(count, fraction))
+                |count| self.count_estimator.borrow().estimate(count.into(), fraction))
             )
             .collect();
+
+        // Scale aggregate accordingly.
         for (aggregate_col, aggregate_type) in &self.aggregates {
             match aggregate_type {
                 AggregationType::Sum => df.apply(aggregate_col, |aggregate_val| {
