@@ -78,15 +78,20 @@ fn run_query(args: Vec<String>) {
         args[2].as_str()
     };
     let result_dir = if args.len() <= 3 {
-        format!("outputs/{query_no}")
+        format!("outputs/{}", query_no)
     } else {
-        args[3].to_string()
+        args[3].clone()
     };
-    log::warn!("Saving outputs in {}", result_dir);
+    let experiment = if args.len() <= 4 {
+        "latency"
+    } else {
+        args[4].as_str()
+    };
+    log::warn!("Saving outputs in {:?}", result_dir);
     let mut output_reader = NodeReader::empty();
     let mut query_service = get_query_service(query_no, scale, data_directory, &mut output_reader);
     log::info!("Running Query: {}", query_no);
-    utils::run_query(query_no, &mut query_service, &mut output_reader, result_dir);
+    utils::run_query(query_no, &mut query_service, &mut output_reader, result_dir, experiment);
 }
 
 pub fn get_query_service(
