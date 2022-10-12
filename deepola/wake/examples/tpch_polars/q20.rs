@@ -151,8 +151,8 @@ pub fn query(
                 None,
             )
             .unwrap();
-        let ps_availqty = joined_df.column("ps_availqty").unwrap();
-        let ps_availqty_avg = joined_df.column("l_quantity_sum").unwrap() * 0.5f64;
+        let ps_availqty = joined_df.column("ps_availqty").unwrap(); // Integer
+        let ps_availqty_avg = (joined_df.column("l_quantity_sum").unwrap().cast(&polars::datatypes::DataType::Float64).unwrap() * 0.5f64).floor().unwrap();
         let mask = ps_availqty.gt(&ps_availqty_avg).unwrap();
         joined_df
             .filter(&mask)
