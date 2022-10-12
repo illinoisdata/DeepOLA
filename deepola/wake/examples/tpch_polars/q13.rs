@@ -92,7 +92,7 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df| {
             let mut df = df.clone();
             df.apply("o_orderkey_unit_sum", |column| {
-                column.cast(&polars::datatypes::DataType::UInt32).unwrap()
+                column.round(0).unwrap().cast(&polars::datatypes::DataType::UInt32).unwrap()
             }).expect("Failed to cast to integer");
             df.groupby(vec!["o_orderkey_unit_sum"])
                 .unwrap()
