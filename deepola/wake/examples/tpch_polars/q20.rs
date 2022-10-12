@@ -139,6 +139,7 @@ pub fn query(
         .accumulator(ps_accumulator)
         .build();
 
+    // The result is obtained when right goes EOF. Not when left does.
     let mut ps_availqty_merger = MapperDfMerger::new();
     ps_availqty_merger.set_mapper(Box::new(|left_df: &DataFrame, right_df: &DataFrame| {
         let joined_df = left_df
@@ -163,6 +164,7 @@ pub fn query(
             .count()
             .unwrap()
     }));
+    ps_availqty_merger.set_eof_behavior(MapperDfEOFBehavior::RightEOF);
     let ps_availqty_merger_node = MergerNode::<DataFrame, MapperDfMerger>::new()
         .merger(ps_availqty_merger)
         .build();
