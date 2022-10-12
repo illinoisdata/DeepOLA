@@ -36,7 +36,7 @@ def q():
         part_supp_ds
         .join(part_subquery, left_on="ps_partkey", right_on="p_partkey")
         .join(lineitem_group_ds, left_on=["ps_partkey","ps_suppkey"], right_on=["l_partkey","l_suppkey"])
-        .filter(pl.col("ps_availqty") > pl.col("l_quantity_sum"))
+        .filter(pl.col("ps_availqty") > pl.col("l_quantity_sum").floor())
         .select("ps_suppkey")
     ).collect()
 
