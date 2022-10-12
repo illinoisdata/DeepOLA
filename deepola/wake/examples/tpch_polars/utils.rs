@@ -78,7 +78,7 @@ pub fn save_df_to_csv(df: &mut DataFrame, file_path: &Path) {
         .unwrap();
 }
 
-fn save_dfs_to_csv(dfs: &mut [DataFrame], dir_path: &Path) {
+fn _save_dfs_to_csv(dfs: &mut [DataFrame], dir_path: &Path) {
     // Prepare parent directory.
     std::fs::create_dir_all(dir_path).unwrap_or_else(|_| panic!("Failed to mkdir {:?}", dir_path));
 
@@ -119,11 +119,17 @@ pub fn run_query(
     _query_no: &str,
     query_service: &mut ExecutionService<DataFrame>,
     output_reader: &mut NodeReader<DataFrame>,
-    result_dir: String,
-) -> Vec<DataFrame> {
-    let mut query_result: Vec<DataFrame> = vec![];
+    results_dir: String,
+    experiment: &str,
+) -> usize {
+    // Create results directory if doesn't exist
+    let results_dir_path = Path::new(&results_dir);
+    std::fs::create_dir_all(results_dir_path).unwrap_or_else(|_| panic!("Failed to mkdir {:?}", results_dir));
+
     let mut query_result_time_ns = Vec::new();
-    let logging_interval = 10;
+    let mut last_df = DataFrame::empty();
+    let mut epoch = 0;
+
     let start_time = Instant::now();
     query_service.run();
     loop {
@@ -133,32 +139,39 @@ pub fn run_query(
         }
         let data = message.datablock().data();
         let duration = Instant::now() - start_time;
-        query_result_time_ns.push(duration.as_nanos());
-        if query_result.is_empty() || (query_result.len() % logging_interval == 0) {
-            log::warn!(
-                "Query Result {} Took: {:.2?}",
-                query_result.len() + 1,
-                duration
-            );
+        match experiment {
+            "accuracy" => {
+                // Save the result dataframe
+                let file_path = results_dir_path.join(format!("{}.csv", epoch));
+                save_df_to_csv(&mut data.clone(), &file_path);
+                if epoch % 10 == 0 {
+                    log::warn!(
+                        "Query Result {} Took: {:.2?}",
+                        epoch + 1,
+                        duration
+                    );
+                }
+            },
+            "latency" => {},
+            _ => {panic!("Invalid experiment variation")}
         }
-        query_result.push(data.clone());
+        query_result_time_ns.push(duration.as_nanos());
+        last_df = data.clone();
+        epoch = epoch + 1;
     }
     query_service.join();
     let end_time = Instant::now();
-    if !query_result.is_empty() {
-        let last_df = query_result.last_mut().unwrap();
+    if epoch != 0 {
         log::warn!("Query Result");
         log::warn!("{:?}", last_df);
         log::warn!("Query Took: {:.2?}", end_time - start_time);
-
-        // Save all results and timestamps
-        let result_dir_path = Path::new(&result_dir);
-        save_dfs_to_csv(&mut query_result, &result_dir_path);
-        save_meta_result(&result_dir_path, &query_result_time_ns).expect("Failed to write meta result");
+        let file_path = results_dir_path.join(format!("final.csv"));
+        save_df_to_csv(&mut last_df, &file_path);
+        save_meta_result(&results_dir_path, &query_result_time_ns).expect("Failed to write meta result");
     } else {
         log::error!("Empty Query Result");
     }
-    query_result
+    epoch
 }
 
 pub fn check_file_format(file_names: &[String]) -> &str {
