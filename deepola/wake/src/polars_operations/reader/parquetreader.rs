@@ -91,7 +91,7 @@ impl StreamProcessor<DataFrame> for ParquetReader {
                 Payload::Signal(_) => break,
                 Payload::Some(dblock) => {
                     let mut metadata = dblock.metadata().clone();
-                    let expected_total_records =
+                    let mut expected_total_records =
                         if let Some(count) = metadata.get(DATABLOCK_TOTAL_RECORDS) {
                             f64::from(count)
                         } else {
@@ -114,7 +114,7 @@ impl StreamProcessor<DataFrame> for ParquetReader {
                             if index == num_files - 1 {
                                 // lineitem's cardinality estimate of 6_000_000 * SF is approximate.
                                 // For some scales, this value is smaller than 6_000_000 * SF.
-                                currect_total_records = expected_total_records;
+                                expected_total_records = currect_total_records;
                             }
                             if let Some(cardinality) = metadata.get_mut(DATABLOCK_CARDINALITY) {
                                 *cardinality = MetaCell::from(f64::min(1.0,
