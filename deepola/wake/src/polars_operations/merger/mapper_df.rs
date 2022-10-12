@@ -21,6 +21,13 @@ pub enum MapperDfMergerMode {
     RightOnline,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum MapperDfEOFBehavior {
+    AnyEOF,
+    LeftEOF,
+    RightEOF,
+}
+
 /// Runs the provided mapper on the dataframes obtained from
 /// the two streams.
 #[derive(Getters, Setters, Clone)]
@@ -42,6 +49,10 @@ pub struct MapperDfMerger {
     #[set = "pub"]
     #[get = "pub"]
     mode: MapperDfMergerMode,
+
+    #[set = "pub"]
+    #[get = "pub"]
+    eof_behavior: MapperDfEOFBehavior,
 }
 
 unsafe impl Send for MapperDfMerger {}
@@ -57,6 +68,7 @@ impl MapperDfMerger {
             left_progress: RefCell::new(0.0),
             right_progress: RefCell::new(0.0),
             mode: MapperDfMergerMode::BothOnline,
+            eof_behavior: MapperDfEOFBehavior::AnyEOF,
         }
     }
 
@@ -139,11 +151,13 @@ impl StreamProcessor<DataFrame> for MapperDfMerger {
     ) {
         let channel_left = 0;
         let channel_right = 1;
+        let mut eof_left = false;
+        let mut eof_right = false;
         loop {
             let start_time = std::time::Instant::now();
 
             // if both sides don't need any more inputs, we can merge and produce an output.
-            if !self.needs_left().borrow() && !self.needs_right().borrow() {
+            if (eof_left || !self.needs_left().borrow()) && (eof_right || !self.needs_right().borrow()) {
                 // merge will set needs_left or needs_right to true; thus, in the next iteration,
                 // this condition won't be satisfied.
                 let output_df = self.merge();
@@ -159,12 +173,17 @@ impl StreamProcessor<DataFrame> for MapperDfMerger {
                 continue;
             }
 
-            if self.needs_left() {
+            if !eof_left && self.needs_left() {
                 let message = input_stream.read(channel_left);
                 match message.payload() {
                     Payload::EOF => {
-                        output_stream.write(message);
-                        break;
+                        if self.eof_behavior == MapperDfEOFBehavior::AnyEOF || self.eof_behavior == MapperDfEOFBehavior::LeftEOF {
+                            output_stream.write(message);
+                            break;
+                        } else {
+                            eof_left = true;
+                            continue;
+                        }
                     }
                     Payload::Signal(_) => {
                         break;
@@ -176,12 +195,17 @@ impl StreamProcessor<DataFrame> for MapperDfMerger {
                 }
             }
 
-            if self.needs_right() {
+            if !eof_right && self.needs_right() {
                 let message = input_stream.read(channel_right);
                 match message.payload() {
                     Payload::EOF => {
-                        output_stream.write(message);
-                        break;
+                        if self.eof_behavior == MapperDfEOFBehavior::AnyEOF || self.eof_behavior == MapperDfEOFBehavior::RightEOF {
+                            output_stream.write(message);
+                            break;
+                        } else {
+                            eof_right = true;
+                            continue;
+                        }
                     }
                     Payload::Signal(_) => {
                         break;
