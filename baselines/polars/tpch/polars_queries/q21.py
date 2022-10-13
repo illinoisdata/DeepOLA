@@ -42,16 +42,25 @@ def q():
         .filter(pl.col("num_faulty_supplier") == 1)
     )
 
+    supplier_nation_ds = (
+        supplier_ds
+        .join(
+            nation_ds.filter(pl.col("n_name") == var_nation),
+            left_on="s_nationkey",
+            right_on="n_nationkey"
+        )
+    )
+
     q_final = (
         line_item_order_faulty
+        .join(supplier_nation_ds, left_on="l_suppkey", right_on="s_suppkey")
         .groupby(["l_orderkey","l_suppkey"])
-        .agg(pl.count())
+        .agg(pl.count().alias("l_lineitem_count"))
         .join(num_total_suppliers, left_on="l_orderkey", right_on="l_orderkey")
         .join(num_faulty_suppliers, left_on="l_orderkey", right_on="l_orderkey")
         .join(supplier_ds, left_on="l_suppkey", right_on="s_suppkey")
-        .join(nation_ds.filter(pl.col("n_name") == var_nation), left_on="s_nationkey", right_on="n_nationkey")
-        .groupby("s_name")
-        .agg(pl.count().alias("numwait"))
+        .groupby(["s_name"])
+        .agg(pl.col("l_lineitem_count").sum().alias("numwait"))
         .sort(["numwait", "s_name"], reverse=[True, False])
     )
 

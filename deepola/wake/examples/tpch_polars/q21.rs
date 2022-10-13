@@ -102,20 +102,21 @@ pub fn query(
     orderkey_merger.set_mapper(Box::new(|left_df: &DataFrame, right_df: &DataFrame| {
         // left_df is the lineitem node
         // right_df is the lineitem where node.
+
+        // num of suppliers for a given order
         let grouped_df1 = left_df
-            .select(["l_orderkey", "l_suppkey"])
-            .unwrap()
             .groupby(["l_orderkey"])
             .unwrap()
-            .n_unique()
+            .select(["l_suppkey"]).n_unique()
             .unwrap();
+
+        // num of faulty suppliers for a given order
         let grouped_df2 = right_df
-            .select(["l_orderkey", "l_suppkey"])
-            .unwrap()
             .groupby(["l_orderkey"])
             .unwrap()
-            .n_unique()
+            .select(["l_suppkey"]).n_unique()
             .unwrap();
+
         let joined_df = grouped_df1
             .join(
                 &grouped_df2,
@@ -125,7 +126,7 @@ pub fn query(
                 None,
             )
             .unwrap();
-        //.sort(vec!["l_orderkey"], vec![false]).unwrap();
+
         let mask = joined_df
             .column("l_suppkey_n_unique")
             .unwrap()
@@ -171,7 +172,6 @@ pub fn query(
         // This JOIN is different from hash_join and merge_join
         // Since, hash_join requires to wait on right channel till EOF.
         // merge_join requires right_channel and left_channel to both be sorted.
-        // In this case it can work, if we sort in the previous node. But we actually don't need a sort.
         let joined_df = left_df
             .join(
                 right_df,
@@ -185,6 +185,7 @@ pub fn query(
         joined_df
             .groupby(["s_name", "l_orderkey"])
             .unwrap()
+            .select(["l_suppkey"])
             .count()
             .unwrap()
     }));
@@ -196,12 +197,12 @@ pub fn query(
     let mut accumulator1 = AggAccumulator::new();
     accumulator1
         .set_group_key(vec!["s_name".into()])
-        .set_aggregates(vec![("l_orderkey".into(), vec!["count".into()])])
-        .set_scaler(AggregateScaler::new_growing()
-            .count_column("l_orderkey_count".into())
-            .scale_count("l_orderkey_count".into())
-            .into_rc()
-        );
+        .set_aggregates(vec![("l_suppkey_count".into(), vec!["sum".into()])]);
+        // .set_scaler(AggregateScaler::new_growing()
+        //     .count_column("l_orderkey_count".into())
+        //     .scale_count("l_orderkey_count".into())
+        //     .into_rc()
+        // );
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(accumulator1)
         .build();
@@ -209,7 +210,7 @@ pub fn query(
     // SELECT Node
     let select_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            df.sort(&["l_orderkey_count", "s_name"], vec![true, false])
+            df.sort(&["l_suppkey_count_sum", "s_name"], vec![true, false])
                 .unwrap()
         })))
         .build();
