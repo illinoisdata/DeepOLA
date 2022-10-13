@@ -33,6 +33,9 @@ on_dict = {
     20: ["s_name", "s_address"],  # no aggregate
     21: ["s_name"],
     22: ["cntrycode"],
+    23: [],
+    24: ["c_mktsegment"],
+    25: [],
 }
 
 def read_dir(q_idx, dirpath):
@@ -67,11 +70,12 @@ def write_result(q_idx, dirpath, results, ts):
 def read_all_results(q_idx, dirpath, nt=None):
     if nt is None:
         # Read all CSVs
-        nt = max(map(
-            lambda path: int(re.search("\/(\d+)\.csv", path).group(1)),
+        csvs = map(
+            lambda path: re.search("\/(\d+)\.csv", path),
             glob.glob(f"{read_dir(q_idx, dirpath=dirpath)}/*.csv")
-        )) + 1
-        print(f"Detected {nt} CSVs")
+        )
+        numbered_csvs = filter(lambda c: c is not None, csvs)
+        nt = max(map(lambda c: int(c.group(1)), numbered_csvs)) + 1
     return [read_result(q_idx, t, dirpath=dirpath) for t in range(nt)]
 
 def calculate_pes(df, df_ref, on):
@@ -157,6 +161,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Extract accuracy from many result')
     parser.add_argument('dirpath', type=str,
                         help='path to directory with qxx subdirectories')
+    parser.add_argument('ref_dirpath', type=str,
+                        help='path to directory with qxx having intermediate results')
     parser.add_argument('q_idx', type=int,
                         help='query number to extract (1, 2, ..., 22)')
     args = parser.parse_args()
@@ -165,8 +171,9 @@ if __name__ == "__main__":
 
     # Extract result and accuracy
     dirpath = args.dirpath
+    ref_dirpath = args.ref_dirpath
     q_idx = args.q_idx
-    q_results = read_all_results(q_idx, dirpath)
+    q_results = read_all_results(q_idx, ref_dirpath)
     q_meta = read_meta(q_idx, dirpath)
     q_accuracy = calculate_accuracy_all(q_results, on=on_dict[q_idx])
     ts = np.array(q_meta['time_measures_ns']) / 1e9
