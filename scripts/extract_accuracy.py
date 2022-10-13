@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from scipy.special import gamma
+# from scipy.special import gamma
 
 
 # Groupby columns for each query

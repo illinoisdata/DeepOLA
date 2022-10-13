@@ -1,5 +1,6 @@
 use polars::frame::DataFrame;
 use polars::series::Series;
+use statrs::function::gamma::digamma;
 use statrs::function::gamma::ln_gamma;
 use std::rc::Rc;
 
@@ -26,23 +27,56 @@ fn newton_raphson(f: RealFn, dfdx: RealFn, mut x0: f64, max_iter: usize, tol: f6
     return x0
 }
 
-fn generate_mm0_fn(current_count: f64, sample_size: f64) -> (RealFn, RealFn) {
+// fn generate_mm0_fn(current_count: f64, sample_size: f64) -> (RealFn, RealFn) {
+//     let f = move |x: f64| {
+//         x * (1.0 - (-sample_size / x).exp()) - current_count
+//     };
+//     let dfdx = move |x: f64| {
+//         1.0 - (-sample_size / x).exp() * (sample_size + x) / x
+//     };
+//     (Box::new(f), Box::new(dfdx))
+// }
+
+// fn mm0_scale(current_count: f64, sample_size: f64, fraction: f64) -> f64 {
+//     if current_count == sample_size {
+//         return current_count
+//     }
+//     let (f, dfdx) = generate_mm0_fn(current_count, sample_size);
+//     let estimated_count = newton_raphson(f, dfdx, current_count, 20, 1e-3);
+//     f64::min(estimated_count, sample_size / fraction)
+// }
+
+fn partial_ln_h(x: f64, n: f64, n_total: f64) -> f64 {
+    ln_gamma(n_total - x + 1.0) - ln_gamma(n_total - n - x + 1.0)
+}
+
+fn partial_dhdx(x: f64, n: f64, n_total: f64) -> f64 {
+    digamma(n_total - x + 1.0) - digamma(n_total - n - x + 1.0)
+}
+
+fn generate_mm1_fn(current_count: f64, sample_size: f64, total_size: f64) -> (RealFn, RealFn) {
+    let ln_h0 = partial_ln_h(0.0, sample_size, total_size);
     let f = move |x: f64| {
-        x * (1.0 - (-sample_size / x).exp()) - current_count
+        let gx = (partial_ln_h(total_size / x, sample_size, total_size) - ln_h0).exp();
+        x * (1.0 - gx) - current_count
     };
     let dfdx = move |x: f64| {
-        1.0 - (-sample_size / x).exp() * (sample_size + x) / x
+        let gx = (partial_ln_h(total_size / x, sample_size, total_size) - ln_h0).exp();
+        let dgx = gx * partial_dhdx(total_size / x, sample_size, total_size);
+        (1.0 - gx) - x * dgx * (total_size / (x * x)) 
     };
     (Box::new(f), Box::new(dfdx))
 }
 
-fn mm0_scale(current_count: f64, sample_size: f64, fraction: f64) -> f64 {
-    if current_count == sample_size {
+fn mm1_scale(current_count: f64, sample_size: f64, fraction: f64) -> f64 {
+    let total_count = sample_size / fraction;  // TODO: use cardinality estimator
+    if current_count == sample_size || total_count.floor() == sample_size {
         return current_count
     }
-    let (f, dfdx) = generate_mm0_fn(current_count, sample_size);
+    let (f, dfdx) = generate_mm1_fn(current_count, sample_size, total_count);
     let estimated_count = newton_raphson(f, dfdx, current_count, 20, 1e-3);
-    f64::min(estimated_count, sample_size / fraction)
+    // log::error!("current_count= {}, sample_size= {}, fraction= {}: estimated_count= {}", current_count, sample_size, fraction, estimated_count);
+    f64::min(estimated_count, total_count)
 }
 
 
@@ -101,7 +135,8 @@ impl MM0CountDistinct {
                 .into_iter()
                 .zip(count_total.into_iter())
                 .map(|(cd_opt, ct_opt)| {
-                    mm0_scale(cd_opt.unwrap() as f64, ct_opt.unwrap() as f64, fraction)
+                    // mm0_scale(cd_opt.unwrap() as f64, ct_opt.unwrap() as f64, fraction)
+                    mm1_scale(cd_opt.unwrap() as f64, ct_opt.unwrap() as f64, fraction)
                 })
                 .collect::<Series>()
         }).expect("Failed to apply mm0");
