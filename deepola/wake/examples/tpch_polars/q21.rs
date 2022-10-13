@@ -197,12 +197,13 @@ pub fn query(
     let mut accumulator1 = AggAccumulator::new();
     accumulator1
         .set_group_key(vec!["s_name".into()])
-        .set_aggregates(vec![("l_suppkey_count".into(), vec!["sum".into()])]);
-        // .set_scaler(AggregateScaler::new_growing()
-        //     .count_column("l_orderkey_count".into())
-        //     .scale_count("l_orderkey_count".into())
-        //     .into_rc()
-        // );
+        .set_aggregates(vec![("l_suppkey_count".into(), vec!["sum".into()])])
+        .set_add_count_column(true)
+        .set_scaler(AggregateScaler::new_growing()
+            .remove_count_column()  // Remove added group count column
+            .scale_sum("l_suppkey_count_sum".into())
+            .into_rc()
+        );
     let groupby_node = AccumulatorNode::<DataFrame, AggAccumulator>::new()
         .accumulator(accumulator1)
         .build();
