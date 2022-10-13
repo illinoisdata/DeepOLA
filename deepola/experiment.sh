@@ -33,8 +33,9 @@ do
 	else
 		expt=latency
 	fi
-	echo ">>> ${qdx}, run= {$j}, expt= ${expt}"
-	expt_output_dir=saved-outputs/scale=${scale}/partition=${partition}/${format}/run=${j}
+	echo ">>> ${qdx}, run= ${j}, expt= ${expt}"
+    expt_output_dir=saved-outputs/scale=${scale}/partition=${partition}/${format}/run=${j}
+    expt_output_dir_ref=saved-outputs/scale=${scale}/partition=${partition}/${format}/run=0
 	mkdir -p $expt_output_dir
 	echo "Evicting Cache"
 	vmtouch -e ${data_dir}/scale=${scale}/partition=${partition}/${format}
@@ -44,5 +45,10 @@ do
             query q${qdx} ${scale} \
             ${data_dir}/scale=${scale}/partition=${partition}/${format} ${query_output_dir} ${expt} 2>>$expt_output_dir/results.csv
         set +x
+
+    if [ $j -ne 0 ]; then
+        echo "Extracting accuracy at run= ${j}"
+        python3 ../scripts/extract_accuracy.py ${expt_output_dir} ${expt_output_dir_ref} ${qdx}
+    fi
     done
 done
