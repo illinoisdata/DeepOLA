@@ -36,6 +36,8 @@ on_dict = {
     23: [],
     24: ["c_mktsegment"],
     25: [],
+    26: ["l_returnflag", "l_linestatus"],
+    27: [],
 }
 
 def read_dir(q_idx, dirpath):

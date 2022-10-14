@@ -1,7 +1,7 @@
 """
-Example: merging across 10 runs over all 25 queries and name table with prefix fooHundred.
+Example: merging across 10 runs over all 27 queries and name table with prefix fooHundred.
 
-    for qidx in {1..25}; do \
+    for qidx in {1..27}; do \
         python scripts/merge_accuracy.py \
             deepola/wake/saved-vanilla/scale\=100/partition\=512M/parquet \
             1 10 ${qidx} ./merged.txt --latex_name fooHundred; \

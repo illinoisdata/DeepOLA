@@ -18,14 +18,18 @@ scale=$2
 partition=$3
 num_runs=$4
 start_run=$5
-format=parquet
 
 # Build benchmark script
 cargo build --release --example tpch_polars
 
 # The experiment loop
-for qdx in {1..25}
+for qdx in {1..27}
 do
+    if [ ${qdx} -eq 26 ] || [ ${qdx} -eq 27 ]; then
+	format=cleaned-parquet
+    else
+	format=parquet
+    fi
     for ((j = ${start_run}; j <= ${num_runs}; j++))
     do
 	if [ $j -eq 0 ]; then
