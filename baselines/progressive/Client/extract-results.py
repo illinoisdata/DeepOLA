@@ -51,4 +51,4 @@ if __name__ == "__main__":
             meta_data["time_measures_ns"].sort()
             meta_data["progress"].sort()
             with open(f"outputs/scale={scale}/{variation}/run={run}/{query}/meta.json",'w') as f:
-                f.write(json.dumps(meta_data, indent=2))
+                json.dump(meta_data, f)
