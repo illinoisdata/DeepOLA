@@ -52,7 +52,7 @@ do
 
     if [ $j -ne 0 ]; then
         echo "Extracting accuracy at run= ${j}"
-        python3 ../scripts/extract_accuracy.py ${expt_output_dir} ${expt_output_dir_ref} ${qdx}
+        python3 ../scripts/extract_accuracy.py wake ${expt_output_dir} ${expt_output_dir_ref} ${qdx}
     fi
     done
 done
