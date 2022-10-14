@@ -3,6 +3,7 @@ use polars::prelude::*;
 use crate::data::*;
 use crate::graph::ExecutionNode;
 use crate::processor::StreamProcessor;
+use crate::utils::log_event;
 
 pub struct CSVReaderBuilder {
     delimiter: char,
@@ -119,22 +120,20 @@ impl StreamProcessor<DataFrame> for CSVReader {
         input_stream: crate::channel::MultiChannelReader<DataFrame>,
         output_stream: crate::channel::MultiChannelBroadcaster<DataFrame>,
     ) {
-        let mut start_time = std::time::Instant::now();
         loop {
             let channel_seq = 0;
             let message = input_stream.read(channel_seq);
-            log::info!(
-                "[logging] type=execution thread={:?} action=read time={:?}",
-                std::thread::current().id(),
-                start_time.elapsed().as_micros()
-            );
-            start_time = std::time::Instant::now();
+            log_event("process-message", "start");
             match message.payload() {
                 Payload::EOF => {
                     output_stream.write(message);
+                    log_event("process-message", "end");
                     break;
                 }
-                Payload::Signal(_) => break,
+                Payload::Signal(_) => {
+                    log_event("process-message", "end");
+                    break;
+                }
                 Payload::Some(dblock) => {
                     let mut metadata = dblock.metadata().clone();
                     let mut expected_total_records =
@@ -173,20 +172,10 @@ impl StreamProcessor<DataFrame> for CSVReader {
                             output_stream.write(output_message);
                         }
                     }
+                    log_event("process-message", "end");
                 }
             }
-            log::info!(
-                "[logging] type=execution thread={:?} action=process time={:?}",
-                std::thread::current().id(),
-                start_time.elapsed().as_micros()
-            );
-            start_time = std::time::Instant::now();
         }
-        log::info!(
-            "[logging] type=execution thread={:?} action=process time={:?}",
-            std::thread::current().id(),
-            start_time.elapsed().as_micros()
-        );
     }
 }
 

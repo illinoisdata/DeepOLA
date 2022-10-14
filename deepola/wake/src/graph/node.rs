@@ -1,5 +1,6 @@
 use crate::data::*;
 use crate::processor::*;
+use crate::utils::{log_event, log_node_edge};
 
 use getset::{Getters, Setters};
 use nanoid::nanoid;
@@ -80,11 +81,7 @@ impl<T: Send + 'static> ExecutionNode<T> {
     pub fn subscribe_to_node(&self, source_node: &ExecutionNode<T>, for_channel: usize) {
         let writer = &self.self_writers[for_channel];
         source_node.add(writer.clone());
-        log::info!(
-            "[logging] type=node-edge source={} dest={}",
-            source_node.node_id(),
-            self.node_id()
-        );
+        log_node_edge(source_node.node_id(), self.node_id());
     }
 
     /// Processes the data from input stream until we see EOF from all input channels.
@@ -114,32 +111,19 @@ impl<T: Send + 'static> ExecutionNode<T> {
         }
 
         // Pre-processing (if needed)
-        log::debug!("Starts Pre-Processing for Node: [{}]", self.node_id());
-        let start_time = std::time::Instant::now();
+        log_event("pre-process", "start");
         self.stream_processor
             .borrow_mut()
             .pre_process(input_reader.clone());
-        log::info!(
-            "[logging] type=pre-process node={} duration={} unit=micros",
-            self.node_id(),
-            start_time.elapsed().as_micros()
-        );
-        log::debug!("Finished Pre-Processing for Node: [{}]", self.node_id());
+        log_event("pre-process", "end");
 
         // Actual data processing
-        log::debug!("Starts Data Processing for Node: [{}]", self.node_id());
-        let start_time = std::time::Instant::now();
+        log_event("process-stream", "start");
         self.stream_processor()
             .borrow()
             .process_stream(input_reader.clone(), output_writer.clone());
-        log::info!(
-            "[logging] type=process-stream node={} duration={} unit=micros",
-            self.node_id(),
-            start_time.elapsed().as_micros()
-        );
-        log::debug!("Finished Data Processing for Node: [{}]", self.node_id());
+        log_event("process-stream", "end");
 
-        log::debug!("Terminating Node: [{}]", self.node_id());
     }
 
     pub fn input_reader(&self) -> MultiChannelReader<T> {

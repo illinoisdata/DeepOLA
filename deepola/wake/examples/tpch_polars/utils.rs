@@ -131,6 +131,7 @@ pub fn run_query(
     let mut epoch = 0;
 
     let start_time = Instant::now();
+    log::warn!("Query {} has {} nodes", _query_no, query_service.nodes().len());
     query_service.run();
     loop {
         let message = output_reader.read();
@@ -144,13 +145,15 @@ pub fn run_query(
             let file_path = results_dir_path.join(format!("{}.csv", epoch));
             save_df_to_csv(&mut data.clone(), &file_path);
             if epoch % 10 == 0 {
-                log::warn!(
-                    "Query Result {} Took: {:.2?}",
-                    epoch + 1,
-                    duration
-                );
                 log::warn!("Saved query result to {:?}", file_path);
             }
+        }
+        if epoch % 10 == 0 {
+            log::warn!(
+                "Query Result {} Took: {:.2?}",
+                epoch + 1,
+                duration
+            );
         }
         query_result_time_ns.push(duration.as_nanos());
         last_df = data.clone();

@@ -9,6 +9,7 @@ use crate::data::{
     MetaCell,
     Payload,
 };
+use crate::utils::log_event;
 
 use super::StreamProcessor;
 
@@ -28,17 +29,11 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
         input_stream: crate::channel::MultiChannelReader<T>,
         output_stream: crate::channel::MultiChannelBroadcaster<T>,
     ) {
-        let mut start_time = std::time::Instant::now();
         let mut last_metadata: Option<HashMap<String, MetaCell>> = None;
         loop {
             let channel_seq = 0;
             let message = input_stream.read(channel_seq);
-            log::info!(
-                "[logging] type=execution thread={:?} action=read time={:?}",
-                std::thread::current().id(),
-                start_time.elapsed().as_micros()
-            );
-            start_time = std::time::Instant::now();
+            log_event("process-message", "start");
             match message.payload() {
                 Payload::EOF => {
                     if let Some(df_acc) = self.post_process_msg() {
@@ -50,9 +45,10 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
                         }
                         let post_process_dblock = DataBlock::new(df_acc, eof_metadata);
                         let post_process_msg = DataMessage::from(post_process_dblock);
-                        output_stream.write(post_process_msg)
+                        output_stream.write(post_process_msg);
                     }
                     output_stream.write(message);
+                    log_event("process-message", "end");
                     break;
                 }
                 Payload::Some(dblock) => {
@@ -64,23 +60,14 @@ impl<T: Send, R: MessageProcessor<T> + Send> StreamProcessor<T> for R {
                         let output_message = DataMessage::from(output_dblock);
                         output_stream.write(output_message);
                     }
+                    log_event("process-message", "end");
                 }
                 Payload::Signal(_) => {
+                    log_event("process-message", "end");
                     break;
                 }
             }
-            log::info!(
-                "[logging] type=execution thread={:?} action=process time={:?}",
-                std::thread::current().id(),
-                start_time.elapsed().as_micros()
-            );
-            start_time = std::time::Instant::now();
         }
-        log::info!(
-            "[logging] type=execution thread={:?} action=process time={:?}",
-            std::thread::current().id(),
-            start_time.elapsed().as_micros()
-        );
     }
 }
 
@@ -138,8 +125,10 @@ pub trait MessageFractionProcessor<T: Clone + Send>: Send {
         loop {
             let channel_seq = 0;
             let message = input_stream.read(channel_seq);
+            log_event("process-message", "start");
             match message.payload() {
                 Payload::EOF => {
+                    log_event("process-message", "end");
                     output_stream.write(message);
                     break;
                 }
@@ -150,9 +139,11 @@ pub trait MessageFractionProcessor<T: Clone + Send>: Send {
                     let output_df = self.process(dblock.data(), fraction);
                     let output_dblock = DataBlock::new(output_df, dblock.metadata().clone());
                     let output_message = DataMessage::from(output_dblock);
+                    log_event("process-message", "end");
                     output_stream.write(output_message);
                 }
                 Payload::Signal(_) => {
+                    log_event("process-message", "end");
                     break;
                 }
             }

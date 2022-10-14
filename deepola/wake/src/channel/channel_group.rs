@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::data::DataMessage;
+use crate::{data::DataMessage, utils::log_event};
 
 use super::single_channel::*;
 
@@ -34,6 +34,7 @@ impl<T: Send> MultiChannelReader<T> {
 
     /// Read a message from the seq_no-th reader.
     pub fn read(&self, seq_no: usize) -> DataMessage<T> {
+        log_event(&format!("read-message-channel-{}",seq_no), "start");
         let reader = self.reader(seq_no);
         let message = reader.read();
         log::debug!(
@@ -41,6 +42,7 @@ impl<T: Send> MultiChannelReader<T> {
             reader.channel_id(),
             message
         );
+        log_event(&format!("read-message-channel-{}",seq_no), "end");
         message
     }
 }
@@ -82,10 +84,12 @@ impl<T: Send> MultiChannelBroadcaster<T> {
 
     /// Broadcast a message to all writers.
     pub fn write(&self, message: DataMessage<T>) {
+        log_event("write-message", "start");
         for w in self.iter() {
             log::debug!("Writes to (channel: {}). {:?}.", w.channel_id(), message);
             w.write(message.clone())
         }
+        log_event("write-message", "end");
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &ChannelWriter<T>> + '_ {
