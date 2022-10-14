@@ -29,7 +29,7 @@ if __name__ == "__main__":
     incorrect_queries = []
     baseline_not_available = []
     results_not_available = []
-    for qdx in range(1,26):
+    for qdx in range(1,27):
         try:
             obtained_df = get_obtained_df(scale, results_dir, qdx)
         except:

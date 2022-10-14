@@ -22,11 +22,11 @@ mod q2;
 mod q20;
 mod q21;
 mod q22;
-mod q23;
-mod q24;
-mod q25;
-mod q26;
-mod q27;
+mod q23; // WanderJoin Q3
+mod q24; // WanderJoin Q10
+mod q25; // WanderJoin Q7
+mod q26; // ProgressiveDB Q1
+mod q27; // ProgressiveDB Q6
 mod q3;
 mod q4;
 mod q5;
