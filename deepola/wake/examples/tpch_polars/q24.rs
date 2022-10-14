@@ -1,17 +1,15 @@
 use crate::prelude::*;
 
 /// WanderJoin's modified Q10.
-/// Refer: https://github.com/InitialDLab/XDB/blob/master/queries/query10_selection_groupby.sql
+/// Refer: https://github.com/InitialDLab/XDB/blob/master/queries/query10_online_groupby.sql
 /// This node implements the following SQL query
-// SELECT c_mktsegment, SUM(l_extendedprice * (1 - l_discount))
-// FROM customer, lineitem, orders , nation
-// WHERE c_custkey = o_custkey
-// 	AND	l_orderkey = o_orderkey
-// 	AND l_returnflag = 'R'
-// 	AND c_nationkey = n_nationkey
-// 	AND l_shipdate >= date '1994-05-04'
-// 	AND l_shipdate < date '1994-05-04' + interval '12' month
-// GROUP BY c_mktsegment;
+// SELECT ONLINE c_mktsegment, SUM(l_extendedprice * (1 - l_discount))
+// FROM customer, lineitem, orders, nation
+// WHERE   c_custkey = o_custkey
+//     AND l_orderkey = o_orderkey
+//     AND l_returnflag = 'R'
+//     AND c_nationkey = n_nationkey
+// GROUP BY c_mktsegment
 
 pub fn query(
     tableinput: HashMap<String, TableInput>,
@@ -58,11 +56,8 @@ pub fn query(
     // WHERE Node
     let lineitem_where_node = AppenderNode::<DataFrame, MapAppender>::new()
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
-            let var_date_1 = days_since_epoch(1994,5,4);
-            let var_date_2 = days_since_epoch(1995,5,4);
-            let l_shipdate = df.column("l_shipdate").unwrap();
             let l_returnflag = df.column("l_returnflag").unwrap();
-            let mask = l_shipdate.gt_eq(var_date_1).unwrap() & l_shipdate.lt(var_date_2).unwrap() & l_returnflag.equal("R").unwrap();
+            let mask = l_returnflag.equal("R").unwrap();
             df.filter(&mask).unwrap()
         })))
         .build();
