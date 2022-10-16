@@ -19,7 +19,7 @@ do
 	for query_no in {1..22}
 	do
 		echo "Clearing Cache"
-		sudo docker exec -it pgsql-$scale sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
+		sudo docker exec -it pgsql-$scale psql -U postgres -c "DISCARD ALL;"
 		echo "Executing $query_no"
 		sudo docker exec -it pgsql-$scale psql -U postgres -c "\pset pager off" -c "\timing" -f "$query_dir/$query_no.sql" > $output_dir/q$query_no-run$run.log
 	done
