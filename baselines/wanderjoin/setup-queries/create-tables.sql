@@ -1,17 +1,17 @@
-CREATE TABLE region (
+CREATE UNLOGGED TABLE region (
 	r_regionkey INTEGER PRIMARY KEY,
 	r_name CHAR(25),
 	r_comment VARCHAR(152)
 );
 
-CREATE TABLE nation (
+CREATE UNLOGGED TABLE nation (
 	n_nationkey INTEGER PRIMARY KEY,
 	n_name CHAR(25),
 	n_regionkey INTEGER REFERENCES region(r_regionkey),
 	n_comment VARCHAR(152)
 );
 
-CREATE TABLE supplier (
+CREATE UNLOGGED TABLE supplier (
 	s_suppkey INTEGER PRIMARY KEY,
 	s_name CHAR(25),
 	s_address VARCHAR(40),
@@ -21,7 +21,7 @@ CREATE TABLE supplier (
 	s_comment VARCHAR(101)
 );
 
-CREATE TABLE part (
+CREATE UNLOGGED TABLE part (
 	p_partkey INTEGER PRIMARY KEY,
 	p_name VARCHAR(55),
 	p_mfgr CHAR(25),
@@ -33,7 +33,7 @@ CREATE TABLE part (
 	p_comment VARCHAR(23)
 );
 
-CREATE TABLE customer (
+CREATE UNLOGGED TABLE customer (
 	c_custkey INTEGER PRIMARY KEY,
 	c_name VARCHAR(25),
 	c_address VARCHAR(40),
@@ -45,7 +45,7 @@ CREATE TABLE customer (
 
 );
 
-CREATE TABLE partsupp (
+CREATE UNLOGGED TABLE partsupp (
 	ps_partkey INTEGER REFERENCES part(p_partkey),
 	ps_suppkey INTEGER REFERENCES supplier(s_suppkey),
 	ps_availqty INTEGER,
@@ -54,7 +54,7 @@ CREATE TABLE partsupp (
 	PRIMARY KEY (ps_partkey, ps_suppkey)
 );
 
-CREATE TABLE orders (
+CREATE UNLOGGED TABLE orders (
 	o_orderkey INTEGER PRIMARY KEY,
 	o_custkey INTEGER REFERENCES customer(c_custkey),
 	o_orderstatus CHAR(1),
@@ -66,7 +66,7 @@ CREATE TABLE orders (
 	o_comment VARCHAR(79)
 );
 
-CREATE TABLE lineitem (
+CREATE UNLOGGED TABLE lineitem (
 	l_orderkey INTEGER REFERENCES orders(o_orderkey),
 	l_partkey INTEGER,
 	l_suppkey INTEGER,

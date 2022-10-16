@@ -22,5 +22,4 @@ $PSQL -d $DB -c "COPY part FROM '$FILE_PATH/part.tbl' WITH delimiter '|' CSV;";
 $PSQL -d $DB -c "COPY partsupp FROM '$FILE_PATH/partsupp.tbl' WITH delimiter '|' CSV;";
 $PSQL -d $DB -c "COPY orders FROM '$FILE_PATH/orders.tbl' WITH delimiter '|' CSV;";
 $PSQL -d $DB -c "COPY lineitem FROM '$FILE_PATH/lineitem.tbl' WITH delimiter '|' CSV;";
-$PSQL -d $DB -f "setup-queries/create-index.sql"
-$PSQL -d $DB -f "setup-queries/scan-tables.sql"
+$PSQL -d $DB -f "setup-queries/create-indexes.sql"
