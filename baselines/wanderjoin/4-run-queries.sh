@@ -27,5 +27,6 @@ do
         if [ $USE_CACHE -ne 1 ]; then
             ${PSQL} -d ${DB} -c "DISCARD ALL"
         fi
-        ${PSQL} -d ${DB} -f ${query} -o ${OUTPUT_DIR}/${query_name}.csv -F ',' -A
+        ${PSQL} -d ${DB} -f ${query} -o ${OUTPUT_DIR}/${query_name}-cache-${USE_CACHE}.csv -F ',' -A
     done
+done
