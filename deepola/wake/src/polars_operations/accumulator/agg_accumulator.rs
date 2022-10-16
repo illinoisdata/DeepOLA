@@ -25,6 +25,11 @@ pub struct AggAccumulator {
     #[get = "pub"]
     group_key: Vec<String>,
 
+    /// Group attributes
+    #[set = "pub"]
+    #[get = "pub"]
+    group_attributes: Vec<String>,
+
     /// Used to specify aggregations for each column
     #[set = "pub"]
     #[get = "pub"]
@@ -57,6 +62,7 @@ impl AggAccumulator {
     pub fn new() -> Self {
         AggAccumulator {
             group_key: vec![],
+            group_attributes: vec![],
             accumulated: RefCell::new(DataFrame::empty()),
             aggregates: vec![],
             add_count_column: false,
@@ -130,6 +136,12 @@ impl AggAccumulator {
                 vec!["sum".into()],  // To join counts, meed to perform sum
             ))
         }
+        for attribute in self.group_attributes() {
+            acc_aggs.push((
+                format!("{}_{}", attribute, "first"),
+                vec!["first".into()],
+            ))
+        }
         acc_aggs
     }
 
@@ -139,6 +151,12 @@ impl AggAccumulator {
             aggregates.push((
                 DEFAULT_GROUP_COLUMN.into(),
                 vec!["count".into()],
+            ))
+        }
+        for attribute in self.group_attributes() {
+            aggregates.push((
+                attribute.into(),
+                vec!["first".into()],
             ))
         }
         aggregates

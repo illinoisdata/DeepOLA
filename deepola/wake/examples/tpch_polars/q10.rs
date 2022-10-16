@@ -130,6 +130,8 @@ pub fn query(
     sum_accumulator
         .set_group_key(vec![
             "o_custkey".into(),
+        ])
+        .set_group_attributes(vec![
             "c_name".into(),
             "c_acctbal".into(),
             "c_phone".into(),
@@ -147,13 +149,13 @@ pub fn query(
         .appender(MapAppender::new(Box::new(|df: &DataFrame| {
             let cols = vec![
                 "o_custkey",
-                "c_name",
+                "c_name_first",
                 "disc_price_sum",
-                "c_acctbal",
-                "c_phone",
-                "n_name",
-                "c_address",
-                "c_comment",
+                "c_acctbal_first",
+                "c_phone_first",
+                "n_name_first",
+                "c_address_first",
+                "c_comment_first",
             ];
             df.select(cols)
                 .unwrap()
