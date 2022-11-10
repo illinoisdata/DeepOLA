@@ -6,6 +6,7 @@ use crate::data::{
     MetaCell,
     Payload,
 };
+use crate::utils::log_event;
 use crate::{
     channel::{MultiChannelBroadcaster, MultiChannelReader},
     processor::StreamProcessor,
@@ -154,42 +155,42 @@ impl StreamProcessor<DataFrame> for MapperDfMerger {
         let mut eof_left = false;
         let mut eof_right = false;
         loop {
-            let start_time = std::time::Instant::now();
-
             // if both sides don't need any more inputs, we can merge and produce an output.
             if (eof_left || !self.needs_left().borrow()) && (eof_right || !self.needs_right().borrow()) {
                 // merge will set needs_left or needs_right to true; thus, in the next iteration,
                 // this condition won't be satisfied.
+                log_event("process-message", "start");
                 let output_df = self.merge();
                 let output_metadata = self.current_metadata();
                 let output_dblock = DataBlock::new(output_df, output_metadata);
                 let output_message = DataMessage::from(output_dblock);
                 output_stream.write(output_message);
-                log::info!(
-                    "[logging] type=execution thread={:?} action=process time={:?}",
-                    std::thread::current().id(),
-                    start_time.elapsed().as_micros()
-                );
+                log_event("process-message", "end");
                 continue;
             }
 
             if !eof_left && self.needs_left() {
                 let message = input_stream.read(channel_left);
+                log_event("process-message", "start");
                 match message.payload() {
                     Payload::EOF => {
                         if self.eof_behavior == MapperDfEOFBehavior::AnyEOF || self.eof_behavior == MapperDfEOFBehavior::LeftEOF {
                             output_stream.write(message);
+                            log_event("process-message", "end");
                             break;
                         } else {
                             eof_left = true;
+                            log_event("process-message", "end");
                             continue;
                         }
                     }
                     Payload::Signal(_) => {
+                        log_event("process-message", "end");
                         break;
                     }
                     Payload::Some(data_block) => {
                         self.supply_left(data_block);
+                        log_event("process-message", "end");
                         continue;
                     }
                 }
@@ -197,21 +198,26 @@ impl StreamProcessor<DataFrame> for MapperDfMerger {
 
             if !eof_right && self.needs_right() {
                 let message = input_stream.read(channel_right);
+                log_event("process-message", "start");
                 match message.payload() {
                     Payload::EOF => {
                         if self.eof_behavior == MapperDfEOFBehavior::AnyEOF || self.eof_behavior == MapperDfEOFBehavior::RightEOF {
                             output_stream.write(message);
+                            log_event("process-message", "end");
                             break;
                         } else {
                             eof_right = true;
+                            log_event("process-message", "end");
                             continue;
                         }
                     }
                     Payload::Signal(_) => {
+                        log_event("process-message", "end");
                         break;
                     }
                     Payload::Some(data_block) => {
                         self.supply_right(data_block);
+                        log_event("process-message", "end");
                         continue;
                     }
                 }

@@ -1,6 +1,8 @@
 use getset::Getters;
 use std::thread::{self, JoinHandle};
 
+use crate::utils::log_node_mapping;
+
 use super::node::ExecutionNode;
 
 #[derive(Getters)]
@@ -34,11 +36,7 @@ impl<T: Send + 'static> ExecutionService<T> {
                 node.run();
                 node
             });
-            log::info!(
-                "[logging] type=node-thread-map node={} thread={:?}",
-                node_id,
-                handle.thread().id()
-            );
+            log_node_mapping(&node_id, handle.thread().id());
             self.thread_handles.push(handle);
         }
     }
