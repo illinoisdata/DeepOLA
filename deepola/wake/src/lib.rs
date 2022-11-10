@@ -5,6 +5,7 @@ pub mod inference;
 pub mod polars_operations;
 pub mod processor;
 pub mod forecast;
+pub mod utils;
 
 #[cfg(test)]
 mod tests {
