@@ -1,73 +1,51 @@
-use std::{cell::{RefCell, Ref}, rc::{Rc, Weak}, borrow::{Borrow, BorrowMut}};
-use std::convert::AsRef;
+use std::{cell::RefCell, sync::Arc};
 use getset::{Getters,Setters};
 
-// pub struct ExecutionService {
-//     count: usize,
-//     nodes: Vec<Rc<RefCell<ExecutionNode>>>,
-// }
-
-pub trait BufferedProcessor {
-    fn map(&mut self, input: i64) -> i64 { input }
-
-    fn get_output_partition(&mut self, partition_num: usize) -> Option<i64>;
-
-    fn set_node(&mut self, node: Weak<RefCell<ExecutionNode>>);
-}
+use crate::BufferedProcessor;
 
 #[derive(Getters, Setters)]
 pub struct ExecutionNode {
     node_id: usize,
-    parents: Vec<Rc<RefCell<ExecutionNode>>>,
+    parents: Vec<Arc<RefCell<ExecutionNode>>>,
     progress: usize,
-    operation: Rc<RefCell<Box<dyn BufferedProcessor>>>,
+    operation: Arc<RefCell<Box<dyn BufferedProcessor>>>,
 }
 
+unsafe impl Send for ExecutionNode {}
+unsafe impl Sync for ExecutionNode {}
+
 impl ExecutionNode {
-    // fn new(operation: Box<dyn BufferedProcessor>) -> Rc<RefCell<ExecutionNode>> {
-    //     let execution_node = Rc::new(RefCell::new(
-    //         ExecutionNode {
-    //             node_id: 0,
-    //             parents: vec![],
-    //             operation: Rc::clone(&Rc::new(RefCell::new(operation))),
-    //         }
-    //     ));
-    //     operation.as_ref().borrow_mut().set_node(Rc::downgrade(&execution_node));
-    //     execution_node
-    // }
-
-    // fn get(&mut self, progress) -> Option<i64> {
-    //     let next_result = 1 + self.progress;
-    //     let result = self.get_output_partition(next_result);
-    //     self.progress += 1;
-    //     result
-    // }
-
-    fn new(operation: Box<dyn BufferedProcessor>) -> Rc<RefCell<ExecutionNode>> {
-        let execution_node = Rc::new(RefCell::new(
+    pub fn new(operation: Box<dyn BufferedProcessor>) -> Arc<RefCell<ExecutionNode>> {
+        let execution_node = Arc::new(RefCell::new(
             ExecutionNode {
-            node_id: 0,
-            parents: vec![],
-            progress: 0,
-            operation: Rc::clone(&Rc::new(RefCell::new(operation))),
+                node_id: 0,
+                parents: vec![],
+                progress: 0,
+                operation: Arc::new(RefCell::new(operation)),
         }));
-        execution_node.as_ref().borrow().operation.as_ref().borrow_mut().set_node(Rc::downgrade(&execution_node));
+        execution_node.as_ref().borrow().operation.as_ref().borrow_mut().set_node(Arc::downgrade(&execution_node));
         execution_node
     }
 
-    fn run(&mut self) {
-        println!("Starting Execution");
+    pub fn get(&mut self) -> Option<i64> {
+        todo!("User facing interface that allows to obtain the result for next partition");
     }
 
-    fn get_output_partition(&self, partition_num: usize) -> Option<i64> {
+    pub fn run(&mut self) {
+        todo!("Run execution of all available partitions");
+    }
+
+    // Node obtains ith output operation by invoking the operation's get_output_partition.
+    pub fn get_output_partition(&self, partition_num: usize) -> Option<i64> {
         let result = self.operation.as_ref().borrow_mut().get_output_partition(partition_num);
         result
     }
 
-    fn get_input_partition(&self, seq_no: usize, partition_num: usize) -> Option<i64> {
-        println!("Getting Input from seq_no: {} when parents are: {}", seq_no, self.parents.len());
+    // Interface to obtain `partition_num` partition from the parent node at `seq_no`.
+    // The operation panics if no such parent node is available else returns the partition.
+    pub fn get_input_partition(&self, seq_no: usize, partition_num: usize) -> Option<i64> {
         if seq_no >= self.parents.len()  {
-            None
+            panic!("No parent node at seq_no: {}", seq_no);
         } else {
             let parent_node_rc = self.parents.get(seq_no).unwrap();
             let result = parent_node_rc.as_ref().borrow().get_output_partition(partition_num);
@@ -75,109 +53,56 @@ impl ExecutionNode {
         }
     }
 
-    fn subscribe_to_node(&mut self, parent: &Rc<RefCell<ExecutionNode>>) {
+    // Connect nodes through parent pointers.
+    pub fn subscribe_to_node(&mut self, parent: &Arc<RefCell<ExecutionNode>>) {
         self.parents.push(parent.clone());
     }
 
-}
-
-// Concrete operations that implement the BufferedProcessor trait.
-
-// Operation 1: Reader [] => This is a generator for input data.
-pub struct Reader {
-    node: Option<Weak<RefCell<ExecutionNode>>>,
-    input_data: Vec<i64>,
-}
-impl BufferedProcessor for Reader {
-    fn get_output_partition(&mut self, partition_num: usize) -> Option<i64> {
-        println!("GET OUTPUT PARTITION CALLED FOR READER");
-        let value = self.input_data.get(partition_num);
-        if let Some(x) = value {
-            Some(*x)
-        } else {
-            None
+    pub fn get_all_results(&self) -> Vec<i64> {
+        let mut count = 0;
+        let mut output = vec![];
+        loop {
+            let result = self.get_output_partition(count);
+            println!("Node: {}, Result: {:?}", self.node_id, result);
+            match result {
+                Some(x) => {output.push(x); count += 1;},
+                None => {break;}
+            }
         }
+        output
     }
 
-    fn map(&mut self, input: i64) -> i64 {
-        input
-    }
-
-    fn set_node(&mut self, node: Weak<RefCell<ExecutionNode>>) {
-        self.node = Some(node);
-    }
-}
-
-pub enum MapperOp {
-    Add,
-    Mul
-}
-
-// Operation 2: Appender [] => Can have custom map implementations.
-pub struct Mapper {
-    node: Option<Weak<RefCell<ExecutionNode>>>,
-    acc: i64,
-    op: MapperOp,
-}
-impl BufferedProcessor for Mapper {
-    fn get_output_partition(&mut self, partition_num: usize) -> Option<i64> {
-        println!("GET OUTPUT PARTITION CALLED FOR MAPPER");
-        match &self.node {
-            Some(node) => {
-                let execution_node = node.upgrade().unwrap();
-                let input_partition = execution_node.as_ref().borrow().get_input_partition(0, partition_num);
-                match input_partition {
-                    Some(a) => Some(self.map(a)),
-                    None => None
-                }
-            },
-            None => panic!("ExecutionNode not created!")
-        }
-    }
-
-    fn map(&mut self, input: i64) -> i64 {
-        match self.op {
-            MapperOp::Add => { self.acc += input; },
-            MapperOp::Mul => { self.acc *= input; },
-        }
-        self.acc
-    }
-
-    fn set_node(&mut self, node: Weak<RefCell<ExecutionNode>>) {
-        self.node = Some(node);
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::thread;
+
+    use crate::*;
 
     #[test]
-    fn test_node_creation() {
-        println!("Test Runs");
-        let reader = Box::new(Reader { node: None, input_data : vec![1,2,3,4,5,6,7,8,9,10]});
-        let adder = Box::new(Mapper { node: None, acc: 0, op: MapperOp::Add});
-        let multiplier = Box::new(Mapper { node: None, acc: 1, op: MapperOp::Mul});
+    fn test_single_mapper_node() {
+        // Creating Operations
+        let reader = Box::new(Reader::new(vec![1,2,3,4,5,6,7,8,9,10]));
+        let adder = Box::new(Mapper::new(0, MapperOp::Add));
 
-        let reader_node = ExecutionNode::new(reader); // Specify lazy mode
+        // Creating Nodes from these operations
+        let reader_node = ExecutionNode::new(reader);
         let adder_node = ExecutionNode::new(adder);
-        let multiplier_node = ExecutionNode::new(multiplier); // Specify lazy mode
 
+        // Connecting the created nodes.
         adder_node.as_ref().borrow_mut().subscribe_to_node(&reader_node);
-        multiplier_node.as_ref().borrow_mut().subscribe_to_node(&reader_node);
 
-        println!("Nodes Created. Subscriptions Done.");
-
+        // Obtain the result from the final node in the execution graph.
+        let expected_result = vec![1, 3, 6, 10, 15, 21, 28, 36, 45, 55];
         let mut count = 0;
         loop {
             let result = adder_node.as_ref().borrow().get_output_partition(count);
-            // let result = multiplier_node.as_ref().borrow().get_output_partition(count);
             match result {
-                Some(x) => { println!("Result: {:?}", x); },
+                Some(x) => { assert_eq!(x, *expected_result.get(count).unwrap()); },
                 None => { break; }
             }
             count += 1;
         }
     }
-
 }
