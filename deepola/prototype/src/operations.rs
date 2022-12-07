@@ -1,5 +1,4 @@
-use std::sync::Weak;
-use std::cell::RefCell;
+use std::sync::{Weak, RwLock};
 use std::convert::AsRef;
 
 use getset::{Getters, Setters};
@@ -11,14 +10,14 @@ pub trait BufferedProcessor {
 
     fn get_output_partition(&mut self, partition_num: usize) -> Option<i64>;
 
-    fn set_node(&mut self, node: Weak<RefCell<ExecutionNode>>);
+    fn set_node(&mut self, node: Weak<RwLock<ExecutionNode>>);
 }
 
 // Concrete operations that implement the BufferedProcessor trait.
 // Operation 1: Reader [] => This is a generator for input data.
 #[derive(Getters, Setters)]
 pub struct Reader {
-    node: Option<Weak<RefCell<ExecutionNode>>>,
+    node: Option<Weak<RwLock<ExecutionNode>>>,
     input_data: Vec<i64>,
 }
 
@@ -48,7 +47,7 @@ impl BufferedProcessor for Reader {
     }
 
     // Need to have this operation because `dyn BufferedProcessor` cannot do .node = <>
-    fn set_node(&mut self, node: Weak<RefCell<ExecutionNode>>) {
+    fn set_node(&mut self, node: Weak<RwLock<ExecutionNode>>) {
         self.node = Some(node);
     }
 }
@@ -61,7 +60,7 @@ pub enum MapperOp {
 // Operation 2: Appender [] => Can have custom map implementations.
 #[derive(Getters, Setters)]
 pub struct Mapper {
-    node: Option<Weak<RefCell<ExecutionNode>>>,
+    node: Option<Weak<RwLock<ExecutionNode>>>,
     acc: i64,
     op: MapperOp,
 }
@@ -81,7 +80,7 @@ impl BufferedProcessor for Mapper {
         match &self.node {
             Some(node) => {
                 let execution_node = node.upgrade().unwrap();
-                let input_partition = execution_node.as_ref().borrow().get_input_partition(0, partition_num);
+                let input_partition = execution_node.as_ref().read().unwrap().get_input_partition(0, partition_num);
                 match input_partition {
                     Some(a) => Some(self.map(a)),
                     None => None
@@ -99,7 +98,7 @@ impl BufferedProcessor for Mapper {
         self.acc
     }
 
-    fn set_node(&mut self, node: Weak<RefCell<ExecutionNode>>) {
+    fn set_node(&mut self, node: Weak<RwLock<ExecutionNode>>) {
         self.node = Some(node);
     }
 }
