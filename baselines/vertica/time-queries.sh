@@ -23,7 +23,7 @@ do
 		# Clearing both Kernel Cache and Vertica Internal Cache.
 		echo "Clearing VSQL Cache"
 		vsql -i -c "SELECT CLEAR_CACHES()"
-		sync && echo 3 | sudo tee /proc/sys/vm/drop_caches
+		sudo $path/scripts/clear-cache.sh
 
 		# Executing Queries
 		echo "Executing $query_no"
