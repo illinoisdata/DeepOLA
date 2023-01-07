@@ -5,7 +5,7 @@ import re
 output_dir="outputs"
 scale=100
 start_run=1
-num_runs=5
+num_runs=10
 
 result = []
 for query_no in range(1,23):
@@ -13,7 +13,10 @@ for query_no in range(1,23):
     time_taken_list = []
     for run in range(start_run,start_run+num_runs):
         time_file = f"{output_dir}/scale={scale}/run={run}/{query_no}.log"
-        time_log = open(time_file,"r").readlines()[-6]
+        if query_no == 15:
+            time_log = open(time_file,"r").readlines()[-9]
+        else:
+            time_log = open(time_file,"r").readlines()[-6]
         time_taken = float(re.findall("\d+\.\d+", time_log)[0])
         time_taken_list.append(time_taken)
     result.append({
