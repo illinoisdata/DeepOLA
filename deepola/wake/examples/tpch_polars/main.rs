@@ -28,6 +28,7 @@ mod q25; // WanderJoin Q7
 mod q26; // ProgressiveDB Q1
 mod q27; // ProgressiveDB Q6
 mod q3;
+mod q30; // Query-Depth Q1
 mod q4;
 mod q5;
 mod q6;
@@ -125,6 +126,7 @@ pub fn get_query_service(
         "q26" => q26::query(table_input, output_reader),
         "q27" => q27::query(table_input, output_reader),
         "q3" => q3::query(table_input, output_reader),
+        "q30" => q30::query(table_input, output_reader),
         "q4" => q4::query(table_input, output_reader),
         "q5" => q5::query(table_input, output_reader),
         "q6" => q6::query(table_input, output_reader),
