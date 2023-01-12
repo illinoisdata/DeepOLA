@@ -22,12 +22,12 @@ type RealFn = Box<dyn Fn(f64) -> f64>;
 fn newton_raphson(f: RealFn, dfdx: RealFn, mut x0: f64, max_iter: usize, tol: f64) -> f64 {
     for _ in 0..max_iter {
         let diff = f(x0) / dfdx(x0);
-        x0 = x0 - diff;
+        x0 -= diff;
         if diff.abs() < tol {
             break;
         }
     }
-    return x0
+    x0
 }
 
 // fn generate_mm0_fn(current_count: f64, sample_size: f64) -> (RealFn, RealFn) {

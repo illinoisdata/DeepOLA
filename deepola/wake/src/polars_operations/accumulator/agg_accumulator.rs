@@ -40,6 +40,11 @@ pub struct AggAccumulator {
     #[get = "pub"]
     add_count_column: bool,
 
+    /// Whether to track variance
+    #[set = "pub"]
+    #[get = "pub"]
+    track_variance: bool,
+
     /// Use this scaler before writing to output stream
     scaler: Option<Rc<dyn MessageFractionProcessor<DataFrame>>>,
 }
@@ -60,6 +65,7 @@ impl AggAccumulator {
             accumulated: RefCell::new(DataFrame::empty()),
             aggregates: vec![],
             add_count_column: false,
+            track_variance: false,
             scaler: None,
         }
     }
@@ -98,26 +104,32 @@ impl AggAccumulator {
         } else {
             self.get_aggregates()
         };
-        let mut df_agg = raw_df
-            .groupby(&group_keys)
-            .unwrap()
-            .agg(&aggregates)
-            .unwrap();
+        let group_df = raw_df.groupby(&group_keys).unwrap();
+        let mut df_agg = group_df.agg(&aggregates).unwrap();
         let _ = df_agg.drop_in_place(DEFAULT_GROUPBY_KEY).unwrap();
         if accumulator {
             df_agg.set_column_names(&df.get_column_names()).unwrap();
+            if self.track_variance {
+                let aggregates = self.aggregates();
+                let var_df = group_df.par_apply(|df| {
+                    AggAccumulator::accumulate_variance(df, aggregates)
+                }).unwrap();
+                for s in var_df.iter() {
+                    df_agg.with_column(s.clone()).expect("Failed to replace uncertainty columns");
+                }
+            };
         }
         df_agg
     }
 
     fn get_accumulator_aggregates(&self) -> Vec<(String, Vec<String>)> {
         let mut acc_aggs = vec![];
-        for agg in self.aggregates() {
+        for agg in self.get_aggregates() {
             for agg_op in &agg.1 {
-                let modified_agg_op = if agg_op.as_str() == "count" {
-                    "sum" // To join count from two aggregates, need to perform sum.
-                } else {
-                    agg_op.as_str()
+                let modified_agg_op = match agg_op.as_str() {
+                    "count" => "sum", // To join count from two aggregates, need to perform sum.
+                    "mean" | "var" => "first",  // For uncertainty only
+                    _ => agg_op,
                 };
                 acc_aggs.push((
                     format!("{}_{}", agg.0, agg_op),
@@ -125,24 +137,77 @@ impl AggAccumulator {
                 ));
             }
         }
-        if self.add_count_column {
-            acc_aggs.push((
-                DEFAULT_GROUP_COLUMN_COUNT.into(),
-                vec!["sum".into()],  // To join counts, meed to perform sum
-            ))
-        }
         acc_aggs
     }
 
     fn get_aggregates(&self) -> Vec<(String, Vec<String>)> {
         let mut aggregates = self.aggregates().clone();
-        if self.add_count_column {
+        if self.track_variance || self.add_count_column {
             aggregates.push((
                 DEFAULT_GROUP_COLUMN.into(),
                 vec!["count".into()],
             ))
         }
+        if self.track_variance {
+            // Track mean and variance for sum aggregates
+            for (_column, ops) in &mut aggregates {
+                if ops.contains(&"sum".to_string()) {
+                    ops.push("mean".to_string());
+                    ops.push("var".to_string());
+                }
+            }
+        }
         aggregates
+    }
+
+    fn accumulate_variance(
+        df: DataFrame,
+        aggregates: &[(String, Vec<String>)],
+    ) -> Result<DataFrame> {
+        if df.height() == 0 {
+            // No need to accumulate
+            return Ok(DataFrame::empty());
+        } else if df.height() == 1 {
+            // No need to accumulate
+            let mut combined_series = Vec::new();
+            for (column, ops) in aggregates {
+                if ops.contains(&"sum".to_string()) {
+                    let mean_column = format!("{}_mean", column);
+                    let var_column = format!("{}_var", column);
+                    let mean_s = df.column(&mean_column).unwrap();
+                    let var_s = df.column(&var_column).unwrap();
+                    combined_series.push(mean_s.clone());
+                    combined_series.push(var_s.clone());
+                }
+            }
+            DataFrame::new(combined_series)
+        } else {
+            let mut combined_series = Vec::new();
+            for (column, ops) in aggregates {
+                if ops.contains(&"sum".to_string()) {
+                    let mean_column = format!("{}_mean", column);
+                    let var_column = format!("{}_var", column);
+                    let count_s = df.column(DEFAULT_GROUP_COLUMN_COUNT).unwrap().cast(&DataType::Float64).unwrap();
+                    let mean_s = df.column(&mean_column).unwrap();
+                    let var_s = df.column(&var_column).unwrap();
+                    let (n1, n2) = AggAccumulator::extract_pair(&count_s);
+                    let (mean1, mean2) = AggAccumulator::extract_pair(mean_s);
+                    let (var1, var2) = AggAccumulator::extract_pair(var_s);
+                    let n = (n1 + n2).max(1.0);
+                    let mean = (mean1 * n1 + mean2 * n2) / n;
+                    let var = (n1 * (var1 + (mean1 - mean).powi(2)) + n2 * (var2 + (mean2 - mean).powi(2))) / n;
+                    combined_series.push(Series::new(&mean_column, [mean]));
+                    combined_series.push(Series::new(&var_column, [var]));
+                }
+            }
+            DataFrame::new(combined_series)   
+        }
+    }
+
+    fn extract_pair(series: &Series) -> (f64, f64) {
+        let elems: Vec<f64> = series.f64().unwrap().into_no_null_iter().collect();
+        assert_eq!(elems.len(), 2);
+        (elems[0], elems[1])
     }
 }
 
@@ -151,7 +216,7 @@ impl AccumulatorOp<DataFrame> for AggAccumulator {
         let df_agg = self.aggregate(df, false);
 
         // accumulate
-        let df_acc_new;
+        let mut df_acc_new;
         {
             let df_acc = &*self.accumulated.borrow();
             let stacked = df_acc.vstack(&df_agg).unwrap();
@@ -160,6 +225,16 @@ impl AccumulatorOp<DataFrame> for AggAccumulator {
 
         // save
         *self.accumulated.borrow_mut() = df_acc_new.clone();
+
+        // drop extra columns for tracking variance
+        if df_acc_new.height() > 0 && self.track_variance {
+            for (column, ops) in self.aggregates() {
+                if ops.contains(&"sum".to_string()) {
+                    let mean_column = format!("{}_mean", column);
+                    let _ = df_acc_new.drop_in_place(&mean_column).unwrap();
+                }
+            }
+        }
 
         df_acc_new
     }
@@ -174,7 +249,7 @@ impl AccumulatorOp<DataFrame> for AggAccumulator {
 /// in Rust.
 impl MessageFractionProcessor<DataFrame> for AggAccumulator {
     fn process(&self, df: &DataFrame, fraction: f64) -> DataFrame {
-        let mut accumulated = self.accumulate(&df);
+        let mut accumulated = self.accumulate(df);
         if let Some(scaler) = &self.scaler {
             accumulated = scaler.process(&accumulated, fraction)
         }

@@ -282,6 +282,43 @@ impl CellEstimator for LeastSquareAffineEstimator {
 }
 
 
+#[derive(Default, Debug)]
+pub struct LeastSquareVariance {
+    xys: Vec<(f64, f64)>,
+    var_x: f64,
+    mean_x: f64,
+    var_slope: f64,
+}
+
+impl LeastSquareVariance {
+    pub fn consume(&mut self, forecast: &dyn CellForecast, x: f64, y: f64) {
+        self.xys.push((x, y));
+
+        // Update var_x, mean_x, n
+        let n = self.xys.len() as f64;
+        let dx = x - self.mean_x;
+        let correction = (n - 1.0) / n;
+        self.var_x += (correction * dx * dx - self.var_x) / n;
+        self.mean_x += dx / n;
+
+        // Update slope variance from forecast
+        let sigma_sq = self.rss(forecast) / n;
+        let sum_sq = self.var_x * n;
+        self.var_slope = sigma_sq / sum_sq;
+    }
+
+    pub fn slope_variance(&self) -> f64 {
+        self.var_slope
+    }
+
+    fn rss(&self, forecast: &dyn CellForecast) -> f64 {
+        self.xys.iter()
+            .map(|(x, y)| (y - forecast.predict(*x)).powi(2))
+            .sum()
+    }
+}
+
+
 /* Average trend line estimator */
 // v(T) = v_last + average_trend * (T - t_last)
 
