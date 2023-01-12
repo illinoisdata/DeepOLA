@@ -2,6 +2,8 @@ extern crate wake;
 use glob::glob;
 use polars::export::chrono::NaiveDate;
 use polars::prelude::*;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::error::Error;
@@ -196,13 +198,37 @@ pub fn build_reader_node(
 ) -> ExecutionNode<polars::prelude::DataFrame> {
     // Get batch size and file names from tableinput tables;
     let raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
-    let file_format = check_file_format(&raw_input_files);
     let scale = tableinput.get(&table as &str).unwrap().scale;
+    let columns = table_columns.get(&table);
+    build_reader_node_raw(table, raw_input_files, scale, columns)
+}
+
+pub fn build_reader_node_permute_files(
+    table: String,
+    tableinput: &HashMap<String, TableInput>,
+    table_columns: &HashMap<String, Vec<&str>>,
+) -> ExecutionNode<polars::prelude::DataFrame> {
+    // Get batch size and file names from tableinput tables;
+    let mut raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
+    raw_input_files.shuffle(&mut thread_rng());
+    let scale = tableinput.get(&table as &str).unwrap().scale;
+    let columns = table_columns.get(&table);
+    build_reader_node_raw(table, raw_input_files, scale, columns)
+}
+
+pub fn build_reader_node_raw(
+    table: String,
+    raw_input_files: Vec<String>,
+    scale: usize,
+    columns: Option<&Vec<&str>>,
+) -> ExecutionNode<polars::prelude::DataFrame> {
+    // Get batch size and file names from tableinput tables;
+    let file_format = check_file_format(&raw_input_files);
     let schema = tpch_schema(&table).unwrap();
 
     let mut projected_cols_index = None;
     let mut projected_cols_names = None;
-    match table_columns.get(&table) {
+    match columns {
         Some(columns) => {
             let mut cols_index = columns
                 .iter()
