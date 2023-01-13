@@ -38,6 +38,7 @@ wake_on_dict = {
     25: [],
     26: ["l_returnflag", "l_linestatus"],
     27: [],
+    30: [],
 }
 
 pdb_on_dict = {
@@ -85,6 +86,7 @@ wake_ignore = {
     25: [],
     26: [],
     27: [],   
+    30: [],
 }
 
 pdb_ignore = {

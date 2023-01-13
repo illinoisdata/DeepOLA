@@ -42,16 +42,20 @@ pub fn total_number_of_records(table: &str, scale: usize) -> usize {
         "supplier" => 10_000 * scale,
         "nation" => 25,
         "region" => 5,
+        "numbertable" => 1_000_000 * scale,
         _ => 0,
     }
 }
 
-pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput> {
+pub fn load_tables(directory: &str, scale: usize, use_numbertable: bool) -> HashMap<String, TableInput> {
     log::warn!("Specified Input Directory: {}", directory);
 
-    let tpch_tables = vec![
+    let mut tpch_tables = vec![
         "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier",
     ];
+    if use_numbertable {
+        tpch_tables.push("numbertable")
+    }
     let mut table_input = HashMap::new();
     for tpch_table in tpch_tables {
         let mut input_files = vec![];
@@ -352,6 +356,19 @@ pub fn tpch_schema(table: &str) -> std::result::Result<wake::data::Schema, Box<d
             Column::from_field("ps_availqty".to_string(), wake::data::DataType::Integer),
             Column::from_field("ps_supplycost".to_string(), wake::data::DataType::Float),
             Column::from_field("ps_comment".to_string(), wake::data::DataType::Text),
+        ],
+        "numbertable" => vec![
+            Column::from_field("ci".to_string(), wake::data::DataType::Integer),
+            Column::from_field("cii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("x".to_string(), wake::data::DataType::Integer),
         ],
         _ => vec![],
     };
