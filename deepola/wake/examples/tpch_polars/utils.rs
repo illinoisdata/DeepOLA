@@ -2,6 +2,8 @@ extern crate wake;
 use glob::glob;
 use polars::export::chrono::NaiveDate;
 use polars::prelude::*;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::error::Error;
@@ -40,16 +42,20 @@ pub fn total_number_of_records(table: &str, scale: usize) -> usize {
         "supplier" => 10_000 * scale,
         "nation" => 25,
         "region" => 5,
+        "numbertable" => 1_000_000 * scale,
         _ => 0,
     }
 }
 
-pub fn load_tables(directory: &str, scale: usize) -> HashMap<String, TableInput> {
+pub fn load_tables(directory: &str, scale: usize, use_numbertable: bool) -> HashMap<String, TableInput> {
     log::warn!("Specified Input Directory: {}", directory);
 
-    let tpch_tables = vec![
+    let mut tpch_tables = vec![
         "lineitem", "orders", "customer", "part", "partsupp", "region", "nation", "supplier",
     ];
+    if use_numbertable {
+        tpch_tables.push("numbertable")
+    }
     let mut table_input = HashMap::new();
     for tpch_table in tpch_tables {
         let mut input_files = vec![];
@@ -196,13 +202,37 @@ pub fn build_reader_node(
 ) -> ExecutionNode<polars::prelude::DataFrame> {
     // Get batch size and file names from tableinput tables;
     let raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
-    let file_format = check_file_format(&raw_input_files);
     let scale = tableinput.get(&table as &str).unwrap().scale;
+    let columns = table_columns.get(&table);
+    build_reader_node_raw(table, raw_input_files, scale, columns)
+}
+
+pub fn build_reader_node_permute_files(
+    table: String,
+    tableinput: &HashMap<String, TableInput>,
+    table_columns: &HashMap<String, Vec<&str>>,
+) -> ExecutionNode<polars::prelude::DataFrame> {
+    // Get batch size and file names from tableinput tables;
+    let mut raw_input_files = tableinput.get(&table as &str).unwrap().input_files.clone();
+    raw_input_files.shuffle(&mut thread_rng());
+    let scale = tableinput.get(&table as &str).unwrap().scale;
+    let columns = table_columns.get(&table);
+    build_reader_node_raw(table, raw_input_files, scale, columns)
+}
+
+pub fn build_reader_node_raw(
+    table: String,
+    raw_input_files: Vec<String>,
+    scale: usize,
+    columns: Option<&Vec<&str>>,
+) -> ExecutionNode<polars::prelude::DataFrame> {
+    // Get batch size and file names from tableinput tables;
+    let file_format = check_file_format(&raw_input_files);
     let schema = tpch_schema(&table).unwrap();
 
     let mut projected_cols_index = None;
     let mut projected_cols_names = None;
-    match table_columns.get(&table) {
+    match columns {
         Some(columns) => {
             let mut cols_index = columns
                 .iter()
@@ -326,6 +356,19 @@ pub fn tpch_schema(table: &str) -> std::result::Result<wake::data::Schema, Box<d
             Column::from_field("ps_availqty".to_string(), wake::data::DataType::Integer),
             Column::from_field("ps_supplycost".to_string(), wake::data::DataType::Float),
             Column::from_field("ps_comment".to_string(), wake::data::DataType::Text),
+        ],
+        "numbertable" => vec![
+            Column::from_field("ci".to_string(), wake::data::DataType::Integer),
+            Column::from_field("cii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("ciiiiiiiiii".to_string(), wake::data::DataType::Integer),
+            Column::from_field("x".to_string(), wake::data::DataType::Integer),
         ],
         _ => vec![],
     };

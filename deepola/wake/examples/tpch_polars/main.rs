@@ -8,11 +8,13 @@ use std::env;
 use wake::graph::*;
 
 mod q1;
+mod q1c;
 mod q10;
 mod q11;
 mod q12;
 mod q13;
 mod q14;
+mod q14c;
 mod q15;
 mod q16;
 mod q17;
@@ -28,11 +30,15 @@ mod q25; // WanderJoin Q7
 mod q26; // ProgressiveDB Q1
 mod q27; // ProgressiveDB Q6
 mod q3;
+mod q30; // Deep query with variable depth
 mod q4;
 mod q5;
+mod q5c;
 mod q6;
+mod q6c;
 mod q7;
 mod q8;
+mod q8c;
 mod q9;
 mod prelude;
 mod utils;
@@ -102,14 +108,17 @@ pub fn get_query_service(
     data_directory: &str,
     output_reader: &mut NodeReader<DataFrame>,
 ) -> ExecutionService<DataFrame> {
-    let table_input = utils::load_tables(data_directory, scale);
+    let use_numbertable = query_no == "q30";
+    let table_input = utils::load_tables(data_directory, scale, use_numbertable);
     let query_service = match query_no {
         "q1" => q1::query(table_input, output_reader),
+        "q1c" => q1c::query(table_input, output_reader),
         "q10" => q10::query(table_input, output_reader),
         "q11" => q11::query(table_input, output_reader),
         "q12" => q12::query(table_input, output_reader),
         "q13" => q13::query(table_input, output_reader),
         "q14" => q14::query(table_input, output_reader),
+        "q14c" => q14c::query(table_input, output_reader),
         "q15" => q15::query(table_input, output_reader),
         "q16" => q16::query(table_input, output_reader),
         "q17" => q17::query(table_input, output_reader),
@@ -125,11 +134,19 @@ pub fn get_query_service(
         "q26" => q26::query(table_input, output_reader),
         "q27" => q27::query(table_input, output_reader),
         "q3" => q3::query(table_input, output_reader),
+        "q30" => {
+            let query_depth = std::env::var("QUERY_DEPTH").expect("Set env variable QUERY_DEPTH");
+            let query_depth: usize = query_depth.parse().expect("Expect integer QUERY_DEPTH");
+            q30::query(table_input, output_reader, query_depth)
+        },
         "q4" => q4::query(table_input, output_reader),
         "q5" => q5::query(table_input, output_reader),
+        "q5c" => q5c::query(table_input, output_reader),
         "q6" => q6::query(table_input, output_reader),
+        "q6c" => q6c::query(table_input, output_reader),
         "q7" => q7::query(table_input, output_reader),
         "q8" => q8::query(table_input, output_reader),
+        "q8c" => q8c::query(table_input, output_reader),
         "q9" => q9::query(table_input, output_reader),
         _ => panic!("Invalid Query Parameter"),
     };
