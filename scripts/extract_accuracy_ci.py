@@ -3,7 +3,6 @@ import glob
 import re
 import json
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.stats import describe as scipy_descibe
@@ -137,6 +136,7 @@ if __name__ == "__main__":
     q_accuracy = calculate_accuracy_all(q_results_runs)
 
     # Check
+    # import matplotlib.pyplot as plt
     # print(q_accuracy)
     # N, M, SZ, RS = 1, 3, 5, 1.6
     # fig, axes = plt.subplots(ncols=M, figsize=(M * SZ * RS, N * SZ))
