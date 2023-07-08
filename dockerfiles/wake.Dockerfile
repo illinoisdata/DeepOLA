@@ -23,12 +23,14 @@ RUN cargo build --release --example tpch_polars
 
 ### Experiment container
 
-FROM debian:bookworm
+FROM python:3.8-bookworm
+COPY ./requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt
+
+RUN apt-get update
+RUN apt-get install vmtouch
 
 COPY --from=build /deepola/target/release/examples/tpch_polars .
 COPY ./scripts ./scripts
-
-# TODO: switch to python image for visualization
-# TODO: copy experiment scripts, mount data volume
 
 CMD ["/bin/bash"]
