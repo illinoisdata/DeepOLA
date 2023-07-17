@@ -2,15 +2,7 @@
 
 ## Data Generation
 
-### Generate Locally (Optional)
-TPC-H (Scale 100, Partition 100)
-```bash
-docker build -t deepola-wake:sigmod2023-data -f dockerfiles/data.Dockerfile .
-docker run -i -v ./resources:/dataset/resources:rw -t deepola-wake:sigmod2023-data
-./data-gen.sh 100 100 /dataset
-```
-
-TODO: Automatically generate parquet and cleaned-parquet formats as well (as part of data-gen.sh)
+TODO: Generate TPC-H
 
 TODO: Generate dataset for depth experiment
 
