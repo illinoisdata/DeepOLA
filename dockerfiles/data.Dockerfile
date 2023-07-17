@@ -1,4 +1,4 @@
-FROM alpine:3.14
+FROM alpine
 
 WORKDIR /dataset
 RUN apk add --no-cache git make gcc bash libc-dev
