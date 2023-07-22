@@ -3,15 +3,14 @@ if [ "$#" -ne 3 ]; then
 	exit
 fi
 
-cwd=$PWD
 scale=$1
 partition=$2
 output_dir=$3
 export DSS_PATH=$output_dir/scale=$scale/partition=$partition/tbl
 mkdir -p $DSS_PATH
-echo $DSS_PATH
+echo "Output Directory: $DSS_PATH"
 
-cd ../tpch-kit/dbgen/
+pushd ../tpch-kit/dbgen/
 if [ $partition -eq 1 ];
 then
 	echo "Running"
@@ -24,6 +23,7 @@ else
 		done
 fi
 
+popd
 echo "Output Directory: $DSS_PATH"
-cd $cwd
+echo "Converting to Parquet Format"
 python3 convert-to-parquet.py $DSS_PATH
