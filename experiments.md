@@ -3,14 +3,23 @@
 ## Data Generation
 
 ### Generate Locally (Optional)
-TPC-H (Scale 100, Partition 100)
+
+#### Build Docker Image
 ```bash
 docker build -t deepola-wake:sigmod2023-data -f dockerfiles/data.Dockerfile .
-docker run -i -v ./resources:/dataset/resources:rw -t deepola-wake:sigmod2023-data
-./data-gen.sh 100 100 /dataset
 ```
 
-TODO: Automatically generate parquet and cleaned-parquet formats as well (as part of data-gen.sh)
+#### Generate Dataset
+TPC-H (Scale 100, Partition 100)
+```
+export DATA_DIR=/absolute/path/to/data  # where you want to put scale=100/partition=100/[tbl|parquet]
+docker run --rm \
+    -v ${DATA_DIR}:/dataset/tpch:rw \
+    --name dataset deepola-wake:sigmod2023-data \
+    bash data-gen.sh 100 100 /dataset/tpch
+```
+
+TODO: Automatically generate cleaned-parquet formats as well (as part of data-gen.sh)
 
 ### Generate Dataset for Depth Experiment (Figure 11)
 
