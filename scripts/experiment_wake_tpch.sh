@@ -22,7 +22,7 @@ start_qdx=$6
 end_qdx=$7
 
 # The experiment loop
-for ((qdx = ${start_qdx}; j <= ${end_qdx}; qdx++)); do
+for ((qdx = ${start_qdx}; qdx <= ${end_qdx}; qdx++)); do
     if [ ${qdx} -eq 26 ] || [ ${qdx} -eq 27 ]; then
         format=cleaned-parquet
     else

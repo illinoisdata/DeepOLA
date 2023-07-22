@@ -1,4 +1,4 @@
-polars
+polars==0.15.1
 black==22.3.0
 isort==5.10.1
 linetimer
