@@ -5,7 +5,6 @@ FROM rust:bookworm as build
 RUN USER=root cargo new --bin deepola
 WORKDIR /deepola
 
-COPY ./deepola/Cargo.lock ./Cargo.lock
 COPY ./deepola/Cargo.toml ./Cargo.toml
 COPY ./deepola/wake/Cargo.toml ./wake/Cargo.toml
 COPY ./deepola/wake/src ./wake/src
@@ -24,7 +23,7 @@ RUN cargo build --release --example tpch_polars
 ### Experiment container
 
 FROM python:3.8-bookworm
-COPY ./requirements.txt ./requirements.txt
+COPY scripts/wake-requirements.txt ./requirements.txt
 RUN pip install -r requirements.txt
 
 RUN apt-get update

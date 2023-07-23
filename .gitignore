@@ -146,3 +146,4 @@ dmypy.json
 **/progressive/**/*.json
 **/progressive/**/*.txt
 **/numbertable.*
+results
