@@ -13,7 +13,7 @@ if [ "$#" -ne 5 ]; then
     exit
 fi
 
-data_dir=$1 # containing scale=$scale/partition=$partition/tbl
+data_dir=$1
 query_dir=$2
 postgres_dir=$3
 scale=$4
