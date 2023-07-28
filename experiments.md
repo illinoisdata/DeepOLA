@@ -51,7 +51,26 @@ docker build -t deepola-wake:sigmod2023 -f dockerfiles/wake.Dockerfile .
 
 Experiment results for each method will be saved under `results/<method>`.
 
-Polars (scale 100, partition 100, 10 runs, Q1-Q22):
+### Postgres
+
+- Setup Postgres (scale 100, partition 100):
+```bash
+export DATA_DIR=./resources/tpc-h/data
+export QUERY_DIR=./resources/tpc-h/queries
+export POSTGRES_DIR=./tmp/postgres/scale=100/partition=100
+./baselines/postgres/experiment-setup.sh $DATA_DIR $QUERY_DIR $POSTGRES_DIR 100 100
+```
+
+- Run Queries (scale 100, partition 100, 10 runs, Q1-Q22):
+```bash
+export QUERY_DIR=./resources/tpc-h/queries
+export OUTPUT_DIR=./outputs/postgres/scale=100/
+export POSTGRES_DIR=./tmp/postgres/scale=100/partition=100
+./baselines/postgres/experiment-time.sh $QUERY_DIR $OUTPUT_DIR $POSTGRES_DIR 100 100 10 1 1 22
+python3 baselines/postgres/extract-time.py $OUTPUT_DIR 100 100 10 1 1 22 > $OUTPUT_DIR/results.csv
+```
+
+### Polars (scale 100, partition 100, 10 runs, Q1-Q22):
 ```bash
 DATA_DIR=/absolute/path/to/data # containing scale=100/partition=100/parquet
 docker run --rm \
@@ -61,7 +80,7 @@ docker run --rm \
     bash experiment.sh /dataset/tpch /outputs/polars 100 100 10 1 1 22
 ```
 
-Wake (scale 100, partition 100, 10 runs, Q1-Q22):
+### Wake (scale 100, partition 100, 10 runs, Q1-Q22):
 ```bash
 DATA_DIR=/absolute/path/to/data  # containing scale=100/partition=100/[parquet|cleaned_parquet]
 docker run --rm \
