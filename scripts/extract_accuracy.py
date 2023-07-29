@@ -115,9 +115,14 @@ def read_meta(q_idx, dirpath):
     with open(f"{read_dir(q_idx, dirpath=dirpath)}/meta.json", "r") as f:
         return json.loads(f.readline())
 
-def read_result(q_idx, t, dirpath):
+def read_result(q_idx, t, dirpath, skip_max_rows=10000):
     assert isinstance(t, int)
-    return pd.read_csv(f"{read_dir(q_idx, dirpath=dirpath)}/{t}.csv")
+    df = pd.read_csv(f"{read_dir(q_idx, dirpath=dirpath)}/{t}.csv")
+    if df.shape[0] > skip_max_rows:
+        print("WARNING: skipping extracting accuracy. Increase --skip_max_rows to extract one.")
+        exit(1)
+    return df
+        
 
 def write_result(q_idx, dirpath, results, ts):
     # Write in JSON
@@ -136,7 +141,7 @@ def write_result(q_idx, dirpath, results, ts):
         print(f"Written {txt_path}")
 
 
-def read_all_results(q_idx, dirpath, nt=None):
+def read_all_results(q_idx, dirpath, nt=None, skip_max_rows=10000):
     if nt is None:
         # Read all CSVs
         csvs = map(
@@ -145,7 +150,7 @@ def read_all_results(q_idx, dirpath, nt=None):
         )
         numbered_csvs = filter(lambda c: c is not None, csvs)
         nt = max(map(lambda c: int(c.group(1)), numbered_csvs)) + 1
-    return [read_result(q_idx, t, dirpath=dirpath) for t in range(nt)]
+    return [read_result(q_idx, t, dirpath=dirpath, skip_max_rows=skip_max_rows) for t in range(nt)]
 
 def calculate_pes(df, df_ref, on, ignore):
     # Percentage error on inner-join of df onto df_ref
@@ -238,6 +243,8 @@ if __name__ == "__main__":
                         help='query number to extract (1, 2, ..., 22)')
     parser.add_argument('--answer', type=str, default=None,
                         help='path to asnwer csv')
+    parser.add_argument('--skip_max_rows', type=int, default=10000,
+                        help='skip accuracy if result has more than this many rows')
     args = parser.parse_args()
     print(f"Args: {args}")
     if args.answer is None:
@@ -253,7 +260,7 @@ if __name__ == "__main__":
     dirpath = args.dirpath
     ref_dirpath = args.ref_dirpath
     q_idx = args.q_idx
-    q_results = read_all_results(q_idx, ref_dirpath)
+    q_results = read_all_results(q_idx, ref_dirpath, skip_max_rows=args.skip_max_rows)
     q_meta = read_meta(q_idx, dirpath)
     q_accuracy = calculate_accuracy_all(q_results, on=on_dict[db][q_idx], ignore=ignore[db][q_idx], q_ref=answer)
     if isinstance(q_meta['time_measures_ns'], np.ndarray):
