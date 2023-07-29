@@ -46,6 +46,17 @@ docker run --rm \
     bash data-gen.sh ${SCALE} 100 /dataset/tpch
 ```
 
+#### Generate Dataset for ProgressiveDB
+- Note: Ensure that the data has been generated already. This script only converts `lineitem` table to `cleaned-tbl` format.
+- For TPC-H (Scale 100, Partition 100)
+```
+export DATA_DIR=/absolute/path/to/data  # where you want to put scale=100/partition=100/cleaned-tbl
+docker run --rm \
+    -v ${DATA_DIR}:/dataset/tpch:rw \
+    --name dataset deepola-data:sigmod2023 \
+    python3 clean-data.py /dataset/tpch 100 100
+```
+
 TODO: Automatically generate cleaned-parquet formats as well (as part of data-gen.sh)
 
 ### Generate Dataset for Depth Experiment (Figure 11)
