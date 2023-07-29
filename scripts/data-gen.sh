@@ -10,7 +10,7 @@ export DSS_PATH=$output_dir/scale=$scale/partition=$partition/tbl
 mkdir -p $DSS_PATH
 echo "Output Directory: $DSS_PATH"
 
-pushd ../tpch-kit/dbgen/
+cd ../tpch-kit/dbgen/
 if [ $partition -eq 1 ];
 then
 	echo "Running"
@@ -22,8 +22,3 @@ else
 			./dbgen -f -s $scale -S $chunk -C $partition -v
 		done
 fi
-
-popd
-echo "Output Directory: $DSS_PATH"
-echo "Converting to Parquet Format"
-python3 convert-to-parquet.py $DSS_PATH
