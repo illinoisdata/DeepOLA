@@ -11,6 +11,7 @@ RUN make MACHINE=LINUX DATABASE=POSTGRESQL
 
 ### Conversion Scripts
 COPY scripts/data-generation-requirements.txt /dataset/scripts/data-generation-requirements.txt
+COPY scripts/clean-data.py /dataset/scripts/clean-data.py
 WORKDIR /dataset/scripts
 RUN pip install --upgrade pip
 RUN pip install -r data-generation-requirements.txt
