@@ -33,6 +33,3 @@ for ((qdx = ${start_qdx}; qdx <= ${end_qdx}; qdx++)); do
         psql -d ${DB} -f /wanderjoin/queries/${qdx}.sql -o ${output_dir}/${qdx}.csv -F ',' -A
     done
 done
-
-## Stop the docker container
-docker container stop pgsql
