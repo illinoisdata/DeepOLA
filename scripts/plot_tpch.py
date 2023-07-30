@@ -47,10 +47,10 @@ if __name__ == '__main__':
     # TODO: Read other baselines here.
     # Reads results.
     all_results = [
-        ("WAKE-final", wake_read_time(args.scale, args.partition, args.num_runs, -1)),
-        ("WAKE-first", wake_read_time(args.scale, args.partition, args.num_runs, 1)),
         ("Postgres", postgres_read_time(args.scale)),
         ("Polars", polars_read_time(args.scale, args.partition)),
+        ("WAKE-final", wake_read_time(args.scale, args.partition, args.num_runs, -1)),
+        ("WAKE-first", wake_read_time(args.scale, args.partition, args.num_runs, 1)),
     ]
 
     # Plots results.

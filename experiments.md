@@ -38,7 +38,7 @@ export SCALE=100  # For full-scale experiments presented in the paper.
 
 ### TPC-H Data Generation
 
-TPC-H (Scale 100, Partition 100)
+TPC-H (Scale `SCALE`, Partition 100)
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
@@ -53,7 +53,7 @@ docker run --rm \
 
 #### Generate Dataset for ProgressiveDB
 - Note: Ensure that the data has been generated already. This script only converts `lineitem` table to `cleaned-tbl` format.
-- For TPC-H (Scale 100, Partition 100)
+- For TPC-H (Scale `SCALE`, Partition 100)
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
@@ -81,14 +81,14 @@ Experiment results for each method will be saved under `results/<method>`.
 
 ### Postgres
 
-- Setup Postgres (scale 100, partition 100):
+- Setup Postgres (scale `SCALE`, partition 100):
 ```bash
 export QUERY_DIR=./resources/tpc-h/queries
 export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=100
 ./baselines/postgres/experiment-setup.sh ${DATA_DIR} ${QUERY_DIR} ${POSTGRES_DIR} ${SCALE} 100
 ```
 
-- Run Queries (scale 100, partition 100, 10 runs, Q1-Q22):
+- Run Queries (scale `SCALE`, partition 100, 10 runs, Q1-Q22):
 ```bash
 export QUERY_DIR=./resources/tpc-h/queries
 export OUTPUT_DIR=./results/postgres/scale=${SCALE}/
@@ -97,7 +97,7 @@ export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=100
 python3 baselines/postgres/extract-time.py $OUTPUT_DIR ${SCALE} 100 10 1 1 22 > $OUTPUT_DIR/timings.csv
 ```
 
-### Polars (scale 100, partition 100, 10 runs, Q1-Q22):
+### Polars (scale `SCALE`, partition 100, 10 runs, Q1-Q22):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
@@ -106,7 +106,7 @@ docker run --rm \
     bash experiment.sh /dataset/tpch /results/polars ${SCALE} 100 10 1 1 22
 ```
 
-### Wake (scale 100, partition 100, 10 runs, Q1-Q22):
+### Wake (scale `SCALE`, partition 100, 10 runs, Q1-Q22):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
@@ -137,7 +137,7 @@ Figures will appear at `./results/viz/fig7_tpch.png` and `./results/viz/fig8_tpc
 
 ## Comparison with OLA Systems (Figure 9)
 
-Wake (scale 100, partition 100, 10 runs, Q23-Q27):
+Wake (scale `SCALE`, partition 100, 10 runs, Q23-Q27):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
@@ -146,7 +146,7 @@ docker run --rm \
     bash scripts/experiment_wake_tpch.sh /dataset ${SCALE} 100 10 0 23 27
 ```
 
-Wanderjoin (scale 100, partition 100, 10 runs, Q23-Q25)
+Wanderjoin (scale `SCALE`, partition 100, 10 runs, Q23-Q25)
 ```bash
 DATA_DIR=/absolute/path/to/data  # containing scale=100/partition=100/tbl
 docker run --rm \
@@ -169,7 +169,7 @@ Figure will appear at `./results/viz/fig9_tpch_ola.png`.
 
 ## Confidence Interval (Figure 10)
 
-Wake (scale 100, partition 100, 10 runs, Q14):
+Wake (scale `SCALE`, partition 100, 10 runs, Q14):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
