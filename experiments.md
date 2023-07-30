@@ -11,10 +11,12 @@ Pull built Docker images using the following commands.
 ```bash
 docker pull supawit2/deepola-data:sigmod2023
 docker pull supawit2/deepola-polars:sigmod2023
+docker pull supawit2/deepola-wanderjoin:sigmod2023
 docker pull supawit2/deepola-wake:sigmod2023
 docker pull supawit2/deepola-viz:sigmod2023
 docker image tag supawit2/deepola-data:sigmod2023 deepola-data:sigmod2023
 docker image tag supawit2/deepola-polars:sigmod2023 deepola-polars:sigmod2023
+docker image tag supawit2/deepola-wanderjoin:sigmod2023 deepola-wanderjoin:sigmod2023
 docker image tag supawit2/deepola-wake:sigmod2023 deepola-wake:sigmod2023
 docker image tag supawit2/deepola-viz:sigmod2023 deepola-viz:sigmod2023
 ```
@@ -125,6 +127,16 @@ docker run --rm \
     bash scripts/experiment_wake_tpch.sh /dataset ${SCALE} 100 10 0 23 27
 ```
 
+Wanderjoin (scale 100, partition 100, 10 runs, Q23-Q25)
+```bash
+DATA_DIR=/absolute/path/to/data  # containing scale=100/partition=100/tbl
+docker run --rm \
+    -v ${DATA_DIR}:/wanderjoin/tpch:rw \
+    -v `pwd`/results/wanderjoin:/wanderjoin/outputs:rw \
+    --name wanderjoin deepola-wanderjoin:sigmod2023 \
+    bash experiment.sh tpch queries outputs ${SCALE} 100 10 1 23 25
+```
+
 Then visualize the experiment results using the following command.
 ```bash
 docker run --rm \
@@ -189,6 +201,7 @@ TODO:
 ```bash
 docker build -t deepola-data:sigmod2023 -f dockerfiles/data.Dockerfile .
 docker build -t deepola-polars:sigmod2023 -f dockerfiles/polars.Dockerfile .
+docker build -t deepola-wanderjoin:sigmod2023 -f dockerfiles/wanderjoin.Dockerfile .
 docker build -t deepola-wake:sigmod2023 -f dockerfiles/wake.Dockerfile .
 docker build -t deepola-viz:sigmod2023 -f dockerfiles/viz.Dockerfile .
 ```
