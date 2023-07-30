@@ -43,7 +43,11 @@ TPC-H (Scale 100, Partition 100)
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
     --name dataset deepola-data:sigmod2023 \
-    bash data-gen.sh ${SCALE} 100 /dataset/tpch && \
+    bash data-gen.sh ${SCALE} 100 /dataset/tpch
+
+docker run --rm \
+    -v ${DATA_DIR}:/dataset/tpch:rw \
+    --name dataset deepola-data:sigmod2023 \
     python3 convert-to-parquet.py /dataset/tpch/scale=${SCALE}/partition=100/tbl
 ```
 
@@ -55,7 +59,10 @@ export DATA_DIR=/absolute/path/to/data  # where you want to put scale=100/partit
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
     --name dataset deepola-data:sigmod2023 \
-    python3 clean-data.py /dataset/tpch 100 100 && \
+    python3 clean-data.py /dataset/tpch 100 100
+docker run --rm \
+    -v ${DATA_DIR}:/dataset/tpch:rw \
+    --name dataset deepola-data:sigmod2023 \
     python3 convert-to-parquet.py /dataset/tpch/scale=100/partition=100/cleaned-tbl
 ```
 
