@@ -94,7 +94,7 @@ export QUERY_DIR=./resources/tpc-h/queries
 export OUTPUT_DIR=./results/postgres/scale=${SCALE}/
 export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=100
 ./baselines/postgres/experiment-time.sh $QUERY_DIR $OUTPUT_DIR $POSTGRES_DIR ${SCALE} 100 10 1 1 22
-python3 baselines/postgres/extract-time.py $OUTPUT_DIR ${SCALE} 100 10 1 1 22 > $OUTPUT_DIR/results.csv
+python3 baselines/postgres/extract-time.py $OUTPUT_DIR ${SCALE} 100 10 1 1 22 > $OUTPUT_DIR/timings.csv
 ```
 
 ### Polars (scale 100, partition 100, 10 runs, Q1-Q22):
@@ -119,11 +119,14 @@ Then visualize the experiment results using the following commands.
 ```bash
 docker run --rm \
     -v `pwd`/results/wake:/results/wake:rw \
+    -v `pwd`/results/polars:/results/polars:rw \
+    -v `pwd`/results/postgres:/results/postgres:rw \
     -v `pwd`/results/viz:/results/viz:rw \
     --name viz deepola-viz:sigmod2023 \
     python3 scripts/plot_tpch.py ${SCALE} 100 10
 docker run --rm \
     -v `pwd`/results/wake:/results/wake:rw \
+    -v `pwd`/results/polars:/results/polars:rw \
     -v `pwd`/results/viz:/results/viz:rw \
     --name viz deepola-viz:sigmod2023 \
     python3 scripts/plot_tpch_error.py ${SCALE} 100 10
