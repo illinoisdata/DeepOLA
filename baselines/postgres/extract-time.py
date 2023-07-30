@@ -10,7 +10,7 @@ if __name__ == "__main__":
     end_qdx = int(sys.argv[7])
 
     print("query,run,time")
-    for qdx in range(start_qdx,end_qdx):
+    for qdx in range(start_qdx,end_qdx+1):
         for run in range(start_run,num_runs+1):
             try:
                 log_file = open(f"{output_dir}/q{qdx}-run{run}.log","r").readlines()

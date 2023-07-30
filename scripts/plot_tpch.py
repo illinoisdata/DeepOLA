@@ -2,11 +2,25 @@ import json
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-
+import pandas as pd
 
 def wake_dir(scale, partition, run, qdx):
     return f"/results/wake/scale={scale}/partition={partition}/parquet/run={run}/q{qdx}"
 
+def polars_dir(scale, partition, run, qdx):
+    return f"/results/polars/scale={scale}/partition={partition}/"
+
+def postgres_read_time(scale):
+    result_file = f"/results/postgres/scale={scale}/timings.csv"
+    result_df = pd.read_csv(result_file)
+    agg_result = result_df.groupby("query").agg({ "time": ["mean", "std"] })
+    return agg_result.values
+
+def polars_read_time(scale, partition):
+    result_file = f"/results/polars/scale={scale}/partition={partition}/timings.csv"
+    result_df = pd.read_csv(result_file)
+    agg_result = result_df.groupby("query").agg({ "time": ["mean", "std"] })
+    return agg_result.values
 
 def wake_read_time(scale, partition, num_runs, pdx):
     avg_stddevs = []
@@ -35,6 +49,8 @@ if __name__ == '__main__':
     all_results = [
         ("WAKE-final", wake_read_time(args.scale, args.partition, args.num_runs, -1)),
         ("WAKE-first", wake_read_time(args.scale, args.partition, args.num_runs, 1)),
+        ("Postgres", postgres_read_time(args.scale)),
+        ("Polars", polars_read_time(args.scale, args.partition)),
     ]
 
     # Plots results.
