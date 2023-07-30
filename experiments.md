@@ -101,9 +101,9 @@ python3 baselines/postgres/extract-time.py $OUTPUT_DIR ${SCALE} 100 10 1 1 22 > 
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
-    -v `pwd`/results/polars:/outputs/polars \
+    -v `pwd`/results/polars:/results/polars \
     --name polars deepola-polars:sigmod2023 \
-    bash experiment.sh /dataset/tpch /outputs/polars ${SCALE} 100 10 1 1 22
+    bash experiment.sh /dataset/tpch /results/polars ${SCALE} 100 10 1 1 22
 ```
 
 ### Wake (scale 100, partition 100, 10 runs, Q1-Q22):

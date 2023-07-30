@@ -2,7 +2,7 @@ import json
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-
+import pandas as pd
 
 def wake_dir(scale, partition, run, qdx):
     return f"/results/wake/scale={scale}/partition={partition}/parquet/run={run}/q{qdx}"
@@ -25,6 +25,13 @@ def wake_read_error(scale, partition, num_runs, qdx):
     return all_time_s[1:], mape_p[1:], recall_p[1:]
 
 
+def polars_read_time(scale, partition, qdx):
+    result_file = f"/results/polars/scale={scale}/partition={partition}/timings.csv"
+    result_df = pd.read_csv(result_file)
+    result_df = result_df[result_df["query"] == qdx]
+    agg_result = result_df.groupby("query").agg({ "time": ["mean", "std"] })
+    return agg_result.values
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -33,8 +40,12 @@ if __name__ == '__main__':
     parser.add_argument('num_runs', type=int)
     args = parser.parse_args()
     
-    # TODO: Read Polars results here.
-    # Reads results.
+    # Read results
+    polars_results = [
+        polars_read_time(args.scale, args.partition, 8),
+        polars_read_time(args.scale, args.partition, 18),
+        polars_read_time(args.scale, args.partition, 21),
+    ]
     wake_results = [
         wake_read_error(args.scale, args.partition, args.num_runs, 8),
         wake_read_error(args.scale, args.partition, args.num_runs, 18),
@@ -46,9 +57,10 @@ if __name__ == '__main__':
     SZ = 3.0
     fig, axs = plt.subplots(ncols=3, figsize=(3 * 1.6 * SZ, SZ))
     for idx, ax in enumerate(axs):
-        # TODO: Get Polars number here and plot as a vertical line in ax.
+        ## Add Polars time as a vertical line.
+        polars_time = polars_results[idx][0][0]
+        ax.axvline(polars_time)
         wake_time, wake_mape_p, wake_recall_p = wake_results[idx]
-
         lns1 = ax.plot(wake_time, wake_mape_p, 'b-', label="MAPE")
         ax.set_ylabel("MAPE (%)")
         if all(wake_time > 0):

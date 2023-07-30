@@ -10,7 +10,7 @@ def clean_dataframe(input_file, output_file, variation = 'data'):
     df = pl.read_csv(input_file, sep = '|', has_header = False, new_columns = lineitem_cols)
     df = df[[s.name for s in df if not (s.null_count() == df.height)]]
     df = df.with_columns([(df["l_discount"] * 100).cast(pl.Int64), (df["l_tax"] * 100).cast(pl.Int64), df["l_extendedprice"].round(0).cast(pl.Int64)])
-    df.write_csv(output_file, has_header = False)
+    df.write_csv(output_file, sep = '|', has_header = False)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

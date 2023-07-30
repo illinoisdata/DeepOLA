@@ -43,7 +43,7 @@ for file in $INPUT_DIR/lineitem.tbl.*
 do
 	echo $file
 	## \copy
-	cat $file | sudo docker exec -i $container psql -U postgres -d $database -c "\copy lineitem FROM stdin WITH (FORMAT csv, DELIMITER ',')"
+	cat $file | sudo docker exec -i $container psql -U postgres -d $database -c "\copy lineitem FROM stdin WITH (FORMAT csv, DELIMITER '|')"
 
 	## COPY
 	#sudo docker exec -i $container psql -U postgres -c "COPY lineitem FROM '$file' WITH (FORMAT csv, DELIMITER ',')"
