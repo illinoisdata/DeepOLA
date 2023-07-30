@@ -54,16 +54,15 @@ docker run --rm \
 #### Generate Dataset for ProgressiveDB
 - Note: Ensure that the data has been generated already. This script only converts `lineitem` table to `cleaned-tbl` format.
 - For TPC-H (Scale 100, Partition 100)
-```
-export DATA_DIR=/absolute/path/to/data  # where you want to put scale=100/partition=100/cleaned-tbl
+```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
     --name dataset deepola-data:sigmod2023 \
-    python3 clean-data.py /dataset/tpch 100 100
+    python3 clean-data.py /dataset/tpch ${SCALE} 100
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
     --name dataset deepola-data:sigmod2023 \
-    python3 convert-to-parquet.py /dataset/tpch/scale=100/partition=100/cleaned-tbl
+    python3 convert-to-parquet.py /dataset/tpch/scale=${SCALE}/partition=100/cleaned-tbl
 ```
 
 ### Generate Dataset for Depth Experiment (Figure 11)
@@ -84,19 +83,18 @@ Experiment results for each method will be saved under `results/<method>`.
 
 - Setup Postgres (scale 100, partition 100):
 ```bash
-export DATA_DIR=./resources/tpc-h/data
 export QUERY_DIR=./resources/tpc-h/queries
-export POSTGRES_DIR=./tmp/postgres/scale=100/partition=100
-./baselines/postgres/experiment-setup.sh $DATA_DIR $QUERY_DIR $POSTGRES_DIR 100 100
+export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=100
+./baselines/postgres/experiment-setup.sh ${DATA_DIR} ${QUERY_DIR} ${POSTGRES_DIR} ${SCALE} 100
 ```
 
 - Run Queries (scale 100, partition 100, 10 runs, Q1-Q22):
 ```bash
 export QUERY_DIR=./resources/tpc-h/queries
-export OUTPUT_DIR=./outputs/postgres/scale=100/
-export POSTGRES_DIR=./tmp/postgres/scale=100/partition=100
-./baselines/postgres/experiment-time.sh $QUERY_DIR $OUTPUT_DIR $POSTGRES_DIR 100 100 10 1 1 22
-python3 baselines/postgres/extract-time.py $OUTPUT_DIR 100 100 10 1 1 22 > $OUTPUT_DIR/results.csv
+export OUTPUT_DIR=./results/postgres/scale=${SCALE}/
+export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=100
+./baselines/postgres/experiment-time.sh $QUERY_DIR $OUTPUT_DIR $POSTGRES_DIR ${SCALE} 100 10 1 1 22
+python3 baselines/postgres/extract-time.py $OUTPUT_DIR ${SCALE} 100 10 1 1 22 > $OUTPUT_DIR/results.csv
 ```
 
 ### Polars (scale 100, partition 100, 10 runs, Q1-Q22):
