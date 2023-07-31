@@ -87,7 +87,7 @@ Experiment results for each method will be saved under `results/<method>`.
 ```bash
 export QUERY_DIR=./resources/tpc-h/queries
 export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=${PARTITION}
-./baselines/postgres/experiment-setup.sh ${DATA_DIR} ${QUERY_DIR} ${POSTGRES_DIR} ${SCALE} 100
+./baselines/postgres/experiment-setup.sh ${DATA_DIR} ${QUERY_DIR} ${POSTGRES_DIR} ${SCALE} ${PARTITION}
 ```
 
 - Run Queries (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
@@ -95,8 +95,8 @@ export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=${PARTITION}
 export QUERY_DIR=./resources/tpc-h/queries
 export OUTPUT_DIR=./results/postgres/scale=${SCALE}/
 export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=${PARTITION}
-./baselines/postgres/experiment-time.sh $QUERY_DIR $OUTPUT_DIR $POSTGRES_DIR ${SCALE} ${PARTITION} ${NUM_RUNS} 1 1 22
-python3 baselines/postgres/extract-time.py $OUTPUT_DIR ${SCALE} ${PARTITION} ${NUM_RUNS} 1 1 22 > $OUTPUT_DIR/timings.csv
+./baselines/postgres/experiment-time.sh ${QUERY_DIR} ${OUTPUT_DIR} ${POSTGRES_DIR} ${SCALE} ${PARTITION} ${NUM_RUNS} 1 1 22
+python3 baselines/postgres/extract-time.py ${OUTPUT_DIR} ${SCALE} ${PARTITION} ${NUM_RUNS} 1 1 22 > ${OUTPUT_DIR}/timings.csv
 ```
 
 ### Polars (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
