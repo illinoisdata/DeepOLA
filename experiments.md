@@ -148,7 +148,7 @@ docker run --rm \
     bash scripts/experiment_wake_tpch.sh /dataset ${SCALE} ${PARTITION} ${NUM_RUNS} 0 23 27
 ```
 
-Wanderjoin (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q25)
+Wanderjoin (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q25):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/wanderjoin/tpch:rw \
@@ -161,6 +161,7 @@ Then visualize the experiment results using the following command.
 ```bash
 docker run --rm \
     -v `pwd`/results/wake:/results/wake:rw \
+    -v `pwd`/results/wanderjoin:/results/wanderjoin:rw \
     -v `pwd`/results/viz:/results/viz:rw \
     --name viz deepola-viz:sigmod2023 \
     python3 scripts/plot_tpch_ola.py ${SCALE} ${PARTITION} ${NUM_RUNS}

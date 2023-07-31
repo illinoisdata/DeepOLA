@@ -29,8 +29,11 @@ def polars_read_time(scale, partition, qdx):
     result_file = f"/results/polars/scale={scale}/partition={partition}/timings.csv"
     result_df = pd.read_csv(result_file)
     result_df = result_df[result_df["query"] == qdx]
-    agg_result = result_df.groupby("query").agg({ "time": ["mean", "std"] })
-    return agg_result.values
+    if len(result_df) > 0:
+        agg_result = result_df.groupby("query").agg({ "time": ["mean", "std"] })
+        return agg_result.values
+    else:
+        return [[0.0, 0.0]]
 
 if __name__ == '__main__':
     import argparse

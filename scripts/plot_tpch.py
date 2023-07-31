@@ -13,14 +13,28 @@ def polars_dir(scale, partition, run, qdx):
 def postgres_read_time(scale):
     result_file = f"/results/postgres/scale={scale}/timings.csv"
     result_df = pd.read_csv(result_file)
-    agg_result = result_df.groupby("query").agg({ "time": ["mean", "std"] })
-    return agg_result.values
+    result = []
+    for qdx in range(1, 22 + 1):
+        filtered_df = result_df[result_df["query"] == qdx]
+        if filtered_df.len > 0:
+            agg_result = filtered_df.groupby("query").agg({ "time": ["mean", "std"] })
+            result.append([agg_result.iloc[0][0], agg_result.iloc[0][1]])
+        else:
+            result.append([0.0, 0.0])
+    return np.array(result)
 
 def polars_read_time(scale, partition):
     result_file = f"/results/polars/scale={scale}/partition={partition}/timings.csv"
     result_df = pd.read_csv(result_file)
-    agg_result = result_df.groupby("query").agg({ "time": ["mean", "std"] })
-    return agg_result.values
+    result = []
+    for qdx in range(1, 22 + 1):
+        filtered_df = result_df[result_df["query"] == qdx]
+        if filtered_df.len > 0:
+            agg_result = filtered_df.groupby("query").agg({ "time": ["mean", "std"] })
+            result.append([agg_result.iloc[0][0], agg_result.iloc[0][1]])
+        else:
+            result.append([0.0, 0.0])
+    return np.array(result)
 
 def wake_read_time(scale, partition, num_runs, pdx):
     avg_stddevs = []

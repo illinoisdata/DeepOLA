@@ -27,9 +27,9 @@ DB="wander_${scale}_${partition}"
 ## The experiment loop
 for ((qdx = ${start_qdx}; qdx <= ${end_qdx}; qdx++)); do
     for ((j = ${start_run}; j <= ${num_runs}; j++)); do
-        run_output_dir=$output_dir/run=${j}
-        mkdir -p $run_output_dir
         echo ">>> ${qdx}, run= ${j}"
+        run_output_dir=$output_dir/scale=${scale}/partition=${partition}/run=${j}
+        mkdir -p $run_output_dir
         echo "Evicting Cache"
 		psql -d ${DB} -c "DISCARD ALL;"
         psql -d ${DB} -f /wanderjoin/queries/${qdx}.sql -o ${run_output_dir}/${qdx}.csv -F ',' -A
