@@ -8,6 +8,10 @@ def wake_dir(scale, partition, run, qdx):
     return f"/results/wake/scale={scale}/partition={partition}/parquet/run={run}/q{qdx}"
 
 
+def wanderjoin_dir(scale, partition, run, qdx):
+    return f"/results/wanderjoin/scale={scale}/partition={partition}/run={run}/q{qdx}"
+
+
 def wake_read_error(scale, partition, num_runs, qdx):
     all_time_ns = []
     for run in range(1, num_runs + 1):
