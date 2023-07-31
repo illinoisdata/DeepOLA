@@ -16,7 +16,7 @@ def wake_read_error(scale, partition, num_runs, qdx):
             all_time_ns.append(result["time_measures_ns"])
     all_time_s = np.array(all_time_ns) / 1e9
     all_time_s = all_time_s.mean(axis=0)
-    with open(os.path.join(wake_dir(scale, partition, 0, qdx), "results.json")) as f:
+    with open(os.path.join(wake_dir(scale, partition, 1, qdx), "results.json")) as f:
         result = json.load(f)
         mape_p = result["mape_p"]
         recall_p = result["recall_p"]

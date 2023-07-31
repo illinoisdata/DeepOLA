@@ -115,7 +115,7 @@ def read_meta(q_idx, dirpath):
     with open(f"{read_dir(q_idx, dirpath=dirpath)}/meta.json", "r") as f:
         return json.loads(f.readline())
 
-def read_result(q_idx, t, dirpath, skip_max_rows=10000):
+def read_result(q_idx, t, dirpath, skip_max_rows=100000):
     assert isinstance(t, int)
     df = pd.read_csv(f"{read_dir(q_idx, dirpath=dirpath)}/{t}.csv")
     if df.shape[0] > skip_max_rows:
@@ -141,7 +141,7 @@ def write_result(q_idx, dirpath, results, ts):
         print(f"Written {txt_path}")
 
 
-def read_all_results(q_idx, dirpath, nt=None, skip_max_rows=10000):
+def read_all_results(q_idx, dirpath, nt=None, skip_max_rows=100000):
     if nt is None:
         # Read all CSVs
         csvs = map(
@@ -243,7 +243,7 @@ if __name__ == "__main__":
                         help='query number to extract (1, 2, ..., 22)')
     parser.add_argument('--answer', type=str, default=None,
                         help='path to asnwer csv')
-    parser.add_argument('--skip_max_rows', type=int, default=10000,
+    parser.add_argument('--skip_max_rows', type=int, default=100000,
                         help='skip accuracy if result has more than this many rows')
     args = parser.parse_args()
     print(f"Args: {args}")
