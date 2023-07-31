@@ -162,6 +162,7 @@ Then visualize the experiment results using the following command.
 docker run --rm \
     -v `pwd`/results/wake:/results/wake:rw \
     -v `pwd`/results/wanderjoin:/results/wanderjoin:rw \
+    -v `pwd`/results/polars:/results/polars:rw \
     -v `pwd`/results/viz:/results/viz:rw \
     --name viz deepola-viz:sigmod2023 \
     python3 scripts/plot_tpch_ola.py ${SCALE} ${PARTITION} ${NUM_RUNS}
