@@ -16,7 +16,7 @@ def postgres_read_time(scale):
     result = []
     for qdx in range(1, 22 + 1):
         filtered_df = result_df[result_df["query"] == qdx]
-        if filtered_df.len > 0:
+        if len(filtered_df) > 0:
             agg_result = filtered_df.groupby("query").agg({ "time": ["mean", "std"] })
             result.append([agg_result.iloc[0][0], agg_result.iloc[0][1]])
         else:
@@ -29,7 +29,7 @@ def polars_read_time(scale, partition):
     result = []
     for qdx in range(1, 22 + 1):
         filtered_df = result_df[result_df["query"] == qdx]
-        if filtered_df.len > 0:
+        if len(filtered_df) > 0:
             agg_result = filtered_df.groupby("query").agg({ "time": ["mean", "std"] })
             result.append([agg_result.iloc[0][0], agg_result.iloc[0][1]])
         else:
