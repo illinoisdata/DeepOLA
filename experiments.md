@@ -21,23 +21,50 @@ docker image tag supawit2/deepola-wake:sigmod2023 deepola-wake:sigmod2023
 docker image tag supawit2/deepola-viz:sigmod2023 deepola-viz:sigmod2023
 ```
 
-Optionally, they can be built locally by following the optional instruction under "Build Docker Images Locally (Optional)" below.
+Optionally, they can be built locally by following the instruction below.
 
-### Parameter Setting
+### Build Docker Images Locally (Optional)
 
+```bash
+docker build -t deepola-data:sigmod2023 -f dockerfiles/data.Dockerfile .
+docker build -t deepola-polars:sigmod2023 -f dockerfiles/polars.Dockerfile .
+docker build -t deepola-wanderjoin:sigmod2023 -f dockerfiles/wanderjoin.Dockerfile .
+docker build -t deepola-wake:sigmod2023 -f dockerfiles/wake.Dockerfile .
+docker build -t deepola-viz:sigmod2023 -f dockerfiles/viz.Dockerfile .
+```
+
+### Experiment Parameters
+
+#### Setup Data Directory
 Set the directory where all datasets will be stored. The path must be an absolute path.
 ```bash
 export DATA_DIR=`pwd`/experiment/dataset
 mkdir -p ${DATA_DIR}
 ```
 
-Select the dataset scale. This is roughly the storage size in GB.
+#### Setup Experiment Parameters. Scale represents roughly the storage size in GB.
+- For full-scale experiments presented in the paper.
 ```bash
-# For full-scale experiments presented in the paper.
 export SCALE=100
 export PARTITION=100
 export NUM_RUNS=10
 ```
+
+- Since the end-to-end experiments might take significant time and require large memory (for some baselines), you can run a smaller scale factor with a smaller number of partitions.
+```bash
+export SCALE=10
+export PARTITION=10
+export NUM_RUNS=10
+```
+
+### Overall Experiment
+The following script generates the dataset, runs the various baselines and Wake and generates the figures in the `$(pwd)/results/viz` directory with the individual baseline results stored in `$(pwd)/results/<method>`.
+```bash
+./master_script.sh ${DATA_DIR} ${SCALE} ${PARTITION} ${NUM_RUNS}
+```
+
+## Details of the Individual Steps in the master script
+In case a certain step fails, you can run each command separately from the description below. Ensure that the parameters described above have been correctly set.
 
 ### TPC-H Data Generation
 
@@ -54,7 +81,7 @@ docker run --rm \
     python3 convert-to-parquet.py /dataset/tpch/scale=${SCALE}/partition=${PARTITION}/tbl
 ```
 
-#### Generate Dataset for ProgressiveDB
+### ProgressiveDB Dataset Generation
 - Note: Ensure that the data has been generated already. This script only converts `lineitem` table to `cleaned-tbl` format.
 - For TPC-H (Scale `SCALE`, Partition `PARTITION`)
 ```bash
@@ -68,7 +95,7 @@ docker run --rm \
     python3 convert-to-parquet.py /dataset/tpch/scale=${SCALE}/partition=${PARTITION}/cleaned-tbl
 ```
 
-### Generate Dataset for Depth Experiment (Figure 11)
+### Depth Experiment Dataset Generation (Figure 11)
 
 ```bash
 docker run --rm \
@@ -82,16 +109,16 @@ docker run --rm \
 
 Experiment results for each method will be saved under `results/<method>`.
 
-### Postgres
+### Postgres (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
 
-- Setup Postgres (scale `SCALE`, partition `PARTITION`):
+- Setup Postgres:
 ```bash
 export QUERY_DIR=./resources/tpc-h/queries
 export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=${PARTITION}
 ./baselines/postgres/experiment-setup.sh ${DATA_DIR} ${QUERY_DIR} ${POSTGRES_DIR} ${SCALE} ${PARTITION}
 ```
 
-- Run Queries (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
+- Run Queries:
 ```bash
 export QUERY_DIR=./resources/tpc-h/queries
 export OUTPUT_DIR=./results/postgres/scale=${SCALE}/
@@ -140,7 +167,7 @@ Figures will appear at `./results/viz/fig7_tpch.png` and `./results/viz/fig8_tpc
 
 ## Comparison with OLA Systems (Figure 9)
 
-Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q27):
+### Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q27):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
@@ -149,7 +176,7 @@ docker run --rm \
     bash scripts/experiment_wake_tpch.sh /dataset ${SCALE} ${PARTITION} ${NUM_RUNS} 0 23 27
 ```
 
-Wanderjoin (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q25):
+### Wanderjoin (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q25):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/wanderjoin/tpch:rw \
@@ -214,17 +241,3 @@ docker run --rm \
 ```
 
 Figure will appear at `./results/viz/fig11_depth.png`.
-
-## Impact of Partition Size (Figure 12)
-
-TODO:
-
-## Build Docker Images Locally (Optional)
-
-```bash
-docker build -t deepola-data:sigmod2023 -f dockerfiles/data.Dockerfile .
-docker build -t deepola-polars:sigmod2023 -f dockerfiles/polars.Dockerfile .
-docker build -t deepola-wanderjoin:sigmod2023 -f dockerfiles/wanderjoin.Dockerfile .
-docker build -t deepola-wake:sigmod2023 -f dockerfiles/wake.Dockerfile .
-docker build -t deepola-viz:sigmod2023 -f dockerfiles/viz.Dockerfile .
-```
