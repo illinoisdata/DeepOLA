@@ -21,6 +21,18 @@ NUM_RUNS=$4
 
 set -x
 
+echo "[*] Pulling Docker images"
+docker pull supawit2/deepola-data:sigmod2023
+docker pull supawit2/deepola-polars:sigmod2023
+docker pull supawit2/deepola-wanderjoin:sigmod2023
+docker pull supawit2/deepola-wake:sigmod2023
+docker pull supawit2/deepola-viz:sigmod2023
+docker image tag supawit2/deepola-data:sigmod2023 deepola-data:sigmod2023
+docker image tag supawit2/deepola-polars:sigmod2023 deepola-polars:sigmod2023
+docker image tag supawit2/deepola-wanderjoin:sigmod2023 deepola-wanderjoin:sigmod2023
+docker image tag supawit2/deepola-wake:sigmod2023 deepola-wake:sigmod2023
+docker image tag supawit2/deepola-viz:sigmod2023 deepola-viz:sigmod2023
+
 echo "[*] Generating Dataset"
 # Generate TPC-H Dataset
 docker run --rm \
