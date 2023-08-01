@@ -33,7 +33,8 @@ mkdir -p ${DATA_DIR}
 
 Select the dataset scale. This is roughly the storage size in GB.
 ```bash
-export SCALE=100  # For full-scale experiments presented in the paper.
+# For full-scale experiments presented in the paper.
+export SCALE=100
 export PARTITION=100
 export NUM_RUNS=10
 ```

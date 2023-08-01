@@ -6,7 +6,10 @@ import pandas as pd
 
 
 def wake_dir(scale, partition, run, qdx):
-    return f"/results/wake/scale={scale}/partition={partition}/parquet/run={run}/q{qdx}"
+    if qdx == 26 or qdx == 27:
+        return f"/results/wake/scale={scale}/partition={partition}/cleaned-parquet/run={run}/q{qdx}"
+    else:
+        return f"/results/wake/scale={scale}/partition={partition}/parquet/run={run}/q{qdx}"
 
 
 def wanderjoin_file(scale, partition, run, qdx):
@@ -51,6 +54,11 @@ def polars_read_time(scale, partition, qdx):
     else:
         return [[0.0, 0.0]]
 
+
+def progressive_read_error(scale, partition, num_runs, qdx):
+    return [0.0], [0.0]
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -60,40 +68,40 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     polars_results = [
-        # polars_read_time(args.scale, args.partition, 26),
-        # polars_read_time(args.scale, args.partition, 27),
+        polars_read_time(args.scale, args.partition, 26),
+        polars_read_time(args.scale, args.partition, 27),
         polars_read_time(args.scale, args.partition, 23),
         polars_read_time(args.scale, args.partition, 24),
         polars_read_time(args.scale, args.partition, 25),
     ]
 
     wake_results = [
-        # wake_read_error(args.scale, args.partition, args.num_runs, 26),
-        # wake_read_error(args.scale, args.partition, args.num_runs, 27),
+        wake_read_error(args.scale, args.partition, args.num_runs, 26),
+        wake_read_error(args.scale, args.partition, args.num_runs, 27),
         wake_read_error(args.scale, args.partition, args.num_runs, 23),
         wake_read_error(args.scale, args.partition, args.num_runs, 24),
         wake_read_error(args.scale, args.partition, args.num_runs, 25),
     ]
 
     ola_results = [
-        # wake_read_error(args.scale, args.partition, args.num_runs, 26),
-        # wake_read_error(args.scale, args.partition, args.num_runs, 27),
+        progressive_read_error(args.scale, args.partition, args.num_runs, 26),
+        progressive_read_error(args.scale, args.partition, args.num_runs, 27),
         wanderjoin_read_error(args.scale, args.partition, args.num_runs, 23),
         wanderjoin_read_error(args.scale, args.partition, args.num_runs, 24),
         wanderjoin_read_error(args.scale, args.partition, args.num_runs, 25),
     ]
 
     titles = [
-        # "Modified Q1",
-        # "Modified Q6",
+        "Modified Q1",
+        "Modified Q6",
         "Modified Q3",
         "Modified Q7",
         "Modified Q10",
     ]
 
     ola_labels = [
-        # "ProgressiveDB",
-        # "ProgressiveDB",
+        "ProgressiveDB",
+        "ProgressiveDB",
         "Wanderjoin",
         "Wanderjoin",
         "Wanderjoin",
