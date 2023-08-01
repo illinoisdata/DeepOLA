@@ -3,7 +3,30 @@
 ## Setup
 
 Prequisite:
+- Bash
 - [Docker](https://docs.docker.com/get-docker/)
+
+Clone the repository:
+```
+git clone https://github.com/illinoisdata/DeepOLA.git
+cd DeepOLA
+```
+
+## Run All
+
+The following script generates the dataset in the `$(pwd)/datasets`, runs the various baselines and Wake (our work), and generates the figures in the `$(pwd)/results/viz` directory with the individual baseline results stored in `$(pwd)/results/<method>`. This should take 2-3 hours to complete.
+```bash
+bash master_script.sh $(pwd)/datasets 10 10 10
+```
+
+To run full-scale experiments shown in the paper, run on scale 100 with 100 partitions.
+```bash
+bash master_script.sh $(pwd)/datasets 100 100 10
+``` 
+
+## Run in Detail
+
+Alternatively, you can run each command separately from the description below. Ensure that the experiment parameters have been set consistently.
 
 ### Download Docker Images
 
@@ -23,7 +46,7 @@ docker image tag supawit2/deepola-viz:sigmod2023 deepola-viz:sigmod2023
 
 Optionally, they can be built locally by following the instruction below.
 
-### Build Docker Images Locally (Optional)
+#### Build Docker Images Locally (Optional)
 
 ```bash
 docker build -t deepola-data:sigmod2023 -f dockerfiles/data.Dockerfile .
@@ -33,9 +56,10 @@ docker build -t deepola-wake:sigmod2023 -f dockerfiles/wake.Dockerfile .
 docker build -t deepola-viz:sigmod2023 -f dockerfiles/viz.Dockerfile .
 ```
 
-### Experiment Parameters
+### Set Experiment Parameters
 
 #### Setup Data Directory
+
 Set the directory where all datasets will be stored. The path must be an absolute path.
 ```bash
 export DATA_DIR=`pwd`/experiment/dataset
@@ -43,12 +67,6 @@ mkdir -p ${DATA_DIR}
 ```
 
 #### Setup Experiment Parameters. Scale represents roughly the storage size in GB.
-- For full-scale experiments presented in the paper.
-```bash
-export SCALE=100
-export PARTITION=100
-export NUM_RUNS=10
-```
 
 - Since the end-to-end experiments might take significant time and require large memory (for some baselines), you can run a smaller scale factor with a smaller number of partitions.
 ```bash
@@ -57,14 +75,12 @@ export PARTITION=10
 export NUM_RUNS=10
 ```
 
-### Overall Experiment
-The following script generates the dataset, runs the various baselines and Wake and generates the figures in the `$(pwd)/results/viz` directory with the individual baseline results stored in `$(pwd)/results/<method>`.
+- For full-scale experiments presented in the paper.
 ```bash
-./master_script.sh ${DATA_DIR} ${SCALE} ${PARTITION} ${NUM_RUNS}
+export SCALE=100
+export PARTITION=100
+export NUM_RUNS=10
 ```
-
-## Details of the Individual Steps in the master script
-In case a certain step fails, you can run each command separately from the description below. Ensure that the parameters described above have been correctly set.
 
 ### TPC-H Data Generation
 
@@ -105,11 +121,11 @@ docker run --rm \
     python scripts/deep_data_gen.py 10 1000000 100 4 /dataset/g10_p1m_n100_c4
 ```
 
-## TPC-H Benchmark (Figures 7 and 8)
+### TPC-H Benchmark (Figures 7 and 8)
 
 Experiment results for each method will be saved under `results/<method>`.
 
-### Postgres (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
+#### Postgres (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
 
 - Setup Postgres:
 ```bash
@@ -127,7 +143,7 @@ export POSTGRES_DIR=./tmp/postgres/scale=${SCALE}/partition=${PARTITION}
 python3 baselines/postgres/extract-time.py ${OUTPUT_DIR} ${SCALE} ${PARTITION} ${NUM_RUNS} 1 1 22 > ${OUTPUT_DIR}/timings.csv
 ```
 
-### Polars (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
+#### Polars (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset/tpch:rw \
@@ -136,7 +152,7 @@ docker run --rm \
     bash experiment.sh /dataset/tpch /results/polars ${SCALE} ${PARTITION} ${NUM_RUNS} 1 1 22
 ```
 
-### Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
+#### Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q1-Q22):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
@@ -165,9 +181,9 @@ docker run --rm \
 Figures will appear at `./results/viz/fig7_tpch.png` and `./results/viz/fig8_tpch_error.png`.
 
 
-## Comparison with OLA Systems (Figure 9)
+### Comparison with OLA Systems (Figure 9)
 
-### Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q27):
+#### Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q27):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
@@ -176,7 +192,7 @@ docker run --rm \
     bash scripts/experiment_wake_tpch.sh /dataset ${SCALE} ${PARTITION} ${NUM_RUNS} 0 23 27
 ```
 
-### Wanderjoin (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q25):
+#### Wanderjoin (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q23-Q25):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/wanderjoin/tpch:rw \
@@ -198,7 +214,7 @@ docker run --rm \
 
 Figure will appear at `./results/viz/fig9_tpch_ola.png`.
 
-## Confidence Interval (Figure 10)
+### Confidence Interval (Figure 10)
 
 Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q14):
 ```bash
@@ -220,7 +236,7 @@ docker run --rm \
 
 Figure will appear at `./results/viz/fig10_tpch_ola.png`.
 
-## Impact of Query Depth (Figure 11)
+### Impact of Query Depth (Figure 11)
 
 After generating dataset using `scripts/deep_data_gen.py` earlier, the following commands tests Wake on depth 0-10.
 ```bash
