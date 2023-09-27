@@ -21,7 +21,7 @@ fn main() {
     // 0: Whether to run query or test. Required. query/test.
     // 1: Query Number. Required.
     // 2: Scale of the TPC-H Dataset. Optional. Default: 1.
-    // 3: Directory containing the dataset. Optional. Default: resources/tpc-h/data/scale=1/partition=1/
+    // 3: Directory containing the dataset. Optional. Default: resources/tpc-h/data/scale=1/partition=10/
 
     env_logger::Builder::from_default_env()
         .format_timestamp_micros()
@@ -50,7 +50,7 @@ fn run_query(args: Vec<String>) {
         *(&args[1].parse::<usize>().unwrap())
     };
     let data_directory = if args.len() <= 2 {
-        "resources/tpc-h/data/scale=1/partition=1"
+        "resources/tpc-h/data/scale=1/partition=10"
     } else {
         args[2].as_str()
     };
