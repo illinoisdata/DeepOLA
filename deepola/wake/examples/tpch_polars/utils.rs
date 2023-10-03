@@ -75,6 +75,7 @@ pub fn run_query(
         }
         let data = message.datablock().data();
         query_result.push(data.clone());
+        log::info!("{:?}", data);
     }
     query_service.join();
     let end_time = Instant::now();
