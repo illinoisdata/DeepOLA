@@ -43,7 +43,7 @@ def wake_read_time(scale, partition, num_runs, pdx):
         for run in range(1, num_runs + 1):
             with open(os.path.join(wake_dir(scale, partition, run, qdx), "meta.json")) as f:
                 result = json.load(f)
-                if pdx >= 1 and pdx >= len(result["time_measures_ns"]):
+                if pdx >= len(result["time_measures_ns"]):
                     pdx = -1
                 all_time.append(result["time_measures_ns"][pdx] / 1e9)
         avg_stddevs.append((np.mean(all_time), np.std(all_time)))
