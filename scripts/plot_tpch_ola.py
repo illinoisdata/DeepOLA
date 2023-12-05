@@ -36,7 +36,7 @@ def wanderjoin_read_error(scale, partition, num_runs, qdx):
     for run in range(1, num_runs + 1):
         result_df = pd.read_csv(wanderjoin_file(scale, partition, run, qdx), skipfooter=1)
         for i, row in result_df.iterrows():
-            readings.append(((float(row["time (ms)"])/1000.0), float(row["rel. CI"])))
+            readings.append(((float(row["time (ms)"])/1000.0), 100.0 * float(row["rel. CI"])))
     combined_df = pd.DataFrame(readings, columns = ["time", "error"])
     result_df = combined_df.groupby("time").agg({ "error": ["mean"] }).sort_values("time", ascending=True).reset_index()
     time = result_df.values[:,0]
