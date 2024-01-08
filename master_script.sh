@@ -129,14 +129,14 @@ docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
     -v `pwd`/results/wake:/saved-outputs:rw \
     --name wake deepola-wake:sigmod2023 \
-    bash scripts/experiment_wake_ci.sh /dataset ${SCALE} ${PARTITION} ${NUM_RUNS} 0
+    bash scripts/experiment_wake_ci.sh /dataset ${SCALE} ${PARTITION} 100 0
 
 # Visualizing Results
 docker run --rm \
     -v `pwd`/results/wake:/results/wake:rw \
     -v `pwd`/results/viz:/results/viz:rw \
     --name viz deepola-viz:sigmod2023 \
-    python3 scripts/plot_ci.py ${SCALE} ${PARTITION} ${NUM_RUNS}
+    python3 scripts/plot_ci.py ${SCALE} ${PARTITION} 100
 
 
 echo "[*] Figure 11: Query Depth Experiment"
