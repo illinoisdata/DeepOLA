@@ -28,7 +28,7 @@ def wake_read_error(scale, partition, num_runs, qdx):
         result = json.load(f)
         mape_p = result["mape_p"]
     assert len(all_time_s) == len(mape_p)
-    return all_time_s[1:], mape_p[1:]
+    return all_time_s[2:], mape_p[2:]
 
 
 def wanderjoin_read_error(scale, partition, num_runs, qdx):

@@ -22,7 +22,7 @@ def wake_read_error(scale, partition, num_runs, qdx):
         recall_p = result["recall_p"]
     assert len(all_time_s) == len(mape_p)
     assert len(all_time_s) == len(recall_p)
-    return all_time_s[1:], mape_p[1:], recall_p[1:]
+    return all_time_s[2:], np.array(mape_p)[2:], np.array(recall_p)[2:]
 
 
 def polars_read_time(scale, partition, qdx):
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         wake_time, wake_mape_p, wake_recall_p = wake_results[idx]
         lns1 = ax.plot(wake_time, wake_mape_p, 'b-', label="MAPE")
         ax.set_ylabel("MAPE (%)")
-        if all(wake_time > 0):
+        if all(wake_mape_p[:-1] > 0):
             ax.set_yscale("log")
         else:
             ax.set_ylim((-5, 105))

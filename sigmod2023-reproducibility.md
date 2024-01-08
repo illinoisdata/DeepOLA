@@ -62,7 +62,7 @@ docker build -t deepola-viz:sigmod2023 -f dockerfiles/viz.Dockerfile .
 
 Set the directory where all datasets will be stored. The path must be an absolute path.
 ```bash
-export DATA_DIR=`pwd`/experiment/dataset
+export DATA_DIR=`pwd`/datasets
 mkdir -p ${DATA_DIR}
 ```
 
@@ -216,13 +216,13 @@ Figure will appear at `./results/viz/fig9_tpch_ola.png`.
 
 ### Confidence Interval (Figure 10)
 
-Wake (scale `SCALE`, partition `PARTITION`, runs `NUM_RUNS`, Q14):
+Wake (scale `SCALE`, partition `PARTITION`, runs 100, Q14):
 ```bash
 docker run --rm \
     -v ${DATA_DIR}:/dataset:rw \
     -v `pwd`/results/wake:/saved-outputs:rw \
     --name wake deepola-wake:sigmod2023 \
-    bash scripts/experiment_wake_ci.sh /dataset ${SCALE} ${PARTITION} ${NUM_RUNS} 0
+    bash scripts/experiment_wake_ci.sh /dataset ${SCALE} ${PARTITION} 100 0
 ```
 
 Then visualize the experiment results using the following command.
@@ -231,7 +231,7 @@ docker run --rm \
     -v `pwd`/results/wake:/results/wake:rw \
     -v `pwd`/results/viz:/results/viz:rw \
     --name viz deepola-viz:sigmod2023 \
-    python3 scripts/plot_ci.py ${SCALE} ${PARTITION} ${NUM_RUNS}
+    python3 scripts/plot_ci.py ${SCALE} ${PARTITION} 100
 ```
 
 Figure will appear at `./results/viz/fig10_tpch_ola.png`.
